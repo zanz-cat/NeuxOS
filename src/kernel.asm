@@ -97,7 +97,7 @@ LABEL_BEGIN:
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
-	add eax, LABLE_STACK
+	add eax, LABEL_STACK
 	mov word [LABEL_DESC_STACK + 2], ax
 	shr eax, 16
 	mov byte [LABEL_DESC_STACK + 4], al
@@ -124,17 +124,168 @@ LABEL_BEGIN:
 
     jmp dword SelectorCode32:0
 
+
+LABEL_REAL_ENTRY:
+	mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov ss, ax
+
+	mov sp, [SPValueInRealMode]
+	in al, 92h
+	and al, 11111101b
+	out 92h, al
+
+	sti
+
+	mov ax, 4c00h
+	int 21h
+
+
 [SECTION .s32]
 [BITS 32]
 LABEL_SEG_CODE32:
+	mov ax, SelectorData
+	mov ds, ax
+	mov ax, SelectorTest
+	mov es, ax
     mov ax, SelectorVideo
     mov gs, ax
+	mov ax, SelectorStack
+	mov ss, ax
 
-    mov edi, (80 * 11 + 79) * 2
-    mov ah, 0ch
-    mov al, 'P'
-    mov [gs:edi], ax
+	mov esp, TopOfStack
 
-    jmp $
+	; display a string
+	mov ah, 0ch
+	xor esi, esi
+	xor edi, edi
+	mov esi, OffsetPMMessage
+	mov edi, (80 * 10 +0 ) * 2
+	cld
+.1:
+	lodsb
+	test al, al
+	jz	.2
+	mov [gs:edi], ax
+	add edi, 2
+	jmp .1
+.2:
+	
+	call DispReturn
+	call TestRead
+	call TestWrite
+	call TestRead
+
+	jmp SelectorCode16:0
+
+
+TestRead:
+	xor esi, esi
+	mov ecx, 8
+.loop:
+	mov al, [es:esi]
+	call DispAL
+	inc esi
+	loop .loop
+
+	call DispReturn
+	ret
+
+
+TestWrite:
+	push esi
+	push edi
+	xor esi, esi
+	xor edi, edi
+	mov esi, OffsetStrTest
+	cld
+.1:
+	lodsb
+	test al, al
+	jz .2
+	mov [es:edi], al
+	inc edi
+	jmp .1
+.2:
+
+	pop edi
+	pop esi
+
+	ret
+
+
+; Display digital in AL register
+; the modified registers: ax, edi
+DispAL:
+	push ecx
+	push edx
+	
+	mov ah, 0ch
+	mov dl, al
+	shr al, 4
+	mov ecx, 2
+.begin:
+	and al, 0fh
+	cmp al, 9
+	ja .1
+	add al, '0'
+	jmp .2
+.1:
+	sub al, 0ah
+	add al, 'A'
+.2:
+	
+	mov [gs:edi], ax
+	add edi, 2
+
+	mov al, dl
+	loop .begin
+
+	; edi always points to the next position
+	add edi, 2
+
+	pop edx
+	pop ecx
+
+	ret
+
+DispReturn:
+	push eax
+	push ebx
+	mov eax, edi
+	mov bl, 160
+	div bl
+	and eax, 0ffh
+	inc eax
+	mov bl, 160
+	mul bl
+	mov edi, eax
+	pop ebx
+	pop eax
+
+	ret
 
 SegCode32Len equ $ - LABEL_SEG_CODE32
+
+
+[SECTION .s16code]
+ALIGN 32
+[BITS 16]
+LABEL_SEG_CODE16:
+	; jump to real mode
+	mov ax, SelectorNormal
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+	mov eax, cr0
+	and dl, 11111110b
+	mov cr0, eax
+
+LABEL_GO_BACK_TO_REAL:
+	jmp 0:LABEL_REAL_ENTRY
+
+Code16Len	equ $ - LABEL_SEG_CODE16
