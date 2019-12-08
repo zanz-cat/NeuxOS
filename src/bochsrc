@@ -6,8 +6,8 @@
 megs: 32
 
 # filename of ROM images
-romimage: file=/Users/liwei/bochs-2.6.9/bios/BIOS-bochs-latest
-vgaromimage: file=/Users/liwei/bochs-2.6.9/bios/VGABIOS-elpin-2.40
+romimage: file=/usr/local/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/usr/local/share/bochs/VGABIOS-elpin-2.40
 
 # what disk images will be used
 floppya: 1_44=freedos.img, status=inserted
@@ -24,3 +24,5 @@ mouse: enabled=0
 
 # enable key mapping, using US layout as default.
 #keyboard: ~/bochs-2.6.9/gui/keymaps/x11-pc-us.map
+
+magic_break: enabled=1

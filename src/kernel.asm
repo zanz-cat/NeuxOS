@@ -1,13 +1,14 @@
-%include "boot.inc"
+%include "kernel.inc"
 
 org 0100h
+    xchg bx, bx
     jmp LABEL_BEGIN
 
 [SECTION .gdt]
 ;                     Base, Limit, Attributes                      
 LABEL_GDT: Descriptor 0,    0,     0
 LABEL_DESC_CODE32: Descriptor 0, SegCode32Len - 1, DA_C + DA_32
-LABEL_DESC_VIDEO: Descriptor 0b800h, 0ffffh,   DA_DRW
+LABEL_DESC_VIDEO: Descriptor 0b8000h, 0ffffh,   DA_DRW
 
 GDTLen equ $ - LABEL_GDT
 GDTPtr dw GDTLen - 1	;GDT Limit
