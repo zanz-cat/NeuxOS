@@ -1,7 +1,7 @@
 %include "kernel.inc"
 
 org 0100h
-    xchg bx, bx
+    ;xchg bx, bx
     jmp LABEL_BEGIN
 
 [SECTION .gdt]
@@ -11,7 +11,7 @@ LABEL_DESC_NORMAL:    Descriptor 0,            0ffffh,           DA_DRW
 LABEL_DESC_CODE32:    Descriptor 0,            SegCode32Len - 1, DA_C + DA_32
 LABEL_DESC_CODE16:    Descriptor 0,            0ffffh,           DA_C
 LABEL_DESC_DATA:      Descriptor 0,            DataLen - 1,      DA_DRW
-LABEL_DESC_STACK:     Descriptor 0,            TopOfStack,       DA_DRWA+DA_32
+LABEL_DESC_STACK:     Descriptor 0,            TopOfStack - 1,   DA_DRWA+DA_32
 LABEL_DESC_TEST:      Descriptor 0500000h,     0ffffh,           DA_DRW
 LABEL_DESC_VIDEO:     Descriptor 0b8000h,      0ffffh,           DA_DRW
 
@@ -48,7 +48,7 @@ DataLen		equ $ - LABEL_DATA
 ALIGN 32
 [BITS 32]
 LABEL_STACK: times 512 db 0
-TopOfStack equ $ - LABEL_STACK - 1
+TopOfStack equ $ - LABEL_STACK 
 
 
 [SECTION .s16]
@@ -56,8 +56,8 @@ TopOfStack equ $ - LABEL_STACK - 1
 LABEL_BEGIN:
     mov ax, cs
     mov ds, ax
-    mov ss, ax
     mov es, ax
+    mov ss, ax
     mov sp, 0100h
 
 	mov [LABEL_GO_BACK_TO_REAL + 3], ax
@@ -126,6 +126,7 @@ LABEL_BEGIN:
 
 
 LABEL_REAL_ENTRY:
+	xchg bx, bx
 	mov ax, cs
 	mov ds, ax
 	mov es, ax
@@ -273,6 +274,7 @@ SegCode32Len equ $ - LABEL_SEG_CODE32
 ALIGN 32
 [BITS 16]
 LABEL_SEG_CODE16:
+	xchg bx, bx
 	; jump to real mode
 	mov ax, SelectorNormal
 	mov ds, ax
@@ -282,7 +284,7 @@ LABEL_SEG_CODE16:
 	mov ss, ax
 
 	mov eax, cr0
-	and dl, 11111110b
+	and al, 11111110b
 	mov cr0, eax
 
 LABEL_GO_BACK_TO_REAL:
