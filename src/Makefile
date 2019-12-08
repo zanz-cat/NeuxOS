@@ -8,6 +8,7 @@ BIN:=$(subst .asm,.com,$(SRC))
 .PHONY : everything
 
 everything : $(BIN)
+	cp freedos.img.0 freedos.img
 	sudo mount -o loop freedos.img /mnt/floppy/
 	sudo mkdir -p /mnt/floppy/LeeOS
 	sudo cp $(BIN) /mnt/floppy/LeeOS -v
