@@ -14,6 +14,7 @@ LABEL_DESC_DATA:      Descriptor 0,            DataLen - 1,      DA_DRW
 LABEL_DESC_STACK:     Descriptor 0,            TopOfStack - 1,   DA_DRWA+DA_32
 LABEL_DESC_TEST:      Descriptor 0500000h,     0ffffh,           DA_DRW
 LABEL_DESC_VIDEO:     Descriptor 0b8000h,      0ffffh,           DA_DRW
+LABEL_DESC_LDT1:      Descriptor 0,            LDT1Len - 1,      DA_LDT
 
 GDTLen equ $ - LABEL_GDT
 GDTPtr dw GDTLen - 1	;GDT Limit
@@ -27,7 +28,16 @@ SelectorData          equ LABEL_DESC_DATA   - LABEL_GDT
 SelectorStack         equ LABEL_DESC_STACK  - LABEL_GDT
 SelectorTest          equ LABEL_DESC_TEST   - LABEL_GDT
 SelectorVideo         equ LABEL_DESC_VIDEO  - LABEL_GDT
+SelectorLDT1          equ LABEL_DESC_LDT1   - LABEL_GDT
 
+[SECTION .ldt1]
+ALIGN 32
+LABEL_LDT1:
+LABEL_DESC_TASK1:	Descriptor 	0,	SegCodeTask1Len - 1,	DA_C + DA_32
+
+LDT1Len	equ $ - LABEL_LDT1
+
+SelectorTask1	equ LABEL_DESC_TASK1 - LABEL_LDT1 + SA_TIL
 
 [SECTION .data1]
 ALIGN 32
@@ -102,6 +112,27 @@ LABEL_BEGIN:
 	shr eax, 16
 	mov byte [LABEL_DESC_STACK + 4], al
 	mov byte [LABEL_DESC_STACK + 7], ah
+
+	; initialize ldt1 segment descriptor
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABEL_LDT1
+	mov word [LABEL_DESC_LDT1 + 2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_LDT1 + 4], al
+	mov byte [LABEL_DESC_LDT1 + 7], ah
+
+
+	; initialize task1 segment descriptor
+	xor eax, eax
+	mov ax, cs
+	shl eax, 4
+	add eax, LABEL_SEG_TASK1
+	mov word [LABEL_DESC_TASK1 + 2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_TASK1 + 4], al
+	mov byte [LABEL_DESC_TASK1 + 7], ah
 
     ; initialize GDT Pointer
     xor eax, eax
@@ -178,8 +209,9 @@ LABEL_SEG_CODE32:
 	call TestWrite
 	call TestRead
 
-	jmp SelectorCode16:0
-
+	mov ax, SelectorLDT1
+	lldt ax
+	jmp SelectorTask1:0
 
 TestRead:
 	xor esi, esi
@@ -291,3 +323,12 @@ LABEL_GO_BACK_TO_REAL:
 	jmp 0:LABEL_REAL_ENTRY
 
 Code16Len	equ $ - LABEL_SEG_CODE16
+
+[SECTION .task1]
+ALIGN 32
+[BITS 32]
+LABEL_SEG_TASK1:
+	nop
+	jmp SelectorCode16:0
+
+SegCodeTask1Len	equ $ - LABEL_SEG_TASK1
