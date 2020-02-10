@@ -2,19 +2,23 @@
 # Makefile of pmtestx.asm (x=[1,2,3...])
 ##################################################
 
-SRC:=kernel.asm
-BIN:=$(subst .asm,.com,$(SRC))
+SRC:=boot.asm loader.asm
+BIN:=$(subst .asm,.bin,$(SRC))
 
 .PHONY : everything
 
-everything : $(BIN)
-	sudo mount -o loop freedos.img /mnt/floppy/
-	sudo mkdir -p /mnt/floppy/LeeOS
-	sudo cp $(BIN) /mnt/floppy/LeeOS -v
-	sudo umount /mnt/floppy/
+everything : $(BIN) 
+	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
+	#sudo mount -o loop a.img /mnt/floppy
+	#sudo cp loader.bin /mnt/floppy/LOADER.BIN
+	#sudo umount /mnt/floppy
 
 $(BIN) : $(SRC)
 	nasm $< -o $@
 
+img:
+	rm -f a.img
+	bximage -q -mode=create -fd=1.44M a.img
+
 clean:
-	rm -f *.com
+	rm -f *.bin a.img
