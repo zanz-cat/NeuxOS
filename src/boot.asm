@@ -37,14 +37,7 @@ LABEL_BEGIN:
     mov sp, TopOfStack
 
     ; clear screen
-    mov ah, 06h
-    mov al, 0h
-    mov bh, 07h
-    mov ch, 0
-    mov cl, 0
-    mov dh, 24
-    mov dl, 79
-    int 10h
+    call CleanScreen
 
     ; display boot message
     mov ax, BootMsg
@@ -101,6 +94,7 @@ LABEL_BEGIN:
     ; read loader
     call SearchAndReadLoader
 
+    call CleanScreen
     jmp BaseOfLoader:OffsetOfLoader
 
 
@@ -178,9 +172,12 @@ SearchAndReadLoader:
     sub sp, 2
     mov word [bp-2], 0
 
-    ; ax is logical sector number
 .readSector:
-    call GetABSSectorNum
+    ; ax is logical sector number
+    push ax
+    ; AbsCls = LogicCls - 2 + 19 + RootDirSectorNum
+    add ax, 17
+    add ax, [RootDirSectorNum]
     mov cl, 1
     mov bx, BaseOfLoader
     mov es, bx
@@ -189,7 +186,7 @@ SearchAndReadLoader:
 
     call ReadSector
 
-    call GetLogicSectorNum
+    pop ax
     call GetFATEntry
     cmp bx, 0xff7
     jz .a3
@@ -210,19 +207,6 @@ SearchAndReadLoader:
     pop bp
     ret
 
-; AbsCls = LogicCls - 2 + 19 + RootDirSectorNum
-; input: ax
-; return: ax
-GetABSSectorNum:
-    add ax, 17
-    add ax, [RootDirSectorNum]
-    ret
-
-GetLogicSectorNum:
-    sub ax, 17
-    sub ax, [RootDirSectorNum]
-    ret
-
 ; input: ax logical sector number
 ; return: bx FAT value, next logical sector number
 GetFATEntry:
@@ -235,15 +219,13 @@ GetFATEntry:
    mul bx
    mov bx, 8
    div bx
-   xor bx, bx
    mov si, ax
+   mov bx, [es:si]
    cmp dx, 0
    jz .a1
-   mov bx, [es:si]
    shr bx, 4
    jmp .a2
 .a1:
-   mov bx, [es:si]
    and bx, 0fffh
 
 .a2:
@@ -270,10 +252,22 @@ DispStr:
    pop bx
    ret
 
+CleanScreen:
+   mov ah, 06h
+   mov al, 0h
+   mov bh, 07h
+   mov ch, 0
+   mov cl, 0
+   mov dh, 24
+   mov dl, 79
+   int 10h
+   ret
+
+
 BootMsg               db    'BOOTING...'
 BootMsgLen            equ   $ - BootMsg
 
-LoaderNotFoundMsg     db    'LOADER NOT FOUND!'
+LoaderNotFoundMsg     db    'LOADER.BIN NOT FOUND!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 
 BadSectorMsg          db    'BAD SECTOR!'
