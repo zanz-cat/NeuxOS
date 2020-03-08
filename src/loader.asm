@@ -1,6 +1,4 @@
-org 0100h
-
-mov a, 0b800h
+mov ax, 0b800h
 mov gs, ax
 mov ah, 0fh
 mov al, 'L'

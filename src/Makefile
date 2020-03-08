@@ -7,14 +7,14 @@ BIN:=$(subst .asm,.bin,$(SRC))
 
 .PHONY : everything
 
-everything : $(BIN) 
+everything : img $(BIN) 
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
-	#sudo mount -o loop a.img /mnt/floppy
-	#sudo cp loader.bin /mnt/floppy/LOADER.BIN
-	#sudo umount /mnt/floppy
+	sudo mount -o loop a.img /mnt/floppy
+	sudo cp loader.bin /mnt/floppy/LOADER.BIN
+	sudo umount /mnt/floppy
 
 $(BIN) : $(SRC)
-	nasm $< -o $@
+	nasm $(subst .bin,.asm,$@) -o $@
 
 img:
 	rm -f a.img
@@ -22,3 +22,10 @@ img:
 
 clean:
 	rm -f *.bin a.img
+
+
+mount:
+	sudo mount -o loop a.img /mnt/floppy
+
+umount:
+	sudo umount /mnt/floppy
