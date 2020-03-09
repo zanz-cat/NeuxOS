@@ -94,7 +94,6 @@ LABEL_BEGIN:
     ; read loader
     call SearchAndReadLoader
 
-    call CleanScreen
     jmp BaseOfLoader:OffsetOfLoader
 
 
@@ -262,6 +261,12 @@ CleanScreen:
    mov dl, 79
    int 10h
    ret
+
+   ; hide cursor
+   ;mov ah, 01h
+   ;mov cx, 2607h ; https://blog.csdn.net/qq_40818798/article/details/83933827
+   ;int 10h
+   ;ret
 
 
 BootMsg               db    'BOOTING...'
