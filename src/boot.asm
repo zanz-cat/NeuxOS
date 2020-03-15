@@ -107,32 +107,33 @@ LABEL_BEGIN:
 ReadSector:
     push bp
     mov bp, sp
-    sub sp, 1
     push ax
+    sub sp, 3
 
     mov dl, 18
     div dl
     inc ah
-    push ax
+    mov [bp-3], ax
     and ax, 0ffh
     mov dl, 2
     div dl
 
+.GoOnReading:
     mov dl, 0
     mov ch, al
     mov dh, ah
-    pop ax
+    mov ax, [bp-3]
     shr ax, 8
     mov [bp-1], al
     mov al, cl
     mov cl, [bp-1]
     mov ah, 02h
-.GoOnReading:
     int 13h
     jc    .GoOnReading
 
+    add sp, 3
     pop ax
-    add sp, 1
+    mov sp, bp
     pop bp
     ret
 
@@ -168,7 +169,7 @@ SearchAndReadLoader:
 .a2:
     mov ax, [es:di+0x1a]
 
-    ; alloc local variable
+    ; alloc local variable for bytes already read
     push bp
     mov bp, sp
     sub sp, 2
@@ -185,14 +186,16 @@ SearchAndReadLoader:
     mov es, bx
     mov bx, OffsetOfLoader
     add bx, [bp-2]
-
     call ReadSector
+
     ; display dot
+    push bp
     mov ax, cs
     mov es, ax
     mov bp, DotStr
     mov cx, 1
     call DispStr
+    pop bp
 
     pop ax
     call GetFATEntry
@@ -204,7 +207,6 @@ SearchAndReadLoader:
     add word [bp-2], 512
     jmp .readSector
 .a3:
-    nop
     mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
@@ -268,13 +270,13 @@ DotStr                db    '.'
 LoaderNotFoundMsg     db    'LOADER.BIN NOT FOUND!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 
-BadSectorMsg          db    'BAD SECTOR!'
+BadSectorMsg          db    'BAD SECTOR'
 BadSectorMsgLen       equ   $ - BadSectorMsg
 
 LoaderName            db    'LOADER  BIN'
 LoaderNameLen         equ   $ - LoaderName
 
-OKMsg                 db    'OK'
+OKMsg                 db    'ok'
 OKMsgLen              equ   $ - OKMsg
 
 RootDirSectorNum      dw   0
