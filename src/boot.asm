@@ -29,18 +29,14 @@ TopOfStack            equ     0ffffh
 
 LABEL_BEGIN:    
     mov ax, cs
-    mov es, ax
     mov ds, ax
     mov ss, ax
 
     ; init stack
     mov sp, TopOfStack
 
-    ; clear screen
-    call CleanScreen
-
     ; display boot message
-    mov ax, BootMsg
+    mov bp, BootMsg
     mov cx, BootMsgLen
     call DispStr    
 
@@ -93,6 +89,13 @@ LABEL_BEGIN:
 
     ; read loader
     call SearchAndReadLoader
+
+    ; display OK
+    mov ax, cs
+    mov es, ax
+    mov bp, OKMsg
+    mov cx, OKMsgLen
+    call DispStr
 
     jmp BaseOfLoader:OffsetOfLoader
 
@@ -157,7 +160,7 @@ SearchAndReadLoader:
     loop .a1
 
     ; print "loader not found" message
-    mov ax, LoaderNotFoundMsg
+    mov bp, LoaderNotFoundMsg
     mov cx, LoaderNotFoundMsgLen
     call DispStr
     jmp $
@@ -184,6 +187,12 @@ SearchAndReadLoader:
     add bx, [bp-2]
 
     call ReadSector
+    ; display dot
+    mov ax, cs
+    mov es, ax
+    mov bp, DotStr
+    mov cx, 1
+    call DispStr
 
     pop ax
     call GetFATEntry
@@ -196,7 +205,7 @@ SearchAndReadLoader:
     jmp .readSector
 .a3:
     nop
-    mov ax, BadSectorMsg
+    mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
     jmp $
@@ -232,45 +241,29 @@ GetFATEntry:
    pop si
    ret
 
-; Display string at (0,0)
-; ax String address offset
+; Display string at cursor position
+; es:bp String address offset
 ; cx String length
 DispStr:
-   push bx
+   push cx
 
-   mov bx, cs
-   mov es, bx
-   mov bp, ax
+   mov ah, 03h
+   mov bh, 0
+   int 10h
+
    mov ah, 13h
    mov al, 01h
    mov bh, 0h
    mov bl, 07h
-   xor dx, dx
+   pop cx
    int 10h
 
-   pop bx
    ret
 
-CleanScreen:
-   mov ah, 06h
-   mov al, 0h
-   mov bh, 07h
-   mov ch, 0
-   mov cl, 0
-   mov dh, 24
-   mov dl, 79
-   int 10h
-   ret
-
-   ; hide cursor
-   ;mov ah, 01h
-   ;mov cx, 2607h ; https://blog.csdn.net/qq_40818798/article/details/83933827
-   ;int 10h
-   ;ret
-
-
-BootMsg               db    'BOOTING...'
+BootMsg               db    'BOOTING'
 BootMsgLen            equ   $ - BootMsg
+
+DotStr                db    '.'
 
 LoaderNotFoundMsg     db    'LOADER.BIN NOT FOUND!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
@@ -280,6 +273,9 @@ BadSectorMsgLen       equ   $ - BadSectorMsg
 
 LoaderName            db    'LOADER  BIN'
 LoaderNameLen         equ   $ - LoaderName
+
+OKMsg                 db    'OK'
+OKMsgLen              equ   $ - OKMsg
 
 RootDirSectorNum      dw   0
 BaseOfFATTable        dw   0
