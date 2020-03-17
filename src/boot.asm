@@ -91,8 +91,6 @@ LABEL_BEGIN:
     call SearchAndReadLoader
 
     ; display OK
-    mov ax, cs
-    mov es, ax
     mov bp, OKMsg
     mov cx, OKMsgLen
     call DispStr
@@ -190,8 +188,6 @@ SearchAndReadLoader:
 
     ; display dot
     push bp
-    mov ax, cs
-    mov es, ax
     mov bp, DotStr
     mov cx, 1
     call DispStr
@@ -248,6 +244,9 @@ GetFATEntry:
 ; cx String length
 DispStr:
    push cx
+   
+   mov ax, ds
+   mov es, ax
 
    mov ah, 03h
    mov bh, 0
@@ -262,7 +261,7 @@ DispStr:
 
    ret
 
-BootMsg               db    'BOOTING'
+BootMsg               db    'BOOTING...'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
