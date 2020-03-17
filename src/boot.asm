@@ -35,11 +35,6 @@ LABEL_BEGIN:
     ; init stack
     mov sp, TopOfStack
 
-    ; display boot message
-    mov bp, BootMsg
-    mov cx, BootMsgLen
-    call DispStr    
-
     ; compute root directory sector numbers
     mov al, [BPB_RootEntCnt]
     mov bl, 32
@@ -173,6 +168,15 @@ SearchAndReadLoader:
     sub sp, 2
     mov word [bp-2], 0
 
+    ; display boot message
+    push ax
+    push bp
+    mov bp, BootMsg
+    mov cx, BootMsgLen
+    call DispStr
+    pop bp
+    pop ax
+
 .readSector:
     ; ax is logical sector number
     push ax
@@ -261,12 +265,12 @@ DispStr:
 
    ret
 
-BootMsg               db    'BOOTING...'
+BootMsg               db    'BOOTING'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
 
-LoaderNotFoundMsg     db    'LOADER.BIN NOT FOUND!'
+LoaderNotFoundMsg     db    'LOADER NOT FOUND!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 
 BadSectorMsg          db    'BAD SECTOR'
