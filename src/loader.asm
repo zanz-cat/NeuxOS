@@ -1,11 +1,13 @@
 org 0x100
-xchg bx, bx
+; xchg bx, bx
 jmp LABEL_START
 
-LOADING_MESSAGE      db  'LOADING...'
+%include "common.inc"
+
+LOADING_MESSAGE      db  'Loading...'
 LOADING_MESSAGE_LEN  equ $ - LOADING_MESSAGE
 
-times 1024 db 0
+; times 1024 db 0
 
 LABEL_START:
     mov ax, cs
@@ -21,4 +23,3 @@ LABEL_START:
 
     jmp $
 
-%include "common.inc"

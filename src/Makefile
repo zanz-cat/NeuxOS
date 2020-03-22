@@ -10,7 +10,8 @@ BIN:=$(subst .asm,.bin,$(SRC))
 everything : img $(BIN) 
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
 	sudo mount -o loop a.img /mnt/floppy
-	sudo cp loader.bin /mnt/floppy/LOADER.BIN
+	sudo cp loader.bin /mnt/floppy/
+	#sudo cp loader.bin /mnt/floppy/LOADER.BIN
 	sudo umount /mnt/floppy
 
 $(BIN) : $(SRC)
