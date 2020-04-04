@@ -24,7 +24,7 @@ SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
 ;    to [BaseOfKernelFile:OffsetOfKernelFile], However the information will
-;    be overwrite by kernel file later.
+;    be overwrite by kernel file after used.
 ; 2. enter protect mode
 ; 3. setup paging and enable paging
 ; 4. relocate kernel
