@@ -1,32 +1,39 @@
 org 07c00h
 
+%include "fat12hdr.inc"
+%include "boot.inc"
+
 jmp short LABEL_BEGIN
 nop
 
 BS_OEMName            db      'Lee Link'
-BPB_BytesPerSec       dw      512
-BPB_SecPerClus        db      1
-BPB_RsvdSecCnt        dw      1
-BPB_NumFATs           db      2
-BPB_RootEntCnt        dw      224
-BPB_TotSec            dw      2880
-BPB_Media             db      0xf0
-BPB_FATSz16           dw      9
-BPB_SecPerTrk         dw      18
-BPB_NumHeads          dw      2
-BPB_HiddSec           dd      0
-BPB_TotSec32          dd      0
-BS_DrvNum             db      0
-BS_Reserved1          db      0
-BS_BootSig            db      29h
-BS_VolID              dd      0
+BPB_BytesPerSec       dw      CONST_BPB_BytesPerSec
+BPB_SecPerClus        db      CONST_BPB_SecPerClus
+BPB_RsvdSecCnt        dw      CONST_BPB_RsvdSecCnt
+BPB_NumFATs           db      CONST_BPB_NumFATs
+BPB_RootEntCnt        dw      CONST_BPB_RootEntCnt
+BPB_TotSec            dw      CONST_BPB_TotSec
+BPB_Media             db      CONST_BPB_Media
+BPB_FATSz16           dw      CONST_BPB_FATSz16
+BPB_SecPerTrk         dw      CONST_BPB_SecPerTrk
+BPB_NumHeads          dw      CONST_BPB_NumHeads
+BPB_HiddSec           dd      CONST_BPB_HiddSec
+BPB_TotSec32          dd      CONST_BPB_TotSec32
+BS_DrvNum             db      CONST_BS_DrvNum
+BS_Reserved1          db      CONST_BS_Reserved1
+BS_BootSig            db      CONST_BS_BootSig
+BS_VolID              dd      CONST_BS_VolID
 BS_VolLab             db      'LEELINKOS01'
 BS_FileSysType        db      'FAT12   '
 
-BaseOfLoader          equ     09000h
-OffsetOfLoader        equ     0100h
 TopOfStack            equ     0ffffh
 
+
+; 1. Read Root Directory information to 
+;    [BaseOfLoader:OffsetOfLoader] from floppy.
+; 2. Search and read LOADER.BIN to [BaseOfLoader:OffsetOfLoader] 
+;    from floppy, will overwrite the Root Directory information.
+; 3. Jump to the LOADER
 LABEL_BEGIN:    
     mov ax, cs
     mov ds, ax
@@ -70,7 +77,7 @@ LABEL_BEGIN:
     mov ax, BaseOfLoader
     mov es, ax
     mov bx, OffsetOfLoader
-    mov ax, 19
+    mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
     call ReadSector
 
@@ -265,7 +272,7 @@ DispStr:
 
    ret
 
-BootMsg               db    'Booting'
+BootMsg               db    'Booting...'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
