@@ -22,7 +22,7 @@ SelectorFlatRW       equ LABEL_DESC_FLAT_RW - LABEL_GDT
 SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
 ; Global veriables
-Buffer               times 20 db 0
+ARDSBuffer           times 20 db 0
 MemorySize           dd 0
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
@@ -41,7 +41,6 @@ LABEL_START:
     mov es, ax
 
     call DispEnter
-
     mov bp, LOADING_MESSAGE
     mov cx, LOADING_MESSAGE_LEN
     call DispStr
@@ -53,9 +52,7 @@ LABEL_START:
     mov bp, KernelMsg
     mov cx, KernelMsgLen
     call DispStr
-
     call ReadKernel
-
     mov ax, cs
     mov es, ax
     mov bp, LoadedMsg
@@ -64,6 +61,9 @@ LABEL_START:
 
     ; stop floppy motor
     call KillMotor
+
+    ; read memory info
+    call ReadMemInfo
 
     ; load GDT
     lgdt    [GdtPtr]
@@ -259,33 +259,54 @@ SearchAndReadKernel:
 ; input: ax logical sector number
 ; return: bx FAT value, next logical sector number
 GetFATEntry:
-   push si
-   push ax
-
-   mov bx, [BaseOfFATTable]
-   mov es, bx
-   mov bx, 12
-   mul bx
-   mov bx, 8
-   div bx
-   mov si, ax
-   mov bx, [es:si]
-   cmp dx, 0
-   jz .a1
-   shr bx, 4
-   jmp .a2
+    push si
+    push ax
+ 
+    mov bx, [BaseOfFATTable]
+    mov es, bx
+    mov bx, 12
+    mul bx
+    mov bx, 8
+    div bx
+    mov si, ax
+    mov bx, [es:si]
+    cmp dx, 0
+    jz .a1
+    shr bx, 4
+    jmp .a2
 .a1:
-   and bx, 0fffh
+    and bx, 0fffh
 
 .a2:
-   pop ax
-   pop si
-   ret
+    pop ax
+    pop si
+    ret
+
+ReadMemInfo:
+    mov ax, cs
+    mov es, ax
+    mov ax, 0e820h
+    mov di, ARDSBuffer
+    mov ecx, 20
+    mov edx, 0534d4150h
+    jb .getMemInfo    ; cf = 1, 出错重试
+    ; 打印内存信息
+
+    ret
 
 [SECTION .s32]
 ALIGN 32
 [BITS 32]
+%include "function32.asm"
+
 LABEL_PM_START:
+    xchg bx, bx
+    mov ax, SelectorFlatRW
+    mov ss, ax
+    mov esp, 0x9999
+    mov eax, 1234567890
+    call DispDigitalHex
+
     ; setup paging
     call SetupPaging
 
@@ -296,17 +317,27 @@ LABEL_PM_START:
 
 SetupPaging:
     ; 获取系统可用内存
-    mov ebx, 0    
-    mov ax, SelectorFlatRW
-    mov es, ax
-    mov ax, 0e820h
-    mov di, Buffer
-    mov ecx, 20
-    mov edx, 0534d4150h
+    mov ebx, 0
+.getMemInfo:
+    call .displayARDS
 
     ; 初始化页目录
     ; 初始化页表
     ; 开启分页机制
+    ret
+
+; 打印ARDS
+.displayARDS:
+    push es
+    push bp
+    push cx
+
+    
+    call DispStr 
+
+    pop cx
+    pop bp
+    pop es
     ret
 
 [SECTION .msg]
