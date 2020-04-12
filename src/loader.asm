@@ -25,6 +25,9 @@ SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 ARDSBuffer           times 20 db 0
 MemorySize           dd 0
 
+TopOfStack           equ 0ffffh
+BaseOfARDSBuffer     equ 07000h
+
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
 ;    to [BaseOfKernelFile:OffsetOfKernelFile], However the information will
@@ -39,6 +42,9 @@ LABEL_START:
     mov ds, ax
     mov ss, ax
     mov es, ax
+
+    ; init stack
+    mov sp, TopOfStack
 
     call DispEnter
     mov bp, LOADING_MESSAGE
@@ -283,15 +289,32 @@ GetFATEntry:
     ret
 
 ReadMemInfo:
-    mov ax, cs
+    push ebp
+    mov ebp, esp
+
+    sub esp, 2
+    mov word [ebp-2], 0
+
+    mov ebx, 0
+.continue:
+    mov ax, BaseOfARDSBuffer
     mov es, ax
+    mov di, [ebp-2]
     mov ax, 0e820h
-    mov di, ARDSBuffer
     mov ecx, 20
     mov edx, 0534d4150h
-    jb .getMemInfo    ; cf = 1, 出错重试
+    int 15h
+    jc .continue    ; cf = 1, 出错重试
+    ; success
+    add word [ebp-2], 20
+
     ; 打印内存信息
 
+    cmp ebx, 0
+    jnz .continue
+
+    add esp, 2
+    pop ebp
     ret
 
 [SECTION .s32]

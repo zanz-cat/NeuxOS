@@ -292,9 +292,5 @@ OKMsgLen              equ   $ - OKMsg
 RootDirSectorNum      dw   0
 BaseOfFATTable        dw   0
 
-;Stack times 32 db 0
-;StackLen equ $ - Stack
-;TopOfStack equ Stack + StackLen + 1
-
 times 510 - ($-$$) db 0
 dw 0xaa55
