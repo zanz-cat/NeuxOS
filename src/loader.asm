@@ -21,6 +21,10 @@ SelectorFlatC        equ LABEL_DESC_FLAT_C - LABEL_GDT
 SelectorFlatRW       equ LABEL_DESC_FLAT_RW - LABEL_GDT
 SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
+; Global veriables
+Buffer               times 20 db 0
+MemorySize           dd 0
+
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
 ;    to [BaseOfKernelFile:OffsetOfKernelFile], However the information will
@@ -278,20 +282,32 @@ GetFATEntry:
    pop si
    ret
 
-
 [SECTION .s32]
 ALIGN 32
 [BITS 32]
 LABEL_PM_START:
     ; setup paging
-
-    ; enable paging
+    call SetupPaging
 
     ; relocate kernel
 
     ; jmp to kernel
     jmp $
 
+SetupPaging:
+    ; 获取系统可用内存
+    mov ebx, 0    
+    mov ax, SelectorFlatRW
+    mov es, ax
+    mov ax, 0e820h
+    mov di, Buffer
+    mov ecx, 20
+    mov edx, 0534d4150h
+
+    ; 初始化页目录
+    ; 初始化页表
+    ; 开启分页机制
+    ret
 
 [SECTION .msg]
 LOADING_MESSAGE      db  'Loading...'
