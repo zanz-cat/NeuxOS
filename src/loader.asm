@@ -27,6 +27,8 @@ MemorySize           dd 0
 
 TopOfStack           equ 0ffffh
 BaseOfARDSBuffer     equ 07000h
+ARDSNum              dw  0
+CursorPosition       dw  0
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
@@ -307,11 +309,10 @@ ReadMemInfo:
     jc .continue    ; cf = 1, 出错重试
     ; success
     add word [ebp-2], 20
-
-    ; 打印内存信息
-
+    inc word [ARDSNum]
+    ; check if the last one
     cmp ebx, 0
-    jnz .continue
+    jnz .continue ; not the last one
 
     add esp, 2
     pop ebp
@@ -320,14 +321,22 @@ ReadMemInfo:
 [SECTION .s32]
 ALIGN 32
 [BITS 32]
-%include "function32.asm"
-
 LABEL_PM_START:
-    xchg bx, bx
+    ; init stack
     mov ax, SelectorFlatRW
-    mov ss, ax
-    mov esp, 0x9999
-    mov eax, 1234567890
+    mov ss, ax    
+    mov esp, TopOfStack
+
+    mov ax, SelectorVideo
+    mov gs, ax
+
+    mov eax, 0x12345678
+    call DispDigitalHex
+    call DisplaySpace
+    mov al, '~'
+    call DisplayAL
+    call DisplaySpace
+    mov eax, 0x12abcdef
     call DispDigitalHex
 
     ; setup paging
@@ -361,6 +370,82 @@ SetupPaging:
     pop cx
     pop bp
     pop es
+    ret
+
+;----------------------------------------------------------------------------
+; 函数名: DispDigitalHex
+;----------------------------------------------------------------------------
+; 作用:
+;   打印eax寄存器中的数字的16进制
+;   入参: eax
+DispDigitalHex:
+    push eax
+    push ebp
+    mov ebp, esp
+    sub esp, 4   
+       
+    mov [ebp-4], eax
+
+    mov al, '0'
+    call DisplayAL
+    mov al, 'x'
+    call DisplayAL
+
+    mov cx, 4
+.print_number:
+    mov esi, ebp
+    add si, cx
+    sub si, 5
+    mov byte al, [ss:si]
+    shr al, 4
+    call .number2Char
+    call DisplayAL
+
+    mov byte al, [ss:si]
+    call .number2Char
+    call DisplayAL
+    loop .print_number
+ 
+    add esp, 4
+    pop ebp
+    pop eax
+    ret
+
+.number2Char:
+    and al, 0fh
+    cmp al, 10
+    jnb .b
+    add al, '0'
+    ret
+.b:
+    sub al, 10
+    add al, 'a'
+    ret 
+
+;----------------------------------------------------------------------------
+; 函数名: DisplayAL
+;----------------------------------------------------------------------------
+; 作用:
+;   打印AL中的字符
+;   入参: al
+DisplayAL:
+    mov ah, 0fh
+    mov di, [CursorPosition]
+    shl di, 1
+    mov [gs:di], ax
+    inc word [CursorPosition]
+    ret
+
+;----------------------------------------------------------------------------
+; 函数名: DisplaySpace
+;----------------------------------------------------------------------------
+; 作用:
+;   打印空格
+DisplaySpace:
+    push ax
+    mov al, ' '
+    call DisplayAL
+    pop ax
     ret
 
 [SECTION .msg]
