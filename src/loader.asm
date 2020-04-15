@@ -325,10 +325,23 @@ LABEL_PM_START:
     ; init stack
     mov ax, SelectorFlatRW
     mov ss, ax    
-    mov esp, TopOfStack
+    mov esp, TopOfStack    
 
     mov ax, SelectorVideo
     mov gs, ax
+
+    call sleep
+    call ScrollUpScreen
+    call sleep
+    call ScrollUpScreen
+    call sleep
+    call ScrollUpScreen
+    call sleep
+    call ScrollUpScreen
+    jmp $
+
+    ; clear screen
+    call ClearScreen
 
     mov eax, 0x12345678
     call DispDigitalHex
@@ -386,11 +399,6 @@ DispDigitalHex:
        
     mov [ebp-4], eax
 
-    mov al, '0'
-    call DisplayAL
-    mov al, 'x'
-    call DisplayAL
-
     mov cx, 4
 .print_number:
     mov esi, ebp
@@ -429,12 +437,18 @@ DispDigitalHex:
 ;   打印AL中的字符
 ;   入参: al
 DisplayAL:
-    mov ah, 0fh
+    mov ah, 07h
     mov di, [CursorPosition]
     shl di, 1
     mov [gs:di], ax
     inc word [CursorPosition]
     ret
+
+Display0x:
+    mov al, '0'
+    call DisplayAL
+    mov al, 'x'
+    call DisplayAL
 
 ;----------------------------------------------------------------------------
 ; 函数名: DisplaySpace
@@ -446,6 +460,42 @@ DisplaySpace:
     mov al, ' '
     call DisplayAL
     pop ax
+    ret
+
+ClearScreen:
+    mov ax, gs
+    mov es, ax
+    xor di, di
+    xor ax, ax
+    mov cx, 80 * 25
+.next:
+    stosw
+    loop .next
+    ret
+
+ScrollUpScreen:
+    mov ax, gs
+    mov ds, ax
+    mov es, ax
+    mov esi, 80*2
+    mov edi, 0
+    mov cx, 80 * (25-1)    
+.nexta:
+    movsw
+    loop .nexta
+
+    ; clear the bottom line
+    xor ax, ax
+    mov cx, 80
+.nextb:
+    stosw
+    loop .nextb
+    ret
+
+sleep:
+    mov ecx, 02ffffffh
+.next:
+    loop .next
     ret
 
 [SECTION .msg]
