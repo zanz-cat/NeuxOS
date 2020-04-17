@@ -322,23 +322,24 @@ ReadMemInfo:
 ALIGN 32
 [BITS 32]
 LABEL_PM_START:
-    ; init stack
     mov ax, SelectorFlatRW
-    mov ss, ax    
+    mov ds, ax
+    mov es, ax
+
+    ; init stack
+    mov ss, ax
     mov esp, TopOfStack    
 
     mov ax, SelectorVideo
     mov gs, ax
 
+    call GetCursor
+
+    mov ecx, 10
+.next:
     call sleep
     call ScrollUpScreen
-    call sleep
-    call ScrollUpScreen
-    call sleep
-    call ScrollUpScreen
-    call sleep
-    call ScrollUpScreen
-    jmp $
+    loop .next
 
     ; clear screen
     call ClearScreen
@@ -351,6 +352,8 @@ LABEL_PM_START:
     call DisplaySpace
     mov eax, 0x12abcdef
     call DispDigitalHex
+
+    jmp $
 
     ; setup paging
     call SetupPaging
@@ -437,11 +440,22 @@ DispDigitalHex:
 ;   打印AL中的字符
 ;   入参: al
 DisplayAL:
+    push ax
+
     mov ah, 07h
     mov di, [CursorPosition]
     shl di, 1
     mov [gs:di], ax
+    
     inc word [CursorPosition]
+    mov di, [CursorPosition]
+    shl di, 1
+    mov al, ' '
+    mov [gs:di], ax
+
+    call SetCursor
+
+    pop ax
     ret
 
 Display0x:
@@ -449,6 +463,45 @@ Display0x:
     call DisplayAL
     mov al, 'x'
     call DisplayAL
+
+SetCursor:
+    push ax
+
+    mov dx, 0x3d4
+    mov al, 0eh
+    out dx, al
+    mov dx, 0x3d5
+    mov ax, [CursorPosition]
+    mov al, ah
+    out dx, al
+
+    mov dx, 0x3d4
+    mov al, 0fh
+    out dx, al
+    mov dx, 0x3d5
+    mov ax, [CursorPosition]
+    out dx, al
+
+    pop ax
+    ret
+
+GetCursor:
+    mov dx, 0x3d4
+    mov al, 0eh
+    out dx, al
+    mov dx, 0x3d5
+    in al, dx
+    mov bh, al
+
+    mov dx, 0x3d4
+    mov al, 0fh
+    out dx, al
+    mov dx, 0x3d5
+    in al, dx
+    mov bl, al
+
+    mov [CursorPosition],  bx
+    ret
 
 ;----------------------------------------------------------------------------
 ; 函数名: DisplaySpace
@@ -465,37 +518,46 @@ DisplaySpace:
 ClearScreen:
     mov ax, gs
     mov es, ax
-    xor di, di
+    xor edi, edi
     xor ax, ax
     mov cx, 80 * 25
-.next:
-    stosw
-    loop .next
+    rep stosw
+    
+    mov word [CursorPosition], 0
+    call SetCursor
     ret
 
 ScrollUpScreen:
+    push ecx
+
     mov ax, gs
     mov ds, ax
     mov es, ax
     mov esi, 80*2
     mov edi, 0
-    mov cx, 80 * (25-1)    
-.nexta:
-    movsw
-    loop .nexta
+    mov cx, 80 * (25-1)
+    rep movsw
 
     ; clear the bottom line
     xor ax, ax
     mov cx, 80
-.nextb:
-    stosw
-    loop .nextb
+    rep stosw
+
+    ; restore ds
+    mov ax, SelectorFlatRW
+    mov ds, ax
+    sub word [CursorPosition], 80
+    call SetCursor
+
+    pop ecx
     ret
 
 sleep:
+    push ecx
     mov ecx, 02ffffffh
 .next:
     loop .next
+    pop ecx
     ret
 
 [SECTION .msg]
