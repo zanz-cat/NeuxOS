@@ -5,14 +5,31 @@
 SRC:=boot.asm loader.asm
 BIN:=$(subst .asm,.bin,$(SRC))
 
+ifeq ($(OS), Windows_NT)
+		SUDO:=
+		MOUNTPOINT:=A:
+		MOUNTIMG:=imdisk.exe -a -m $(MOUNTPOINT)
+		UMOUNTIMG:=imdisk.exe -D -m $(MOUNTPOINT)
+		BOCHS:=bochs.exe
+		BOCHSDBG:=bochsdbg.exe
+else
+		SUDO:=sudo
+		MOUNTPOINT:=/mnt/floppy
+		MOUNTIMG:=$(SUDO) mount -o loop a.img $(MOUNTPOINT)
+		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
+		BOCHS:=bochs
+		BOCHSDBG:=bochsdbg
+endif
+
+
 .PHONY : everything
 
 everything : img $(BIN) kernel 
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
-	sudo mount -o loop a.img /mnt/floppy
-	sudo cp loader.bin /mnt/floppy/LOADER.BIN
-	sudo cp kernel.bin /mnt/floppy/KERNEL.BIN
-	sudo umount /mnt/floppy
+	$(MOUNTIMG)
+	$(SUDO) cp loader.bin $(MOUNTPOINT)/LOADER.BIN
+	$(SUDO) cp kernel.bin $(MOUNTPOINT)/KERNEL.BIN
+	$(UMOUNTIMG)
 
 $(BIN) : $(SRC)
 	nasm $(subst .bin,.asm,$@) -o $@
@@ -28,9 +45,14 @@ img:
 clean:
 	rm -f *.bin a.img *.o
 
-
 mount:
-	sudo mount -o loop a.img /mnt/floppy
+	$(MOUNTIMG)
 
 umount:
-	sudo umount /mnt/floppy
+	$(UMOUNTIMG)
+
+run:
+	$(BOCHS) -q
+
+debug:
+	$(BOCHSDBG) -q
