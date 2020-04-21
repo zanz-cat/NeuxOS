@@ -66,6 +66,7 @@ LABEL_START:
     mov bp, LoadedMsg
     mov cx, LoadedMsgLen
     call DispStr
+    call DispEnter
 
     ; stop floppy motor
     call KillMotor
@@ -579,7 +580,7 @@ BadSectorMsgLen      equ $ - BadSectorMsg
 KernelMsg            db 'Kernel'
 KernelMsgLen         equ $ - KernelMsg
 
-LoadedMsg            db 'Loaded.'
+LoadedMsg            db 'Loaded'
 LoadedMsgLen         equ $ - LoadedMsg
 
 DotStr               db    '.'

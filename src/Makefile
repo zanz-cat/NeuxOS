@@ -8,7 +8,7 @@ BIN:=$(subst .asm,.bin,$(SRC))
 ifeq ($(OS), Windows_NT)
 		SUDO:=
 		MOUNTPOINT:=A:
-		MOUNTIMG:=imdisk.exe -a -m $(MOUNTPOINT)
+		MOUNTIMG:=imdisk.exe -a -m $(MOUNTPOINT) -o hd -f a.img
 		UMOUNTIMG:=imdisk.exe -D -m $(MOUNTPOINT)
 		BOCHS:=bochs.exe
 		BOCHSDBG:=bochsdbg.exe

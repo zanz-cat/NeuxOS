@@ -272,7 +272,7 @@ DispStr:
 
    ret
 
-BootMsg               db    'Booting...'
+BootMsg               db    'Booting'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
