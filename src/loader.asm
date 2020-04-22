@@ -21,10 +21,6 @@ SelectorFlatC        equ LABEL_DESC_FLAT_C - LABEL_GDT
 SelectorFlatRW       equ LABEL_DESC_FLAT_RW - LABEL_GDT
 SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
-; Global veriables
-ARDSBuffer           times 20 db 0
-MemorySize           dd 0
-
 TopOfStack           equ 0ffffh
 BaseOfARDSBuffer     equ 07000h
 ARDSNum              dw  0
@@ -175,7 +171,7 @@ ReadSector:
     mov cl, [bp-1]
     mov ah, 02h
     int 13h
-    jc    .GoOnReading
+    jc .GoOnReading
 
     add sp, 3
     pop ax
@@ -334,27 +330,8 @@ LABEL_PM_START:
     mov ax, SelectorVideo
     mov gs, ax
 
+    ; get cursor position
     call GetCursor
-
-    mov ecx, 10
-.next:
-    call sleep
-    call ScrollUpScreen
-    loop .next
-
-    ; clear screen
-    call ClearScreen
-
-    mov eax, 0x12345678
-    call DispDigitalHex
-    call DisplaySpace
-    mov al, '~'
-    call DisplayAL
-    call DisplaySpace
-    mov eax, 0x12abcdef
-    call DispDigitalHex
-
-    jmp $
 
     ; setup paging
     call SetupPaging
@@ -365,28 +342,15 @@ LABEL_PM_START:
     jmp $
 
 SetupPaging:
+    call DisplayARDS
     ; 获取系统可用内存
-    mov ebx, 0
-.getMemInfo:
-    call .displayARDS
-
     ; 初始化页目录
     ; 初始化页表
     ; 开启分页机制
     ret
 
 ; 打印ARDS
-.displayARDS:
-    push es
-    push bp
-    push cx
-
-    
-    call DispStr 
-
-    pop cx
-    pop bp
-    pop es
+DisplayARDS:
     ret
 
 ;----------------------------------------------------------------------------
@@ -444,12 +408,12 @@ DisplayAL:
     push ax
 
     mov ah, 07h
-    mov di, [CursorPosition]
+    mov di, [BaseOfLoaderPhyAddr + CursorPosition]
     shl di, 1
     mov [gs:di], ax
     
-    inc word [CursorPosition]
-    mov di, [CursorPosition]
+    inc word [BaseOfLoaderPhyAddr + CursorPosition]
+    mov di, [BaseOfLoaderPhyAddr + CursorPosition]
     shl di, 1
     mov al, ' '
     mov [gs:di], ax
@@ -472,7 +436,7 @@ SetCursor:
     mov al, 0eh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [CursorPosition]
+    mov ax, [BaseOfLoaderPhyAddr + CursorPosition]
     mov al, ah
     out dx, al
 
@@ -480,7 +444,7 @@ SetCursor:
     mov al, 0fh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [CursorPosition]
+    mov ax, [BaseOfLoaderPhyAddr + CursorPosition]
     out dx, al
 
     pop ax
@@ -501,7 +465,7 @@ GetCursor:
     in al, dx
     mov bl, al
 
-    mov [CursorPosition],  bx
+    mov [BaseOfLoaderPhyAddr + CursorPosition],  bx
     ret
 
 ;----------------------------------------------------------------------------
@@ -516,6 +480,14 @@ DisplaySpace:
     pop ax
     ret
 
+; ecx: string length
+; esi: address of string
+DisplayStr:
+    ret
+
+DisplayEnter:
+    ret
+
 ClearScreen:
     mov ax, gs
     mov es, ax
@@ -524,7 +496,7 @@ ClearScreen:
     mov cx, 80 * 25
     rep stosw
     
-    mov word [CursorPosition], 0
+    mov word [BaseOfLoaderPhyAddr + CursorPosition], 0
     call SetCursor
     ret
 
@@ -547,7 +519,7 @@ ScrollUpScreen:
     ; restore ds
     mov ax, SelectorFlatRW
     mov ds, ax
-    sub word [CursorPosition], 80
+    sub word [BaseOfLoaderPhyAddr + CursorPosition], 80
     call SetCursor
 
     pop ecx
@@ -571,8 +543,8 @@ BaseOfFATTable       dw 0
 KernelName           db 'KERNEL  BIN'
 KernelNameLen        equ $ - KernelName
 
-NotFoundMsg    db ' Not Found!'
-NotFoundMsgLen equ $ - NotFoundMsg
+NotFoundMsg          db ' Not Found!'
+NotFoundMsgLen       equ $ - NotFoundMsg
 
 BadSectorMsg         db 'Bad Sector!'
 BadSectorMsgLen      equ $ - BadSectorMsg
@@ -582,5 +554,8 @@ KernelMsgLen         equ $ - KernelMsg
 
 LoadedMsg            db 'Loaded'
 LoadedMsgLen         equ $ - LoadedMsg
+
+MemoryInfoMsg        db 'Memory Information'
+MemoryInfoMsgLen     equ $ - MemoryInfoMsg
 
 DotStr               db    '.'
