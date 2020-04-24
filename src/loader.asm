@@ -3,8 +3,10 @@ jmp LABEL_START
 
 %include "fat12hdr.inc"
 %include "boot.inc"
-%include "function.asm"
 %include "loader.inc"
+%include "function.asm"
+
+%define paddr(s)   BaseOfLoaderPhyAddr + s
 
 ; GDT
 LABEL_GDT:              Descriptor     0,          0,              0       ; dummy descriptor
@@ -14,7 +16,7 @@ LABEL_DESC_VIDEO:       Descriptor     0b8000h,    0ffffh,         DA_DRW|DA_DPL
 
 GdtLen                  equ $ - LABEL_GDT
 GdtPtr                  dw  GdtLen - 1
-                        dd  BaseOfLoaderPhyAddr + LABEL_GDT
+                        dd  paddr(LABEL_GDT)
 
 ; GDT Selector
 SelectorFlatC           equ LABEL_DESC_FLAT_C - LABEL_GDT
@@ -25,9 +27,7 @@ TopOfStack              equ 0ffffh
 BaseOfARDSBuffer        equ 07000h
 ARDSNum                 dw  0
 CursorPosition          dw  0
-CursorPositionPhyAddr   equ BaseOfLoaderPhyAddr + CursorPosition
 
-; the macro function get physical address...
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
@@ -90,7 +90,7 @@ LABEL_START:
     mov cr0, eax
 
     ; jmp to 32bit segment
-    jmp dword   SelectorFlatC:(BaseOfLoaderPhyAddr + LABEL_PM_START)
+    jmp dword   SelectorFlatC:(paddr(LABEL_PM_START))
 
 ReadKernel:
     ; compute root directory sector numbers
@@ -354,27 +354,44 @@ SetupPaging:
 
 ; 打印ARDS
 DisplayARDS:
-    mov ecx, 10
-.next:
-    push ecx
-
     mov ecx, MemoryInfoMsgLen
-    mov esi, BaseOfLoaderPhyAddr + MemoryInfoMsg
+    mov esi, paddr(MemoryInfoMsg)
     call DisplayStr
     call DisplayEnter
-    call sleep
 
+    xor ecx, ecx
+    xchg bx, bx
+    mov cx, [paddr(ARDSNum)]
+.next:
+    push ecx
+    push ecx
+    call Display0x
+    mov ax, [paddr(ARDSNum)]
+    pop ecx
+    sub ax, cx
+    mov bl, 20
+    mul bl
+    mov si, ax
+    add esi, BaseOfARDSBuffer << 4
+    mov eax, [esi + 4]
+    push esi
+    call DisplayDigitalHex
+    pop esi
+    mov eax, [esi]
+    call DisplayDigitalHex
+    call DisplayEnter
+    call sleep
     pop ecx
     loop .next
     ret
 
 ;----------------------------------------------------------------------------
-; 函数名: DispDigitalHex
+; 函数名: DisplayDigitalHex
 ;----------------------------------------------------------------------------
 ; 作用:
 ;   打印eax寄存器中的数字的16进制
 ;   入参: eax
-DispDigitalHex:
+DisplayDigitalHex:
     push eax
     push ebp
     mov ebp, esp
@@ -420,17 +437,13 @@ DispDigitalHex:
 ;   打印AL中的字符
 ;   入参: al
 DisplayAL:
-    push ax
-
     mov ah, 07h
-    mov di, [CursorPositionPhyAddr]
+    mov di, [paddr(CursorPosition)]
     shl di, 1
     mov [gs:di], ax
     
-    inc word [CursorPositionPhyAddr]
+    inc word [paddr(CursorPosition)]
     call SetCursor
-
-    pop ax
     ret
 
 Display0x:
@@ -438,22 +451,16 @@ Display0x:
     call DisplayAL
     mov al, 'x'
     call DisplayAL
+    ret
 
-; FIXME: 非0时才设置空字符
 SetCursor:
     push ax
-
-    mov di, [CursorPositionPhyAddr]
-    shl di, 1
-    mov ah, 07h
-    mov al, ' '
-    mov [gs:di], ax
 
     mov dx, 0x3d4
     mov al, 0eh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [CursorPositionPhyAddr]
+    mov ax, [paddr(CursorPosition)]
     mov al, ah
     out dx, al
 
@@ -461,7 +468,7 @@ SetCursor:
     mov al, 0fh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [CursorPositionPhyAddr]
+    mov ax, [paddr(CursorPosition)]
     out dx, al
 
     pop ax
@@ -482,7 +489,7 @@ GetCursor:
     in al, dx
     mov bl, al
 
-    mov [CursorPositionPhyAddr],  bx
+    mov [paddr(CursorPosition)],  bx
     ret
 
 ;----------------------------------------------------------------------------
@@ -499,7 +506,6 @@ DisplaySpace:
 
 ; ecx: string length
 ; esi: address of string
-; FIXME
 DisplayStr:
 .next:
     lodsb
@@ -508,14 +514,14 @@ DisplayStr:
     ret
 
 DisplayEnter:
-    mov dx, [CursorPositionPhyAddr]
+    mov dx, [paddr(CursorPosition)]
     mov ax, dx
     mov bl, 80
     div bl
     shr ax, 8
     sub dx, ax
     add dx, 80
-    mov [CursorPositionPhyAddr], dx
+    mov [paddr(CursorPosition)], dx
     cmp dx, 80*25
     je  .scrollup
     call SetCursor
@@ -534,7 +540,7 @@ ClearScreen:
     mov cx, 80 * 25
     rep stosw
     
-    mov word [CursorPositionPhyAddr], 0
+    mov word [paddr(CursorPosition)], 0
     call SetCursor
     ret
 
@@ -549,15 +555,16 @@ ScrollUpScreen:
     mov cx, 80 * (25-1)
     rep movsw
 
-    ; clear the bottom line
-    xor ax, ax
+    ; reset the bottom line
+    mov ax, 0720h
     mov cx, 80
     rep stosw
 
     ; restore ds
     mov ax, SelectorFlatRW
     mov ds, ax
-    sub word [CursorPositionPhyAddr], 80
+
+    sub word [paddr(CursorPosition)], 80
     call SetCursor
 
     pop ecx
