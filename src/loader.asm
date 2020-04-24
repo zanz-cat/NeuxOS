@@ -7,24 +7,25 @@ jmp LABEL_START
 %include "loader.inc"
 
 ; GDT
-LABEL_GDT:           Descriptor     0,          0,              0       ; dummy descriptor
-LABEL_DESC_FLAT_C:   Descriptor     0,          0fffffh,        DA_CR|DA_32|DA_LIMIT_4K
-LABEL_DESC_FLAT_RW:  Descriptor     0,          0fffffh,        DA_DRW|DA_32|DA_LIMIT_4K
-LABEL_DESC_VIDEO:    Descriptor     0b8000h,    0ffffh,         DA_DRW|DA_DPL3
+LABEL_GDT:              Descriptor     0,          0,              0       ; dummy descriptor
+LABEL_DESC_FLAT_C:      Descriptor     0,          0fffffh,        DA_CR|DA_32|DA_LIMIT_4K
+LABEL_DESC_FLAT_RW:     Descriptor     0,          0fffffh,        DA_DRW|DA_32|DA_LIMIT_4K
+LABEL_DESC_VIDEO:       Descriptor     0b8000h,    0ffffh,         DA_DRW|DA_DPL3
 
-GdtLen               equ $ - LABEL_GDT
-GdtPtr               dw  GdtLen - 1
-                     dd  BaseOfLoaderPhyAddr + LABEL_GDT
+GdtLen                  equ $ - LABEL_GDT
+GdtPtr                  dw  GdtLen - 1
+                        dd  BaseOfLoaderPhyAddr + LABEL_GDT
 
 ; GDT Selector
-SelectorFlatC        equ LABEL_DESC_FLAT_C - LABEL_GDT
-SelectorFlatRW       equ LABEL_DESC_FLAT_RW - LABEL_GDT
-SelectorVideo        equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
+SelectorFlatC           equ LABEL_DESC_FLAT_C - LABEL_GDT
+SelectorFlatRW          equ LABEL_DESC_FLAT_RW - LABEL_GDT
+SelectorVideo           equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
-TopOfStack           equ 0ffffh
-BaseOfARDSBuffer     equ 07000h
-ARDSNum              dw  0
-CursorPosition       dw  0
+TopOfStack              equ 0ffffh
+BaseOfARDSBuffer        equ 07000h
+ARDSNum                 dw  0
+CursorPosition          dw  0
+CursorPositionPhyAddr   equ BaseOfLoaderPhyAddr + CursorPosition
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
@@ -179,7 +180,7 @@ ReadSector:
     pop bp
     ret
 
-; function: search file `KERNEL.BIN`, 
+; function: search kernel file, 
 ; and copy it from floppy to memory.
 SearchAndReadKernel:
     cld    
@@ -351,6 +352,18 @@ SetupPaging:
 
 ; 打印ARDS
 DisplayARDS:
+    mov ecx, 10
+.next:
+    push ecx
+
+    mov ecx, MemoryInfoMsgLen
+    mov esi, BaseOfLoaderPhyAddr + MemoryInfoMsg
+    call DisplayStr
+    call DisplayEnter
+    call sleep
+    
+    pop ecx
+    loop .next
     ret
 
 ;----------------------------------------------------------------------------
@@ -408,16 +421,11 @@ DisplayAL:
     push ax
 
     mov ah, 07h
-    mov di, [BaseOfLoaderPhyAddr + CursorPosition]
+    mov di, [CursorPositionPhyAddr]
     shl di, 1
     mov [gs:di], ax
     
-    inc word [BaseOfLoaderPhyAddr + CursorPosition]
-    mov di, [BaseOfLoaderPhyAddr + CursorPosition]
-    shl di, 1
-    mov al, ' '
-    mov [gs:di], ax
-
+    inc word [CursorPositionPhyAddr]
     call SetCursor
 
     pop ax
@@ -429,14 +437,21 @@ Display0x:
     mov al, 'x'
     call DisplayAL
 
+; FIXME: 非0时才设置空字符
 SetCursor:
     push ax
+
+    mov di, [CursorPositionPhyAddr]
+    shl di, 1
+    mov ah, 07h
+    mov al, ' '
+    mov [gs:di], ax
 
     mov dx, 0x3d4
     mov al, 0eh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [BaseOfLoaderPhyAddr + CursorPosition]
+    mov ax, [CursorPositionPhyAddr]
     mov al, ah
     out dx, al
 
@@ -444,7 +459,7 @@ SetCursor:
     mov al, 0fh
     out dx, al
     mov dx, 0x3d5
-    mov ax, [BaseOfLoaderPhyAddr + CursorPosition]
+    mov ax, [CursorPositionPhyAddr]
     out dx, al
 
     pop ax
@@ -465,7 +480,7 @@ GetCursor:
     in al, dx
     mov bl, al
 
-    mov [BaseOfLoaderPhyAddr + CursorPosition],  bx
+    mov [CursorPositionPhyAddr],  bx
     ret
 
 ;----------------------------------------------------------------------------
@@ -482,10 +497,31 @@ DisplaySpace:
 
 ; ecx: string length
 ; esi: address of string
+; FIXME
 DisplayStr:
+.next:
+    lodsb
+    call DisplayAL
+    loop .next
     ret
 
 DisplayEnter:
+    mov dx, [CursorPositionPhyAddr]
+    mov ax, dx
+    mov bl, 80
+    div bl
+    shr ax, 8
+    sub dx, ax
+    add dx, 80
+    mov [CursorPositionPhyAddr], dx
+    cmp dx, 80*25
+    je  .scrollup
+    call SetCursor
+    ret
+.scrollup:
+    call ScrollUpScreen
+    ret
+
     ret
 
 ClearScreen:
@@ -496,7 +532,7 @@ ClearScreen:
     mov cx, 80 * 25
     rep stosw
     
-    mov word [BaseOfLoaderPhyAddr + CursorPosition], 0
+    mov word [CursorPositionPhyAddr], 0
     call SetCursor
     ret
 
@@ -519,7 +555,7 @@ ScrollUpScreen:
     ; restore ds
     mov ax, SelectorFlatRW
     mov ds, ax
-    sub word [BaseOfLoaderPhyAddr + CursorPosition], 80
+    sub word [CursorPositionPhyAddr], 80
     call SetCursor
 
     pop ecx
@@ -540,7 +576,7 @@ LOADING_MESSAGE_LEN  equ $ - LOADING_MESSAGE
 RootDirSectorNum     dw 0
 BaseOfFATTable       dw 0 
 
-KernelName           db 'KERNEL  BIN'
+KernelName           db 'KERNEL  ELF'
 KernelNameLen        equ $ - KernelName
 
 NotFoundMsg          db ' Not Found!'
