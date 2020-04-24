@@ -27,6 +27,8 @@ ARDSNum                 dw  0
 CursorPosition          dw  0
 CursorPositionPhyAddr   equ BaseOfLoaderPhyAddr + CursorPosition
 
+; the macro function get physical address...
+
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
 ;    to [BaseOfKernelFile:OffsetOfKernelFile], However the information will
@@ -361,7 +363,7 @@ DisplayARDS:
     call DisplayStr
     call DisplayEnter
     call sleep
-    
+
     pop ecx
     loop .next
     ret
