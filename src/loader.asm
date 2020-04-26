@@ -6,7 +6,28 @@ jmp LABEL_START
 %include "loader.inc"
 %include "function.asm"
 
-%define paddr(s)   BaseOfLoaderPhyAddr + s
+%macro callPrintStr 1
+    push ecx
+    mov ecx, %1Len
+    mov esi, paddr(%1)
+    call PrintStr
+    pop ecx
+%endmacro
+
+%macro callPrintStrln 1
+    callPrintStr %1
+    call Println
+%endmacro
+
+%macro callPrintChar 0-2 al, 1
+    push ecx
+    %if %1 != al
+        mov al, %1
+    %endif
+    mov ecx, %2
+    call PrintAL
+    pop ecx
+%endmacro
 
 ; GDT
 LABEL_GDT:              Descriptor     0,          0,              0       ; dummy descriptor
@@ -23,6 +44,8 @@ SelectorFlatC           equ LABEL_DESC_FLAT_C - LABEL_GDT
 SelectorFlatRW          equ LABEL_DESC_FLAT_RW - LABEL_GDT
 SelectorVideo           equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
+ADDR_MSG_GAP_LEN        equ 12
+LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
 BaseOfARDSBuffer        equ 07000h
 ARDSNum                 dw  0
@@ -346,6 +369,7 @@ LABEL_PM_START:
 
 SetupPaging:
     call DisplayARDS
+    callPrintStr StartKernelMsg
     ; 获取系统可用内存
     ; 初始化页目录
     ; 初始化页表
@@ -354,45 +378,90 @@ SetupPaging:
 
 ; 打印ARDS
 DisplayARDS:
-    mov ecx, MemoryInfoMsgLen
-    mov esi, paddr(MemoryInfoMsg)
-    call DisplayStr
-    call DisplayEnter
+    callPrintStrln MemInfoMsg
+    call .printSepLine
+    callPrintChar '|'
+    callPrintStr MemBlockAddrMsg
+    callPrintChar ' ', ADDR_MSG_GAP_LEN
+    callPrintChar '|'
+    callPrintStr MemBlockLengthMsg
+    callPrintChar ' ', LENGTH_MSG_GAP_LEN
+    callPrintChar '|'
+    callPrintStr MemBlockTypeMsg
+    callPrintChar '|'
+    call Println
+    call .printSepLine
 
     xor ecx, ecx
-    xchg bx, bx
     mov cx, [paddr(ARDSNum)]
 .next:
     push ecx
-    push ecx
-    call Display0x
+    xor eax, eax
     mov ax, [paddr(ARDSNum)]
-    pop ecx
     sub ax, cx
     mov bl, 20
     mul bl
-    mov si, ax
-    add esi, BaseOfARDSBuffer << 4
-    mov eax, [esi + 4]
-    push esi
-    call DisplayDigitalHex
-    pop esi
+    mov esi, BaseOfARDSBuffer << 4
+    add esi, eax
+
+    callPrintChar '|'
+    callPrintChar '0'
+    callPrintChar 'x'
+    mov eax, [esi+4]
+    xchg bx, bx
+    call PrintDigitalHex
     mov eax, [esi]
-    call DisplayDigitalHex
-    call DisplayEnter
+    call PrintDigitalHex
+    ; 18 is the length of 64bit number hex string with prefix '0x'
+    callPrintChar ' ', ADDR_MSG_GAP_LEN + MemBlockAddrMsgLen - 18
+    
+    callPrintChar '|'
+    callPrintChar '0'
+    callPrintChar 'x'
+    mov eax, [esi+12]
+    call PrintDigitalHex
+    mov eax, [esi+8]
+    call PrintDigitalHex
+    callPrintChar ' ', LENGTH_MSG_GAP_LEN + MemBlockLengthMsgLen - 18
+
+    callPrintChar '|'
+    callPrintChar '0'
+    callPrintChar 'x'
+    mov al, [esi+16]
+    and al, 0fh
+    call Digital2Char
+    callPrintChar
+    callPrintChar ' ', 1 ; FIXME
+    callPrintChar '|'
+    call Println
+
     call sleep
     pop ecx
-    loop .next
+    dec ecx
+    jnz .next
+    call .printSepLine
+    ret
+
+.printSepLine:
+    callPrintChar '+'
+    callPrintChar '-', ADDR_MSG_GAP_LEN + MemBlockAddrMsgLen
+    callPrintChar '+'
+    callPrintChar '-', LENGTH_MSG_GAP_LEN + MemBlockLengthMsgLen
+    callPrintChar '+'
+    callPrintChar '-', MemBlockTypeMsgLen
+    callPrintChar '+'
+    call Println
     ret
 
 ;----------------------------------------------------------------------------
-; 函数名: DisplayDigitalHex
+; 函数名: PrintDigitalHex
 ;----------------------------------------------------------------------------
 ; 作用:
 ;   打印eax寄存器中的数字的16进制
 ;   入参: eax
-DisplayDigitalHex:
+PrintDigitalHex:
     push eax
+    push esi
     push ebp
     mov ebp, esp
     sub esp, 4   
@@ -406,20 +475,21 @@ DisplayDigitalHex:
     sub si, 5
     mov byte al, [ss:si]
     shr al, 4
-    call .number2Char
-    call DisplayAL
+    call Digital2Char
+    callPrintChar
 
     mov byte al, [ss:si]
-    call .number2Char
-    call DisplayAL
+    call Digital2Char
+    callPrintChar
     loop .print_number
  
     add esp, 4
     pop ebp
+    pop esi
     pop eax
     ret
 
-.number2Char:
+Digital2Char:
     and al, 0fh
     cmp al, 10
     jnb .b
@@ -431,26 +501,22 @@ DisplayDigitalHex:
     ret 
 
 ;----------------------------------------------------------------------------
-; 函数名: DisplayAL
+; 函数名: PrintAL
 ;----------------------------------------------------------------------------
 ; 作用:
 ;   打印AL中的字符
-;   入参: al
-DisplayAL:
+;   入参: al, ecx
+PrintAL:
+    push ecx
+.next:
     mov ah, 07h
     mov di, [paddr(CursorPosition)]
     shl di, 1
     mov [gs:di], ax
-    
     inc word [paddr(CursorPosition)]
     call SetCursor
-    ret
-
-Display0x:
-    mov al, '0'
-    call DisplayAL
-    mov al, 'x'
-    call DisplayAL
+    loop .next
+    pop ecx
     ret
 
 SetCursor:
@@ -492,28 +558,16 @@ GetCursor:
     mov [paddr(CursorPosition)],  bx
     ret
 
-;----------------------------------------------------------------------------
-; 函数名: DisplaySpace
-;----------------------------------------------------------------------------
-; 作用:
-;   打印空格
-DisplaySpace:
-    push ax
-    mov al, ' '
-    call DisplayAL
-    pop ax
-    ret
-
 ; ecx: string length
 ; esi: address of string
-DisplayStr:
+PrintStr:
 .next:
     lodsb
-    call DisplayAL
+    callPrintChar
     loop .next
     ret
 
-DisplayEnter:
+Println:
     mov dx, [paddr(CursorPosition)]
     mov ax, dx
     mov bl, 80
@@ -572,7 +626,7 @@ ScrollUpScreen:
 
 sleep:
     push ecx
-    mov ecx, 02ffffffh
+    mov ecx, 01ffffffh
 .next:
     loop .next
     pop ecx
@@ -597,10 +651,22 @@ BadSectorMsgLen      equ $ - BadSectorMsg
 KernelMsg            db 'Kernel'
 KernelMsgLen         equ $ - KernelMsg
 
-LoadedMsg            db 'Loaded'
+LoadedMsg            db 'loaded'
 LoadedMsgLen         equ $ - LoadedMsg
 
-MemoryInfoMsg        db 'Memory Information'
-MemoryInfoMsgLen     equ $ - MemoryInfoMsg
+MemInfoMsg           db 'Memory Information'
+MemInfoMsgLen        equ $ - MemInfoMsg
+
+StartKernelMsg       db 'Start Kernel...'
+StartKernelMsgLen    equ $ - StartKernelMsg
+
+MemBlockAddrMsg      db 'Address'
+MemBlockAddrMsgLen   equ $ - MemBlockAddrMsg
+
+MemBlockLengthMsg    db 'Length'
+MemBlockLengthMsgLen equ $ - MemBlockLengthMsg
+
+MemBlockTypeMsg      db 'Type'
+MemBlockTypeMsgLen   equ $ - MemBlockTypeMsg
 
 DotStr               db    '.'
