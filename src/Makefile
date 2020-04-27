@@ -34,7 +34,7 @@ a.img: $(BIN) $(ELF)
 $(BIN) : $(SRC)
 	nasm $(subst .bin,.asm,$@) -o $@
 
-$(ELF) : $(SRC)
+$(ELF) : $(ELFSRC)
 	nasm -f elf $(subst .elf,.asm,$@) -o $(subst .elf,.o,$@)
 	ld -m elf_i386 -s $(subst .elf,.o,$@) -o $@
 
