@@ -51,6 +51,45 @@ BaseOfARDSBuffer        equ 07000h
 ARDSNum                 dw  0
 CursorPosition          dw  0
 
+; Strings
+LOADING_MESSAGE      db  'Loading...'
+LOADING_MESSAGE_LEN  equ $ - LOADING_MESSAGE
+
+RootDirSectorNum     dw 0
+BaseOfFATTable       dw 0 
+
+KernelName           db 'KERNEL  ELF'
+KernelNameLen        equ $ - KernelName
+
+NotFoundMsg          db ' Not Found!'
+NotFoundMsgLen       equ $ - NotFoundMsg
+
+BadSectorMsg         db 'Bad Sector!'
+BadSectorMsgLen      equ $ - BadSectorMsg
+
+KernelMsg            db 'Kernel'
+KernelMsgLen         equ $ - KernelMsg
+
+LoadedMsg            db 'loaded'
+LoadedMsgLen         equ $ - LoadedMsg
+
+MemInfoMsg           db 'Memory Information'
+MemInfoMsgLen        equ $ - MemInfoMsg
+
+StartKernelMsg       db 'Start Kernel...'
+StartKernelMsgLen    equ $ - StartKernelMsg
+
+MemBlockAddrMsg      db 'Address'
+MemBlockAddrMsgLen   equ $ - MemBlockAddrMsg
+
+MemBlockLengthMsg    db 'Length'
+MemBlockLengthMsgLen equ $ - MemBlockLengthMsg
+
+MemBlockTypeMsg      db 'Type'
+MemBlockTypeMsgLen   equ $ - MemBlockTypeMsg
+
+DotStr               db    '.'
+
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
 ;    during this step, will read Root Directory information from floppy 
@@ -342,8 +381,8 @@ ReadMemInfo:
     ret
 
 [SECTION .s32]
+BITS 32
 ALIGN 32
-[BITS 32]
 LABEL_PM_START:
     mov ax, SelectorFlatRW
     mov ds, ax
@@ -363,13 +402,13 @@ LABEL_PM_START:
     call SetupPaging
 
     ; relocate kernel
+    callPrintStr StartKernelMsg
 
     ; jmp to kernel
     jmp $
 
 SetupPaging:
-    call DisplayARDS
-    callPrintStr StartKernelMsg
+    call DisplayARDS    
     ; 获取系统可用内存
     ; 初始化页目录
     ; 初始化页表
@@ -631,42 +670,3 @@ sleep:
     loop .next
     pop ecx
     ret
-
-[SECTION .msg]
-LOADING_MESSAGE      db  'Loading...'
-LOADING_MESSAGE_LEN  equ $ - LOADING_MESSAGE
-
-RootDirSectorNum     dw 0
-BaseOfFATTable       dw 0 
-
-KernelName           db 'KERNEL  ELF'
-KernelNameLen        equ $ - KernelName
-
-NotFoundMsg          db ' Not Found!'
-NotFoundMsgLen       equ $ - NotFoundMsg
-
-BadSectorMsg         db 'Bad Sector!'
-BadSectorMsgLen      equ $ - BadSectorMsg
-
-KernelMsg            db 'Kernel'
-KernelMsgLen         equ $ - KernelMsg
-
-LoadedMsg            db 'loaded'
-LoadedMsgLen         equ $ - LoadedMsg
-
-MemInfoMsg           db 'Memory Information'
-MemInfoMsgLen        equ $ - MemInfoMsg
-
-StartKernelMsg       db 'Start Kernel...'
-StartKernelMsgLen    equ $ - StartKernelMsg
-
-MemBlockAddrMsg      db 'Address'
-MemBlockAddrMsgLen   equ $ - MemBlockAddrMsg
-
-MemBlockLengthMsg    db 'Length'
-MemBlockLengthMsgLen equ $ - MemBlockLengthMsg
-
-MemBlockTypeMsg      db 'Type'
-MemBlockTypeMsgLen   equ $ - MemBlockTypeMsg
-
-DotStr               db    '.'
