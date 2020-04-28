@@ -36,7 +36,7 @@ $(BIN) : $(SRC)
 
 $(ELF) : $(ELFSRC)
 	nasm -f elf $(subst .elf,.asm,$@) -o $(subst .elf,.o,$@)
-	ld -m elf_i386 -s -Ttext 0x30400 $(subst .elf,.o,$@) -o $@
+	ld -m elf_i386 -s -Ttext 0x30700 $(subst .elf,.o,$@) -o $@
 
 clean:
 	rm -f *.o *.bin *.elf a.img

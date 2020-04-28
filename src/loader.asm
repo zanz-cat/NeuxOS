@@ -6,6 +6,8 @@ jmp LABEL_START
 %include "loader.inc"
 %include "function.asm"
 
+%define paddr(b, o) (b << 4) + o
+
 %macro callPrintStr 1
     push ecx
     mov ecx, %1Len
@@ -48,45 +50,49 @@ ADDR_MSG_GAP_LEN        equ 12
 LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
 BaseOfARDSBuffer        equ 07000h
+KernelFilePhyAddr       equ paddr(BaseOfKernelFile, OffsetOfKernelFile)
 ARDSNum                 dw  0
 CursorPosition          dw  0
 
 ; Strings
-LOADING_MESSAGE      db  'Loading...'
-LOADING_MESSAGE_LEN  equ $ - LOADING_MESSAGE
+LOADING_MESSAGE             db  'Loading...'
+LOADING_MESSAGE_LEN         equ $ - LOADING_MESSAGE
 
-RootDirSectorNum     dw 0
-BaseOfFATTable       dw 0 
+RootDirSectorNum            dw 0
+BaseOfFATTable              dw 0 
 
-KernelName           db 'KERNEL  ELF'
-KernelNameLen        equ $ - KernelName
+KernelName                  db 'KERNEL  ELF'
+KernelNameLen               equ $ - KernelName
 
-NotFoundMsg          db ' Not Found!'
-NotFoundMsgLen       equ $ - NotFoundMsg
+NotFoundMsg                 db ' Not Found!'
+NotFoundMsgLen              equ $ - NotFoundMsg
 
-BadSectorMsg         db 'Bad Sector!'
-BadSectorMsgLen      equ $ - BadSectorMsg
+BadSectorMsg                db 'Bad Sector!'
+BadSectorMsgLen             equ $ - BadSectorMsg
 
-KernelMsg            db 'Kernel'
-KernelMsgLen         equ $ - KernelMsg
+KernelMsg                   db 'Kernel'
+KernelMsgLen                equ $ - KernelMsg
 
-LoadedMsg            db 'loaded'
-LoadedMsgLen         equ $ - LoadedMsg
+LoadedMsg                   db 'loaded'
+LoadedMsgLen                equ $ - LoadedMsg
 
-MemInfoMsg           db 'Memory Information'
-MemInfoMsgLen        equ $ - MemInfoMsg
+MemInfoMsg                  db 'Memory Information'
+MemInfoMsgLen               equ $ - MemInfoMsg
 
-StartKernelMsg       db 'Start Kernel...'
-StartKernelMsgLen    equ $ - StartKernelMsg
+StartKernelMsg              db 'Start Kernel...'
+StartKernelMsgLen           equ $ - StartKernelMsg
 
-MemBlockAddrMsg      db 'Address'
-MemBlockAddrMsgLen   equ $ - MemBlockAddrMsg
+MemBlockAddrMsg             db 'Address'
+MemBlockAddrMsgLen          equ $ - MemBlockAddrMsg
 
-MemBlockLengthMsg    db 'Length'
-MemBlockLengthMsgLen equ $ - MemBlockLengthMsg
+MemBlockLengthMsg           db 'Length'
+MemBlockLengthMsgLen        equ $ - MemBlockLengthMsg
 
-MemBlockTypeMsg      db 'Type'
-MemBlockTypeMsgLen   equ $ - MemBlockTypeMsg
+MemBlockTypeMsg             db 'Type'
+MemBlockTypeMsgLen          equ $ - MemBlockTypeMsg
+
+InvalidKernelFileMsg        db 'Invalid Kernel File!'
+InvalidKernelFileMsgLen     equ $ - InvalidKernelFileMsg
 
 DotStr               db    '.'
 
@@ -399,13 +405,47 @@ LABEL_PM_START:
     call GetCursor
 
     ; setup paging
-    call SetupPaging
+    call DisplayARDS
 
     ; relocate kernel
     callPrintStr StartKernelMsg
+    call RelocateKernel    
 
     ; jmp to kernel
+    jmp edi
+
+RelocateKernel:    
+    cmp dword [KernelFilePhyAddr], 0x464c457f ; 0x7f+'ELF'
+    je  .continue
+    callPrintStrln InvalidKernelFileMsg
     jmp $
+.continue:
+    xor ecx, ecx
+    mov cx, [KernelFilePhyAddr+44] ; program header number
+.next:
+    push ecx
+    mov ax, [KernelFilePhyAddr+44]
+    sub ax, cx
+    mul word [KernelFilePhyAddr+42] ; program header entity size
+    and eax, 0ffh
+    shl edx, 16
+    add eax, edx
+    mov esi, [KernelFilePhyAddr+28] ; program header table offset
+    add esi, eax
+    add esi, KernelFilePhyAddr ; esi is the absolute address of some program header in memory
+
+    mov ecx, [esi+16] ; program size
+    mov edi, [esi+8] ; p_vaddr in memory
+    mov esi, [esi+4] ; p_offset in file
+    add esi, KernelFilePhyAddr ; absolute address in memmory
+    mov ax, ds
+    mov es, ax
+    rep movsb
+    pop ecx
+    loop .next
+
+    mov edi, [KernelFilePhyAddr+24] ; entry point
+    ret
 
 SetupPaging:
     call DisplayARDS    
@@ -446,8 +486,7 @@ DisplayARDS:
     callPrintChar '|'
     callPrintChar '0'
     callPrintChar 'x'
-    mov eax, [esi+4]
-    xchg bx, bx
+    mov eax, [esi+4]    
     call PrintDigitalHex
     mov eax, [esi]
     call PrintDigitalHex
@@ -665,7 +704,7 @@ ScrollUpScreen:
 
 sleep:
     push ecx
-    mov ecx, 01ffffffh
+    mov ecx, 0ffffffh
 .next:
     loop .next
     pop ecx
