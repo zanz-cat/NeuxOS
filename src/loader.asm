@@ -51,15 +51,19 @@ LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
 BaseOfARDSBuffer        equ 07000h
 KernelFilePhyAddr       equ paddr(BaseOfKernelFile, OffsetOfKernelFile)
-ARDSNum                 dw  0
-CursorPosition          dw  0
+RootDirSectorNum        dw 0
+BaseOfFATTable          dw 0 
+ARDSNum                 dw 0
+CursorPosition          dw 0
+KernelEntryPointAddr    dd 0
+MemSizeMB               dd 0
 
 ; Strings
-LOADING_MESSAGE             db  'Loading...'
+LOADING_MESSAGE             db  'Start to load'
 LOADING_MESSAGE_LEN         equ $ - LOADING_MESSAGE
 
-RootDirSectorNum            dw 0
-BaseOfFATTable              dw 0 
+OKMsg                       db    'ok'
+OKMsgLen                    equ   $ - OKMsg
 
 KernelName                  db 'KERNEL  ELF'
 KernelNameLen               equ $ - KernelName
@@ -79,7 +83,7 @@ LoadedMsgLen                equ $ - LoadedMsg
 MemInfoMsg                  db 'Memory Information'
 MemInfoMsgLen               equ $ - MemInfoMsg
 
-StartKernelMsg              db 'Start Kernel...'
+StartKernelMsg              db 'Start kernel up'
 StartKernelMsgLen           equ $ - StartKernelMsg
 
 MemBlockAddrMsg             db 'Address'
@@ -94,7 +98,10 @@ MemBlockTypeMsgLen          equ $ - MemBlockTypeMsg
 InvalidKernelFileMsg        db 'Invalid Kernel File!'
 InvalidKernelFileMsgLen     equ $ - InvalidKernelFileMsg
 
-DotStr               db    '.'
+SetupPagingMsg              db 'Setup paging...'
+SetupPagingMsgLen           equ $ - SetupPagingMsg
+
+DotStr                      db    '.'
 
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
@@ -404,22 +411,34 @@ LABEL_PM_START:
     ; get cursor position
     call GetCursor
 
-    ; setup paging
+    ; display memory info
     call DisplayARDS
 
+    ; setup paging
+    callPrintStr SetupPagingMsg
+    call SetupPaging    
+
+    ; enable paging
+    mov eax, PageDirBasePhyAddr
+    mov cr3, eax
+    mov eax, cr0
+    or  eax, 80000000h
+    mov cr0, eax
+    callPrintStrln OKMsg
+
     ; relocate kernel
-    callPrintStr StartKernelMsg
     call RelocateKernel    
 
     ; jmp to kernel
-    jmp edi
+    callPrintStrln StartKernelMsg
+    jmp [paddr(KernelEntryPointAddr)]
 
 RelocateKernel:    
     cmp dword [KernelFilePhyAddr], 0x464c457f ; 0x7f+'ELF'
     je  .continue
     callPrintStrln InvalidKernelFileMsg
     jmp $
-.continue:
+.continue:    
     xor ecx, ecx
     mov cx, [KernelFilePhyAddr+44] ; program header number
 .next:
@@ -444,15 +463,109 @@ RelocateKernel:
     pop ecx
     loop .next
 
-    mov edi, [KernelFilePhyAddr+24] ; entry point
+    ; entry point
+    mov eax, [KernelFilePhyAddr+24]
+    mov [paddr(KernelEntryPointAddr)], eax    
     ret
 
 SetupPaging:
-    call DisplayARDS    
+    push ebp
+    mov ebp, esp
+    sub esp, 8
+    
     ; 获取系统可用内存
+    call GetTotalMemSize
+
+    ; compute the number of page table required
+    mov ax, [paddr(MemSizeMB)]
+    mov dx, [paddr(MemSizeMB+2)]
+    mov bx, 4 ; a page table maps to 4MB memory
+    div bx
+    test dx, 0ffffh
+    jz  .skip
+    inc ax
+.skip:
+    mov [ebp-2], ax
+    mov word [ebp-4], 0
+.loopa:
     ; 初始化页目录
+    xor eax, eax
+    mov ax, [ebp-4]
+    shl eax, 12     ; BaseAddrOfPageTable = i << 12 + PageTableBasePhyAddr
+    add eax, PageTableBasePhyAddr
+    mov ebx, eax
+    or  ebx, PG_P | PG_USU | PG_RWW
+
+    xor eax, eax
+    mov ax, [ebp-4]
+    shl eax, 2  ; mul 4    
+    add eax, PageDirBasePhyAddr
+
+    mov [eax], ebx
+
     ; 初始化页表
-    ; 开启分页机制
+    and ebx, 0fffff000h
+    mov word [ebp-6], 1024
+    mov word [ebp-8], 0
+.loopb:
+    ; BaseAddrOfPage = i << 22 + j << 12
+    xor eax, eax
+    xor edx, edx
+    mov ax, [ebp-4]
+    mov dx, [ebp-8]
+    shl eax, 22
+    shl edx, 12
+    add eax, edx
+    or  eax, PG_P | PG_USU | PG_RWW
+    mov [ebx], eax
+
+    add ebx, 4
+    inc word [ebp-8]
+    mov ax, [ebp-6]
+    cmp ax, [ebp-8]
+    jne .loopb
+
+    inc word [ebp-4]
+    mov ax, [ebp-2]
+    cmp ax, [ebp-4]
+    jne .loopa
+
+    add esp, 8
+    pop ebp
+    ret
+
+GetTotalMemSize:
+    xor ecx, ecx
+    mov cx, [paddr(ARDSNum)]
+.next:
+    push ecx
+    xor eax, eax
+    mov ax, [paddr(ARDSNum)]
+    sub ax, cx
+    mov bl, 20
+    mul bl
+    mov esi, paddr(BaseOfARDSBuffer, 0)
+    add esi, eax
+
+    ; only available memory
+    ; mov al, [esi+16]
+    ; and al, 0fh
+    ; cmp al, 0x1
+    ; jne .label
+
+    mov eax, [esi+8]
+    add [paddr(MemSizeMB)], eax
+    pop ecx
+    loop .next
+
+    ; transfer to MB
+    mov eax, [paddr(MemSizeMB)]
+    shr dword [paddr(MemSizeMB)], 20
+    and eax, 0fffffh
+    cmp eax, 0
+    je  .skip
+    inc dword [paddr(MemSizeMB)]
+.skip:
     ret
 
 ; 打印ARDS
@@ -513,7 +626,6 @@ DisplayARDS:
     callPrintChar '|'
     call Println
 
-    call sleep
     pop ecx
     dec ecx
     jnz .next
