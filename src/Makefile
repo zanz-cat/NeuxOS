@@ -20,6 +20,9 @@ BIN:=$(subst .asm,.bin,$(SRC))
 ELFSRC:=kernel.asm
 ELF:=$(subst .asm,.elf,$(ELFSRC))
 
+CSRC:=start.c
+CBIN:=$(subst .c,.o,$(CSRC))
+
 .PHONY : clean mount umount run debug
 
 a.img: $(BIN) $(ELF)
@@ -34,9 +37,12 @@ a.img: $(BIN) $(ELF)
 $(BIN) : $(SRC)
 	nasm $(subst .bin,.asm,$@) -o $@
 
-$(ELF) : $(ELFSRC)
+$(ELF) : $(ELFSRC) $(CBIN)
 	nasm -f elf $(subst .elf,.asm,$@) -o $(subst .elf,.o,$@)
-	ld -m elf_i386 -s -Ttext 0x30700 $(subst .elf,.o,$@) -o $@
+	ld -m elf_i386 -s -Ttext 0x30700 -o $@ $(subst .elf,.o,$@) $(CBIN)
+
+$(CBIN) : $(CSRC)
+	gcc -m32 -c -o $(CBIN) $(CSRC)
 
 clean:
 	rm -f *.o *.bin *.elf a.img
