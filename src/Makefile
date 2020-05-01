@@ -14,8 +14,8 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-modules=boot kernel lib
 kerneldeps=kernel lib
+modules=boot $(kerneldeps)
 
 .PHONY: clean mount umount run debug $(modules)
 
