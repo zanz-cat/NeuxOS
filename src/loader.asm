@@ -4,7 +4,6 @@ jmp LABEL_START
 %include "fat12hdr.inc"
 %include "boot.inc"
 %include "loader.inc"
-%include "function.asm"
 
 %define paddr(b, o) (b << 4) + o
 
@@ -393,6 +392,85 @@ ReadMemInfo:
     pop ebp
     ret
 
+; Display string at cursor position
+; es:bp String address offset
+; cx String length
+DispStr:
+   push ax
+   push bx
+   push cx
+   push dx
+   push cx
+
+   mov ah, 03h
+   mov bh, 0
+   int 10h
+
+   mov ah, 13h
+   mov al, 01h
+   mov bh, 0h
+   mov bl, 07h
+   pop cx
+   int 10h
+
+   pop dx
+   pop cx
+   pop bx
+   pop ax
+   ret
+
+DispEnter:
+   push ax
+   push bx
+   push cx
+   push dx
+
+   mov ah, 03h
+   mov bh, 0
+   int 10h
+   
+   mov ah, 02h
+   mov bh, 0
+   inc dh
+   mov dl, 0
+   int 10h
+
+   pop dx
+   pop cx
+   pop bx
+   pop ax
+   ret
+
+CleanScreen:
+   mov ah, 06h
+   mov al, 0h
+   mov bh, 07h
+   mov ch, 0
+   mov cl, 0
+   mov dh, 24
+   mov dl, 79
+   int 10h
+   ret
+
+   ; hide cursor
+   ;mov ah, 01h
+   ;mov cx, 2607h ; https://blog.csdn.net/qq_40818798/article/details/83933827
+   ;int 10h
+   ;ret
+
+;----------------------------------------------------------------------------
+; 函数名: KillMotor
+;----------------------------------------------------------------------------
+; 作用:
+;   关闭软驱马达
+KillMotor:
+    push    dx
+    mov dx, 03F2h
+    mov al, 0
+    out dx, al
+    pop dx
+    ret
+
 [SECTION .s32]
 BITS 32
 ALIGN 32
@@ -416,7 +494,7 @@ LABEL_PM_START:
 
     ; setup paging
     callPrintStr SetupPagingMsg
-    call SetupPaging    
+    call SetupPaging
 
     ; enable paging
     mov eax, PageDirBasePhyAddr
@@ -424,7 +502,7 @@ LABEL_PM_START:
     mov eax, cr0
     or  eax, 80000000h
     mov cr0, eax
-    callPrintStrln OKMsg
+    callPrintStrln OKMsg    
 
     ; relocate kernel
     call RelocateKernel    
@@ -491,7 +569,7 @@ SetupPaging:
     ; 初始化页目录
     xor eax, eax
     mov ax, [ebp-4]
-    shl eax, 12     ; BaseAddrOfPageTable = i << 12 + PageTableBasePhyAddr
+    shl eax, 12     ; AddrOfPageTable = i << 12 + PageTableBasePhyAddr
     add eax, PageTableBasePhyAddr
     mov ebx, eax
     or  ebx, PG_P | PG_USU | PG_RWW
@@ -508,7 +586,7 @@ SetupPaging:
     mov word [ebp-6], 1024
     mov word [ebp-8], 0
 .loopb:
-    ; BaseAddrOfPage = i << 22 + j << 12
+    ; AddrOfPage = i << 22 + j << 12
     xor eax, eax
     xor edx, edx
     mov ax, [ebp-4]
