@@ -1,4 +1,6 @@
-[section .text]
+[SECTION .bss]
+
+[SECTION .text]
 global _start
 
 _start:
