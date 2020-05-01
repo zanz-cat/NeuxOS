@@ -14,21 +14,12 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-BOOT_SRC:=$(wildcard boot/*.asm)
-BOOT_BIN:=$(subst .asm,.bin,$(BOOT_SRC))
+modules=boot kernel lib
+kerneldeps=kernel lib
 
-KERNLE_SRC:=$(wildcard kernel/*.asm)
-KERNLE_OBJ:=$(subst .asm,.o,$(KERNLE_SRC))
+.PHONY: clean mount umount run debug $(modules)
 
-KERNEL_C_SRC:=$(wildcard kernel/*.c)
-KERNEL_C_OBJ:=$(subst .c,.o,$(KERNEL_C_SRC))
-
-LIB_SRC:=$(wildcard lib/*.asm)
-LIB_OBJ:=$(subst .asm,.o,$(LIB_SRC))
-
-.PHONY: clean mount umount run debug
-
-a.img: $(BOOT_BIN) kernel.elf
+a.img: boot kernel.elf
 	rm -f a.img
 	bximage -q -mode=create -fd=1.44M a.img
 	dd if=boot/boot.bin of=a.img bs=512 count=1 conv=notrunc
@@ -37,23 +28,17 @@ a.img: $(BOOT_BIN) kernel.elf
 	$(SUDO) cp kernel.elf $(MOUNTPOINT)/KERNEL.ELF
 	$(UMOUNTIMG)
 
-$(BOOT_BIN): $(BOOT_SRC)
-	nasm $(subst .bin,.asm,$@) -o $@
+$(modules):
+	make -C $@
 
-$(KERNLE_OBJ): $(KERNLE_SRC)
-	nasm -f elf -o $@ $(subst .o,.asm,$@)
-
-$(KERNEL_C_OBJ): $(KERNEL_C_SRC)
-	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $(subst .o,.c,$@)
-
-$(LIB_OBJ): $(LIB_SRC)
-	nasm -f elf -o $@ $(subst .o,.asm,$@)
-
-kernel.elf: $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
-	ld -m elf_i386 -o $@ $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
+kernel.elf: $(kerneldeps)
+	ld -m elf_i386 -o $@ $(foreach n,$(kerneldeps),$(n)/*.o)
 
 clean:
-	rm -f a.img $(BOOT_BIN) $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
+	rm -f a.img
+	for m in $(modules); do \
+		make -C $$m clean; \
+	done
 
 mount:
 	$(MOUNTIMG)
