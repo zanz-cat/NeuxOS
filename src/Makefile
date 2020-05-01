@@ -14,38 +14,46 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-SRC:=boot.asm loader.asm
-BIN:=$(subst .asm,.bin,$(SRC))
+BOOT_SRC:=$(wildcard boot/*.asm)
+BOOT_BIN:=$(subst .asm,.bin,$(BOOT_SRC))
 
-ELFSRC:=kernel.asm
-ELF:=$(subst .asm,.elf,$(ELFSRC))
+KERNLE_SRC:=$(wildcard kernel/*.asm)
+KERNLE_OBJ:=$(subst .asm,.o,$(KERNLE_SRC))
 
-CSRC:=start.c
-CBIN:=$(subst .c,.o,$(CSRC))
+KERNEL_C_SRC:=$(wildcard kernel/*.c)
+KERNEL_C_OBJ:=$(subst .c,.o,$(KERNEL_C_SRC))
 
-.PHONY : clean mount umount run debug
+LIB_SRC:=$(wildcard lib/*.asm)
+LIB_OBJ:=$(subst .asm,.o,$(LIB_SRC))
 
-a.img: $(BIN) $(ELF)
+.PHONY: clean mount umount run debug
+
+a.img: $(BOOT_BIN) kernel.elf
 	rm -f a.img
 	bximage -q -mode=create -fd=1.44M a.img
-	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
+	dd if=boot/boot.bin of=a.img bs=512 count=1 conv=notrunc
 	$(MOUNTIMG)
-	$(SUDO) cp loader.bin $(MOUNTPOINT)/LOADER.BIN
+	$(SUDO) cp boot/loader.bin $(MOUNTPOINT)/LOADER.BIN
 	$(SUDO) cp kernel.elf $(MOUNTPOINT)/KERNEL.ELF
 	$(UMOUNTIMG)
 
-$(BIN) : $(SRC)
+$(BOOT_BIN): $(BOOT_SRC)
 	nasm $(subst .bin,.asm,$@) -o $@
 
-$(ELF) : $(ELFSRC) $(CBIN)
-	nasm -f elf $(subst .elf,.asm,$@) -o $(subst .elf,.o,$@)
-	ld -m elf_i386 -s -Ttext 0x30700 -o $@ $(subst .elf,.o,$@) $(CBIN)
+$(KERNLE_OBJ): $(KERNLE_SRC)
+	nasm -f elf -o $@ $(subst .o,.asm,$@)
 
-$(CBIN) : $(CSRC)
-	gcc -m32 -c -o $(CBIN) $(CSRC)
+$(KERNEL_C_OBJ): $(KERNEL_C_SRC)
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $(subst .o,.c,$@)
+
+$(LIB_OBJ): $(LIB_SRC)
+	nasm -f elf -o $@ $(subst .o,.asm,$@)
+
+kernel.elf: $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
+	ld -m elf_i386 -o $@ $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
 
 clean:
-	rm -f *.o *.bin *.elf a.img
+	rm -f a.img $(BOOT_BIN) $(KERNLE_OBJ) $(KERNEL_C_OBJ) $(LIB_OBJ)
 
 mount:
 	$(MOUNTIMG)
