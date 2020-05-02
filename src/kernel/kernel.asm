@@ -12,10 +12,9 @@ global _start
 
 _start:
     mov esp, StackTop
-    ; sgdt [gdt_ptr]
-    ; xchg bx, bx
-    ; call cstart
-    ; lgdt [gdt_ptr]
+    sgdt [gdt_ptr]    
+    call cstart
+    lgdt [gdt_ptr]
 
     jmp SELECTOR_KERNEL_CS:csinit
 

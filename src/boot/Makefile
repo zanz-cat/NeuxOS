@@ -1,12 +1,12 @@
-SRC:=$(wildcard *.asm)
-BIN:=$(subst .asm,.bin,$(SRC))
-
 .PHOHY: all clean
 
-all: $(BIN)
+all: boot.bin loader.bin
 
-$(BIN): $(SRC)
+boot.bin: boot.asm boot.inc fat12hdr.inc
+	nasm $(subst .bin,.asm,$@) -o $@
+
+loader.bin: loader.asm loader.inc boot.inc fat12hdr.inc
 	nasm $(subst .bin,.asm,$@) -o $@
 
 clean:
-	rm -f $(BIN)
+	rm -f boot.bin loader.bin

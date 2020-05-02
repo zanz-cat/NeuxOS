@@ -35,7 +35,7 @@ kernel.elf: $(kerneldeps)
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $(foreach n,$(kerneldeps),$(n)/*.o)
 
 clean:
-	rm -f a.img
+	rm -f a.img kernel.elf
 	for m in $(modules); do \
 		make -C $$m clean; \
 	done
