@@ -11,19 +11,21 @@ StackTop:
 global _start
 
 _start:
-    mov ah, 0fh
-    mov al, 'K'
-    mov [gs:((80 * 1 + 39) * 2)], ax
-
     mov esp, StackTop
-    sgdt [gdt_ptr]
-    xchg bx, bx
-    call cstart
-    lgdt [gdt_ptr]
+    ; sgdt [gdt_ptr]
+    ; xchg bx, bx
+    ; call cstart
+    ; lgdt [gdt_ptr]
 
     jmp SELECTOR_KERNEL_CS:csinit
 
 csinit:
+    ; xchg bx, bx
+    
+    mov ah, 0fh
+    mov al, 'K'
+    mov [gs:((80 * 1 + 39) * 2)], ax
+
     push 0
     popfd
     hlt
