@@ -34,7 +34,7 @@ TopOfStack            equ     0ffffh
 ; 2. Search and read LOADER.BIN to [BaseOfLoader:OffsetOfLoader] 
 ;    from floppy, will overwrite the Root Directory information.
 ; 3. Jump to the LOADER
-LABEL_BEGIN:    
+LABEL_BEGIN:
     mov ax, cs
     mov ds, ax
     mov ss, ax
