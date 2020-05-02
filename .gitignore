@@ -4,3 +4,4 @@
 *.img
 *.o
 *.elf
+.vscode

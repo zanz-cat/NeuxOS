@@ -17,6 +17,7 @@ _start:
 
     mov esp, StackTop
     sgdt [gdt_ptr]
+    xchg bx, bx
     call cstart
     lgdt [gdt_ptr]
 

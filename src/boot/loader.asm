@@ -100,6 +100,9 @@ InvalidKernelFileMsgLen     equ $ - InvalidKernelFileMsg
 SetupPagingMsg              db 'Setup paging...'
 SetupPagingMsgLen           equ $ - SetupPagingMsg
 
+ProgramCopiedMsg            db ' program(s) copied'
+ProgramCopiedMsgLen         equ $ - ProgramCopiedMsg
+
 DotStr                      db    '.'
 
 
@@ -511,13 +514,18 @@ LABEL_PM_START:
     callPrintStrln StartKernelMsg
     jmp [paddr(KernelEntryPointAddr)]
 
-RelocateKernel:    
+RelocateKernel:
+    push ebp
+    mov ebp, esp
+    sub esp, 2
+
     cmp dword [KernelFilePhyAddr], 0x464c457f ; 0x7f+'ELF'
     je  .continue
     callPrintStrln InvalidKernelFileMsg
     jmp $
 .continue:    
     xor ecx, ecx
+    mov word [ebp-2], 0
     mov cx, [KernelFilePhyAddr+44] ; program header number
 .next:
     push ecx
@@ -538,12 +546,21 @@ RelocateKernel:
     mov ax, ds
     mov es, ax
     rep movsb
+    inc word [ebp-2]
     pop ecx
     loop .next
 
+    mov ax, [ebp-2]
+    call Digital2Char
+    callPrintChar
+    callPrintStrln ProgramCopiedMsg
+
     ; entry point
     mov eax, [KernelFilePhyAddr+24]
-    mov [paddr(KernelEntryPointAddr)], eax    
+    mov [paddr(KernelEntryPointAddr)], eax
+
+    add esp, 2
+    pop ebp
     ret
 
 SetupPaging:

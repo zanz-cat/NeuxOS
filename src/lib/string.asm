@@ -2,4 +2,5 @@ global memcpy
 
 [SECTION .text]
 memcpy:
-    nop
+    mov ax, 100
+    ret
