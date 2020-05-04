@@ -9,10 +9,10 @@ OBJ1:=$(subst .c,.o,$(SRC1))
 all: $(OBJ) $(OBJ1)
 
 $(OBJ): $(SRC) $(OBJ1)
-	nasm -f elf -o $@ $(subst .o,.asm,$@)
+	nasm -f elf -o $@ $<
 
 $(OBJ1): $(SRC1) ../include/const.h ../include/string.h ../include/type.h
-	gcc -c -m32 -I../include -fno-leading-underscore -o $@ $(subst .o,.c,$@)
+	gcc -c -m32 -I../include -fno-leading-underscore -o $@ $<
 
 clean:
 	rm -f $(OBJ) $(OBJ1)

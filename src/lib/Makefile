@@ -6,7 +6,7 @@ OBJ:=$(subst .asm,.o,$(SRC))
 all: $(OBJ)
 
 $(OBJ): $(SRC)
-	nasm -f elf $(subst .o,.asm,$@) -o $@
+	nasm -f elf -o $@ $<
 
 clean:
 	rm -f $(OBJ)
