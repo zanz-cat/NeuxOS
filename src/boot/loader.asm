@@ -1,9 +1,9 @@
 org 0x100
 jmp LABEL_START
 
-%include "fat12hdr.inc"
-%include "boot.inc"
-%include "loader.inc"
+%include "boot/fat12hdr.inc"
+%include "boot/boot.inc"
+%include "boot/loader.inc"
 
 %define paddr(b, o) (b << 4) + o
 

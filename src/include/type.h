@@ -14,6 +14,15 @@ typedef struct s_descriptor		/* 共 8 个字节 */
 	u8	attr1;			/* P(1) DPL(2) DT(1) TYPE(4) */
 	u8	limit_high_attr2;	/* G(1) D(1) 0(1) AVL(1) LimitHigh(4) */
 	u8	base_high;		/* Base */
-}DESCRIPTOR;
+} DESCRIPTOR;
+
+typedef struct  s_gate {
+	u16	offset_low;
+	u16 selector;
+	u8	dcount;
+	u8	attr;
+	u16	offset_high;
+} GATE;
+
 
 #endif

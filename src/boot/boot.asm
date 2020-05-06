@@ -1,7 +1,7 @@
 org 07c00h
 
-%include "fat12hdr.inc"
-%include "boot.inc"
+%include "boot/fat12hdr.inc"
+%include "boot/boot.inc"
 
 jmp short LABEL_BEGIN
 nop

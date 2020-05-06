@@ -14,31 +14,45 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-kerneldeps=kernel lib
-modules=boot $(kerneldeps)
+.PHONY: clean mount umount run debug
 
-.PHONY: clean mount umount run debug $(modules)
-
-img: boot kernel.elf
+a.img: boot.bin loader.bin kernel.elf
 	rm -f a.img
 	bximage -q -mode=create -fd=1.44M a.img
-	dd if=boot/boot.bin of=a.img bs=512 count=1 conv=notrunc
+	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
 	$(MOUNTIMG)
-	$(SUDO) cp boot/loader.bin $(MOUNTPOINT)/LOADER.BIN
+	$(SUDO) cp loader.bin $(MOUNTPOINT)/LOADER.BIN
 	$(SUDO) cp kernel.elf $(MOUNTPOINT)/KERNEL.ELF
 	$(UMOUNTIMG)
 
-$(modules):
-	make -C $@
+boot.bin: boot/boot.asm boot/boot.inc boot/fat12hdr.inc
+	nasm -o $@ $<
 
-kernel.elf: $(kerneldeps)
-	ld -m elf_i386 -Ttext 0x30700 -o $@ $(foreach n,$(kerneldeps),$(n)/*.o)
+loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc boot/fat12hdr.inc
+	nasm -o $@ $<
+
+start.o: kernel/start.c /usr/include/stdc-predef.h include/const.h \
+ include/string.h include/const.h include/type.h
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
+
+i8259a.o: kernel/i8259a.c /usr/include/stdc-predef.h include/const.h \
+ include/kliba.h include/type.h
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
+
+kernel.o: kernel/kernel.asm
+	nasm -f elf -o $@ $<
+
+string.o: lib/string.asm
+	nasm -f elf -o $@ $<
+
+kliba.o: lib/kliba.asm
+	nasm -f elf -o $@ $<
+
+kernel.elf: kernel.o start.o string.o i8259a.o kliba.o
+	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 clean:
-	rm -f a.img kernel.elf
-	for m in $(modules); do \
-		make -C $$m clean; \
-	done
+	rm -f a.img kernel.elf *.o *.bin
 
 mount:
 	$(MOUNTIMG)
