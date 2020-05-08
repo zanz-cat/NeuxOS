@@ -1,7 +1,10 @@
 #include "const.h"
 #include "kliba.h"
+#include "stdio.h"
 
 PUBLIC void init_8259A(){
+    puts("Initialize 8259A Interrupt Controller\n");
+
     out_byte(0x20, 0x11);
 
     out_byte(0x21, 0x20);

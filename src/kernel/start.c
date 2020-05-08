@@ -1,6 +1,7 @@
 #include "const.h"
 #include "string.h"
 #include "type.h"
+#include "stdio.h"
 
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128
@@ -23,6 +24,11 @@ PUBLIC void cstart(){
     u32* p_idt_base = (u32*)(idt_ptr+2);
     *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
     *p_idt_base = (u32)&idt;
+
+    putchar('A');
+    putchar('\n');
+    puts("Kernel Started\n");
+    color_puts("Kernel Started\n", 0x5);
 }
 
 PUBLIC void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {

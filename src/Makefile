@@ -48,7 +48,13 @@ string.o: lib/string.asm
 kliba.o: lib/kliba.asm
 	nasm -f elf -o $@ $<
 
-kernel.elf: kernel.o start.o string.o i8259a.o kliba.o
+_stdio.o: lib/stdio.asm
+	nasm -f elf -o $@ $<
+
+stdio.o: lib/stdio.c include/type.h
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
+
+kernel.elf: kernel.o start.o string.o i8259a.o kliba.o _stdio.o stdio.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 clean:

@@ -4,18 +4,28 @@ global in_byte
 [SECTION .text]
 ; void out_byte(u16 port, u8 value);
 out_byte:
-    mov edx, [esp+4]
-    mov al, [esp+8]
+    push ebp
+    mov ebp, esp
+
+    mov edx, [esp+8]
+    mov al, [esp+12]
     out dx, al
     nop
     nop
+
+    pop ebp
     ret
 
 ; u8 in_byte(u16 port);
 in_byte:
-    mov edx, [esp+4]
+    push ebp
+    mov ebp, esp
+
+    mov edx, [esp+8]
     in al, dx
     and eax, 0ffh
     nop
     nop
+
+    pop ebp
     ret
