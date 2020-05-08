@@ -6,7 +6,7 @@ ifeq ($(OS), Windows_NT)
 		SUDO:=
 		MOUNTPOINT:=A:
 		MOUNTIMG:=imdisk.exe -a -m $(MOUNTPOINT) -o hd -f a.img
-		UMOUNTIMG:=imdisk.exe -D -m $(MOUNTPOINT)
+		UMOUNTIMG:=imdisk.exe -d -m $(MOUNTPOINT)
 else
 		SUDO:=sudo
 		MOUNTPOINT:=/mnt/floppy
@@ -31,12 +31,12 @@ boot.bin: boot/boot.asm boot/boot.inc boot/fat12hdr.inc
 loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc boot/fat12hdr.inc
 	nasm -o $@ $<
 
-start.o: kernel/start.c /usr/include/stdc-predef.h include/const.h \
- include/string.h include/const.h include/type.h
+start.o: kernel/start.c include/const.h include/string.h \
+ include/const.h include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-i8259a.o: kernel/i8259a.c /usr/include/stdc-predef.h include/const.h \
- include/kliba.h include/type.h
+i8259a.o: kernel/i8259a.c include/const.h include/kliba.h \
+ include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
 kernel.o: kernel/kernel.asm
