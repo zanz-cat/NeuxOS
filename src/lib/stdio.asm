@@ -1,11 +1,59 @@
 %define arg(i) [ebp+4*(i+2)]
 
+global _backspace
 global _putchar
+global out_byte
+global in_byte
 
 [SECTION .data]
 cursor_pos  dw  -1
 
 [SECTION .text]
+; void out_byte(u16 port, u8 value);
+out_byte:
+    push ebp
+    mov ebp, esp
+
+    mov edx, [esp+8]
+    mov al, [esp+12]
+    out dx, al
+    nop
+    nop
+
+    pop ebp
+    ret
+
+; u8 in_byte(u16 port);
+in_byte:
+    push ebp
+    mov ebp, esp
+
+    mov edx, [esp+8]
+    in al, dx
+    and eax, 0ffh
+    nop
+    nop
+
+    pop ebp
+    ret
+
+; void _backspace()
+_backspace:
+    push ebp
+    mov ebp, esp
+
+    cmp word [cursor_pos], -1
+    jne .skip
+    call get_cursor
+.skip:
+    dec word [cursor_pos]
+    call set_cursor
+    mov di, [cursor_pos]
+    shl di, 1
+    mov word [gs:di], 0700h
+    pop ebp
+    ret
+
 ; u32 _putchar(u32 ch, u8 color)
 _putchar:
     push ebp
@@ -34,7 +82,6 @@ _putchar:
     call set_cursor
     jmp .out
 .scrollup:
-    xchg bx, bx
     call scroll_up_screen
     jmp .out
 
@@ -115,7 +162,7 @@ scroll_up_screen:
     rep movsw
 
     ; reset the bottom line
-    mov ax, 0720h
+    mov ax, 0700h
     mov cx, 80
     rep stosw
 

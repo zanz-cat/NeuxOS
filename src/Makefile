@@ -1,5 +1,5 @@
 ##################################################
-# Makefile of pmtestx.asm (x=[1,2,3...])
+# Makefile of LeeOS
 ##################################################
 
 ifeq ($(OS), Windows_NT)
@@ -14,11 +14,11 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-.PHONY: clean mount umount run debug
+.PHONY: mount umount run debug jrun jdebug clean
 
 a.img: boot.bin loader.bin kernel.elf
 	rm -f a.img
-	bximage -q -mode=create -fd=1.44M a.img
+	bximage -q -mode=create -fd=1.44M a.img > /dev/null
 	dd if=boot.bin of=a.img bs=512 count=1 conv=notrunc
 	$(MOUNTIMG)
 	$(SUDO) cp loader.bin $(MOUNTPOINT)/LOADER.BIN
@@ -28,15 +28,15 @@ a.img: boot.bin loader.bin kernel.elf
 boot.bin: boot/boot.asm boot/boot.inc boot/fat12hdr.inc
 	nasm -o $@ $<
 
-loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc boot/fat12hdr.inc
+loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
+ boot/fat12hdr.inc
 	nasm -o $@ $<
 
 start.o: kernel/start.c include/const.h include/string.h \
  include/const.h include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-i8259a.o: kernel/i8259a.c include/const.h include/kliba.h \
- include/type.h
+i8259a.o: kernel/i8259a.c include/const.h include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
 kernel.o: kernel/kernel.asm
@@ -45,20 +45,21 @@ kernel.o: kernel/kernel.asm
 string.o: lib/string.asm
 	nasm -f elf -o $@ $<
 
-kliba.o: lib/kliba.asm
-	nasm -f elf -o $@ $<
-
 _stdio.o: lib/stdio.asm
 	nasm -f elf -o $@ $<
 
-stdio.o: lib/stdio.c include/type.h
+stdio.o: lib/stdio.c include/stdio.h include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-kernel.elf: kernel.o start.o string.o i8259a.o kliba.o _stdio.o stdio.o
-	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
+_unistd.o: lib/unistd.asm
+	nasm -f elf -o $@ $<
 
-clean:
-	rm -f a.img kernel.elf *.o *.bin
+unistd.o: lib/unistd.c include/unistd.h include/type.h
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
+
+kernel.elf: kernel.o start.o string.o i8259a.o _stdio.o \
+ stdio.o _unistd.o unistd.o
+	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:
 	$(MOUNTIMG)
@@ -66,8 +67,17 @@ mount:
 umount:
 	$(UMOUNTIMG)
 
-run:
+run: a.img
 	bochs -q
 
-debug:
+debug: a.img
 	bochsdbg -q
+
+jrun:
+	bochs -q
+
+jdebug:
+	bochsdbg -q
+
+clean:
+	rm -f a.img kernel.elf *.o *.bin
