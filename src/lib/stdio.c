@@ -1,4 +1,7 @@
-#include "stdio.h"
+#include "type.h"
+
+#define DEFAULT_TEXT_COLOR 0x7
+#define DEFAULT_PRINT_BUF_SIZE 1024
 
 int _putchar(int ch, u8 color);
 void _backspace();

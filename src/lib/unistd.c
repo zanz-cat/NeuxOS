@@ -1,4 +1,4 @@
-#include "unistd.h"
+#include "type.h"
 
 void _sleep_sec();
 void _sleep_usec();

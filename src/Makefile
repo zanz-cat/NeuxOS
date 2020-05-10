@@ -32,33 +32,39 @@ loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
  boot/fat12hdr.inc
 	nasm -o $@ $<
 
-start.o: kernel/start.c include/const.h include/string.h \
- include/const.h include/type.h
+interrupt_a.o: kernel/interrupt.asm
+	nasm -f elf -o $@ $<
+
+interrupt.o: kernel/interrupt.c include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
 i8259a.o: kernel/i8259a.c include/const.h include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-kernel.o: kernel/kernel.asm
+kernel_a.o: kernel/kernel.asm
 	nasm -f elf -o $@ $<
+
+kernel.o: kernel/kernel.c include/const.h include/string.h \
+ include/type.h include/stdio.h include/unistd.h
+	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
 string.o: lib/string.asm
 	nasm -f elf -o $@ $<
 
-_stdio.o: lib/stdio.asm
+stdio_a.o: lib/stdio.asm
 	nasm -f elf -o $@ $<
 
-stdio.o: lib/stdio.c include/stdio.h include/type.h
+stdio.o: lib/stdio.c include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-_unistd.o: lib/unistd.asm
+unistd_a.o: lib/unistd.asm
 	nasm -f elf -o $@ $<
 
-unistd.o: lib/unistd.c include/unistd.h include/type.h
+unistd.o: lib/unistd.c include/type.h
 	gcc -c -m32 -Iinclude -fno-leading-underscore -o $@ $<
 
-kernel.elf: kernel.o start.o string.o i8259a.o _stdio.o \
- stdio.o _unistd.o unistd.o
+kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
+ stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:

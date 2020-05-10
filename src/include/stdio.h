@@ -3,9 +3,6 @@
 
 #include "type.h"
 
-#define DEFAULT_TEXT_COLOR 0x7
-#define DEFAULT_PRINT_BUF_SIZE 1024
-
 void out_byte(u16 port, u8 value);
 u8 in_byte(u16 port);
 
