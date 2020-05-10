@@ -46,5 +46,5 @@ void kernel_started() {
     reset_text_color();
     puts("liwei-pc login: ");
 
-    int a = 100/0;
+    // int a = 100/0;
 }

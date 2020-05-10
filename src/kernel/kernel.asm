@@ -2,9 +2,8 @@ SELECTOR_KERNEL_CS  equ 1000b
 
 extern gdt_ptr
 extern idt_ptr
-extern init_8259A
 extern relocate_gdt
-extern init_idt
+extern init_interrupt
 extern kernel_started
 
 [SECTION .bss]
@@ -23,18 +22,14 @@ _start:
     call relocate_gdt
     lgdt [gdt_ptr]
 
+    ; init interrupt
+    call init_interrupt
+    lidt [idt_ptr]
+
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit
 
 csinit:
-    ; init interrupt
-    call init_8259A
-    call init_idt
-    lidt [idt_ptr]
-
     call kernel_started
-
-    push 0
-    popfd
+    sti
     hlt
-

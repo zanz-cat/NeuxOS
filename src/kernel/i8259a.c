@@ -3,9 +3,8 @@
 #include "stdio.h"
 
 void init_8259A() {
-    puts("Init 8259A Interrupt Controller\n");
-
     out_byte(INT_M_CTL, 0x11);
+    out_byte(INT_S_CTL, 0x11);
 
     out_byte(INT_M_CTLMASK, INT_VECTOR_IRQ0);
     out_byte(INT_S_CTLMASK, INT_VECTOR_IRQ8);
@@ -16,6 +15,10 @@ void init_8259A() {
     out_byte(INT_M_CTLMASK, 0x1);
     out_byte(INT_S_CTLMASK, 0x1);
 
-    out_byte(INT_M_CTLMASK, 0xff);
+    out_byte(INT_M_CTLMASK, 0xfd);
     out_byte(INT_S_CTLMASK, 0xff);
+}
+
+void send_eoi() {
+    out_byte(INT_M_CTL, 0x20);
 }

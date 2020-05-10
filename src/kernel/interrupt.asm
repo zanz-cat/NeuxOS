@@ -1,4 +1,7 @@
 extern exception_handler
+extern clock_int
+extern keyboard_int
+extern send_eoi
 
 [SECTION .text]
 
@@ -18,6 +21,8 @@ global stack_exception
 global general_protection
 global page_fault
 global copr_error
+global hwint00
+global hwint01
 
 divide_error:
     push 0ffffffffh
@@ -81,4 +86,13 @@ copr_error:
 exception:
     call exception_handler
     add esp, 4*2
+    hlt
+hwint00:
+    ; call clock_int
+    call send_eoi
+    hlt
+hwint01:
+    call keyboard_int
+    call send_eoi
+    sti
     hlt

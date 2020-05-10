@@ -21,6 +21,8 @@ void stack_exception();
 void general_protection();
 void page_fault();
 void copr_error();
+void hwint00();
+void hwint01();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
@@ -34,10 +36,20 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
     int_desc->offset_low = (u32)handler & 0xffff;
 }
 
-void init_idt() {
-    puts("Init IDT\n");
+void clock_int() {
+    puts("clock\n");    
+}
+
+void keyboard_int() {
+    puts("keyboard\n");
+}
+
+void init_interrupt() {    
+    puts("Init 8259A Interrupt Controller\n");
+    init_8259A();
     
-    // init idt
+    puts("Init IDT\n");
+    // init system int vector
     init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_NMI, DA_386IGate, nmi, PRIVILEGE_KRNL);
@@ -54,6 +66,10 @@ void init_idt() {
     init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
+
+    // init 8259A int vector
+    init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
 
     // init idt ptr
     u16 *p_idt_limit = (u16*)idt_ptr;

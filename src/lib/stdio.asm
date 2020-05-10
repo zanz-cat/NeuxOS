@@ -14,9 +14,11 @@ out_byte:
     push ebp
     mov ebp, esp
 
-    mov edx, [esp+8]
-    mov al, [esp+12]
+    mov edx, [ebp+8]
+    mov al, [ebp+12]    
     out dx, al
+    nop
+    nop
     nop
     nop
 
@@ -28,9 +30,11 @@ in_byte:
     push ebp
     mov ebp, esp
 
-    mov edx, [esp+8]
+    mov edx, [ebp+8]
     in al, dx
     and eax, 0ffh
+    nop
+    nop
     nop
     nop
 
