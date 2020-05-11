@@ -28,23 +28,14 @@ void relocate_gdt() {
     *p_gdt_base = (u32)&gdt;
 }
 
-void kernel_started() {
-    for (int i = 0, len = 0; i <= 100; i+=10) {
-        for (int j = 0; j < len; j++) {
-            backspace();
-        }
-        len = printf("Starting...%d%", i);
-        usleep(1);
-    }
-    putchar('\n');
-
+void display_banner() {
     set_text_color(0xa);
     for (const char** s = banner; *s != NULL; s++) {
         puts(*s);
     }
-
     reset_text_color();
+    
     puts("liwei-pc login: ");
 
-    // int a = 100/0;
+    int a = 100/0;
 }

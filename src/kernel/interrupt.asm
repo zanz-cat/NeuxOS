@@ -1,7 +1,17 @@
 extern exception_handler
+extern send_eoi
+
 extern clock_int
 extern keyboard_int
-extern send_eoi
+extern serial2_int
+extern serial1_int
+extern lpt2_int
+extern floppy_int
+extern lpt1_int
+extern real_clock_int
+extern mouse_int
+extern copr_int
+extern harddisk_int
 
 [SECTION .text]
 
@@ -21,8 +31,18 @@ global stack_exception
 global general_protection
 global page_fault
 global copr_error
+
 global hwint00
 global hwint01
+global hwint03
+global hwint04
+global hwint05
+global hwint06
+global hwint07
+global hwint08
+global hwint12
+global hwint13
+global hwint14
 
 divide_error:
     push 0ffffffffh
@@ -86,13 +106,49 @@ copr_error:
 exception:
     call exception_handler
     add esp, 4*2
-    hlt
+    iret
+
 hwint00:
-    ; call clock_int
+    call clock_int
     call send_eoi
-    hlt
+    iret
 hwint01:
     call keyboard_int
     call send_eoi
-    sti
-    hlt
+    iret
+hwint03:
+    call serial2_int
+    call send_eoi
+    iret
+hwint04:
+    call serial1_int
+    call send_eoi
+    iret
+hwint05:
+    call lpt2_int
+    call send_eoi
+    iret
+hwint06:
+    call floppy_int
+    call send_eoi
+    iret
+hwint07:
+    call lpt1_int
+    call send_eoi
+    iret
+hwint08:
+    call real_clock_int
+    call send_eoi
+    iret
+hwint12:
+    call mouse_int
+    call send_eoi
+    iret
+hwint13:
+    call copr_int
+    call send_eoi
+    iret
+hwint14:
+    call harddisk_int
+    call send_eoi
+    iret

@@ -2,6 +2,7 @@
 #include "const.h"
 #include "protect.h"
 #include "stdio.h"
+#include "i8259a.h"
 
 typedef void (*int_handler)();
 
@@ -21,8 +22,18 @@ void stack_exception();
 void general_protection();
 void page_fault();
 void copr_error();
+
 void hwint00();
 void hwint01();
+void hwint03();
+void hwint04();
+void hwint05();
+void hwint06();
+void hwint07();
+void hwint08();
+void hwint12();
+void hwint13();
+void hwint14();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
@@ -34,14 +45,6 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
     int_desc->attr = desc_type | (privilege << 5);
     int_desc->offset_high = ((u32)handler >> 16) & 0xffff;
     int_desc->offset_low = (u32)handler & 0xffff;
-}
-
-void clock_int() {
-    puts("clock\n");    
-}
-
-void keyboard_int() {
-    puts("keyboard\n");
 }
 
 void init_interrupt() {    
@@ -70,6 +73,15 @@ void init_interrupt() {
     // init 8259A int vector
     init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint03, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 4, DA_386IGate, hwint04, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 5, DA_386IGate, hwint05, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 6, DA_386IGate, hwint06, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 7, DA_386IGate, hwint07, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 0, DA_386IGate, hwint08, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 4, DA_386IGate, hwint12, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint13, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
 
     // init idt ptr
     u16 *p_idt_limit = (u16*)idt_ptr;
@@ -78,9 +90,85 @@ void init_interrupt() {
     *p_idt_base = (u32)&idt;
 }
 
+char *err_msg[] = {
+    "#DE Divide Error",
+    "#DB RESERVED",
+    "—  NMI Interrupt",
+    "#BP Breakpoint",
+    "#OF Overflow",
+    "#BR BOUND Range Exceeded",
+    "#UD Invalid Opcode (Undefined Opcode)",
+    "#NM Device Not Available (No Math Coprocessor)",
+    "#DF Double Fault",
+    "    Coprocessor Segment Overrun (reserved)",
+    "#TS Invalid TSS",
+    "#NP Segment Not Present",
+    "#SS Stack-Segment Fault",
+    "#GP General Protection",
+    "#PF Page Fault",
+    "—  (Intel reserved. Do not use.)",
+    "#MF x87 FPU Floating-Point Error (Math Fault)",
+    "#AC Alignment Check",
+    "#MC Machine Check",
+    "#XF SIMD Floating-Point Exception"
+};
+
 void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
-    u8 color = get_text_color();
-    set_text_color(0xc);
-    printf("interrupt: %d\n", vec_no);
+    int color = get_text_color();
+    set_text_color(0x74); /* 灰底红字 */
+    printf("\nException! --> \n");
+    asm("xchg %bx, %bx");
+    printf("%s\n", err_msg[vec_no]);
+    printf("EFLAGS: 0x%x\n", eflags);
+    printf("CS: 0x%x\n", cs);
+    printf("EIP: 0x%x\n", eip);
+
+    if(err_code != 0xffffffff){
+        printf("Error code: 0x%x\n", err_code);
+    }
     set_text_color(color);
+}
+
+void clock_int() {
+    // puts("clock\n");
+}
+
+void keyboard_int() {
+    printf("keyboard: 0x%x\n", in_byte(0x60));
+}
+
+void serial2_int() {
+    puts("serial2_int\n");
+}
+
+void serial1_int() {
+    puts("serial1_int\n");
+}
+
+void lpt2_int() {
+    puts("lpt2_int\n");
+}
+
+void floppy_int() {
+    puts("floppy_int\n");
+}
+
+void lpt1_int() {
+    puts("lpt1_int\n");
+}
+
+void real_clock_int() {
+    puts("real_clock_int\n");
+}
+
+void mouse_int() {
+    puts("mouse_int\n");
+}
+
+void copr_int() {
+    puts("copr_int\n");
+}
+
+void harddisk_int() {
+    puts("harddisk_int\n");
 }

@@ -4,7 +4,8 @@ extern gdt_ptr
 extern idt_ptr
 extern relocate_gdt
 extern init_interrupt
-extern kernel_started
+extern display_banner
+extern sleep
 
 [SECTION .bss]
 StackSpace  resb    2 * 1024
@@ -29,7 +30,9 @@ _start:
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit
 
-csinit:
-    call kernel_started
+csinit:    
+    call display_banner
     sti
+.hlt:
     hlt
+    jmp .hlt
