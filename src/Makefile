@@ -14,6 +14,8 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
+CFLAGS:=-m32 -g -O0 -Iinclude -fno-builtin -fno-leading-underscore
+
 .PHONY: mount umount run debug jrun jdebug clean
 
 a.img: boot.bin loader.bin kernel.elf
@@ -36,17 +38,17 @@ interrupt_a.o: kernel/interrupt.asm
 	nasm -f elf -o $@ $<
 
 interrupt.o: kernel/interrupt.c include/type.h
-	gcc -c -m32 -fno-builtin -Iinclude -fno-leading-underscore -o $@ $<
+	gcc -c $(CFLAGS) -o $@ $<
 
 i8259a.o: kernel/i8259a.c include/const.h include/type.h
-	gcc -c -m32 -fno-builtin -Iinclude -fno-leading-underscore -o $@ $<
+	gcc -c $(CFLAGS) -o $@ $<
 
 kernel_a.o: kernel/kernel.asm
 	nasm -f elf -o $@ $<
 
 kernel.o: kernel/kernel.c include/const.h include/string.h \
  include/type.h include/stdio.h include/unistd.h
-	gcc -c -m32 -fno-builtin -Iinclude -fno-leading-underscore -o $@ $<
+	gcc -c $(CFLAGS) -o $@ $<
 
 string.o: lib/string.asm
 	nasm -f elf -o $@ $<
@@ -55,13 +57,13 @@ stdio_a.o: lib/stdio.asm
 	nasm -f elf -o $@ $<
 
 stdio.o: lib/stdio.c include/type.h
-	gcc -c -m32 -fno-builtin -Iinclude -fno-leading-underscore -o $@ $<
+	gcc -c $(CFLAGS) -o $@ $<
 
 unistd_a.o: lib/unistd.asm
 	nasm -f elf -o $@ $<
 
 unistd.o: lib/unistd.c include/type.h
-	gcc -c -m32 -fno-builtin -Iinclude -fno-leading-underscore -o $@ $<
+	gcc -c $(CFLAGS) -o $@ $<
 
 kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
  stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o
@@ -84,6 +86,9 @@ jrun:
 
 jdebug:
 	bochsdbg -q
+
+gdb:
+	bochsgdb -f bochsgdbrc -q || true
 
 clean:
 	rm -f a.img kernel.elf *.o *.bin

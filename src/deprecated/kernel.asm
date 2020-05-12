@@ -1,7 +1,6 @@
 %include "kernel.inc"
 
 org 0100h
-    ;xchg bx, bx
     jmp LABEL_BEGIN
 
 [SECTION .gdt]
@@ -157,7 +156,6 @@ LABEL_BEGIN:
 
 
 LABEL_REAL_ENTRY:
-	xchg bx, bx
 	mov ax, cs
 	mov ds, ax
 	mov es, ax
@@ -306,7 +304,6 @@ SegCode32Len equ $ - LABEL_SEG_CODE32
 ALIGN 32
 [BITS 16]
 LABEL_SEG_CODE16:
-	xchg bx, bx
 	; jump to real mode
 	mov ax, SelectorNormal
 	mov ds, ax

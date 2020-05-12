@@ -156,21 +156,23 @@ get_cursor:
 scroll_up_screen:
     push ecx    
     push ds
+    push es
 
     mov ax, gs
     mov ds, ax
     mov es, ax
     mov esi, 80*2
     mov edi, 0
-    mov cx, 80 * (25-1)
+    mov ecx, 80 * (25-1)
     rep movsw
 
     ; reset the bottom line
     mov ax, 0700h
-    mov cx, 80
+    mov ecx, 80
     rep stosw
 
-    ; restore ds
+    ; restore ds and es
+    pop es
     pop ds
 
     sub word [cursor_pos], 80

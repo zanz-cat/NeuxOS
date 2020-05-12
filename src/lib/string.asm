@@ -13,8 +13,6 @@ memcpy:
     mov edi, [ebp+8]    ; Destination
     mov esi, [ebp+12]   ; Source
     mov ecx, [ebp+16]   ; Size
-    mov ax, ds
-    mov es, ax
     rep movsb
 
     pop es

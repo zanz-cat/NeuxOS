@@ -131,14 +131,10 @@ LABEL_START:
     call DispEnter
 
     ; read kernel
-    mov ax, cs
-    mov es, ax
     mov bp, KernelMsg
     mov cx, KernelMsgLen
     call DispStr
     call ReadKernel
-    mov ax, cs
-    mov es, ax
     mov bp, LoadedMsg
     mov cx, LoadedMsgLen
     call DispStr
@@ -202,20 +198,24 @@ ReadKernel:
     int 13h
 
     ; read root directory
+    push es
     mov ax, BaseOfKernelFile
     mov es, ax
     mov bx, OffsetOfKernelFile
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
     call ReadSector
+    pop es
 
     ; read FAT table
+    push es
     mov ax, [BaseOfFATTable]
     mov es, ax
     xor bx, bx
     mov ax, 1
     mov cx, CONST_BPB_FATSz16
 	call ReadSector
+    pop es
 
     ; read Kernel
     call SearchAndReadKernel
@@ -262,7 +262,7 @@ ReadSector:
 ; function: search kernel file, 
 ; and copy it from floppy to memory.
 SearchAndReadKernel:
-    cld    
+    cld
     mov si, KernelName
     mov ax, BaseOfKernelFile
     mov es, ax
@@ -753,7 +753,7 @@ PrintDigitalHex:
        
     mov [ebp-4], eax
 
-    mov cx, 4
+    mov ecx, 4
 .print_number:
     mov esi, ebp
     add si, cx
@@ -872,36 +872,42 @@ Println:
     ret
 
 ClearScreen:
+    push es
+
     mov ax, gs
     mov es, ax
     xor edi, edi
     xor ax, ax
-    mov cx, 80 * 25
+    mov ecx, 80 * 25
     rep stosw
     
     mov word [paddr(CursorPosition)], 0
     call SetCursor
+
+    pop es
     ret
 
 ScrollUpScreen:
     push ecx
+    push ds
+    push es
 
     mov ax, gs
     mov ds, ax
     mov es, ax
     mov esi, 80*2
     mov edi, 0
-    mov cx, 80 * (25-1)
+    mov ecx, 80 * (25-1)
     rep movsw
 
     ; reset the bottom line
     mov ax, 0720h
-    mov cx, 80
+    mov ecx, 80
     rep stosw
 
-    ; restore ds
-    mov ax, SelectorFlatRW
-    mov ds, ax
+    ; restore ds and es
+    pop es
+    pop ds
 
     sub word [paddr(CursorPosition)], 80
     call SetCursor
