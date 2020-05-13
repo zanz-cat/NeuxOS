@@ -38,6 +38,29 @@ void hwint14();
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
 
+static char *int_err_msg[] = {
+    "#DE Divide Error",
+    "#DB RESERVED",
+    "—  NMI Interrupt",
+    "#BP Breakpoint",
+    "#OF Overflow",
+    "#BR BOUND Range Exceeded",
+    "#UD Invalid Opcode (Undefined Opcode)",
+    "#NM Device Not Available (No Math Coprocessor)",
+    "#DF Double Fault",
+    "    Coprocessor Segment Overrun (reserved)",
+    "#TS Invalid TSS",
+    "#NP Segment Not Present",
+    "#SS Stack-Segment Fault",
+    "#GP General Protection",
+    "#PF Page Fault",
+    "—  (Intel reserved. Do not use.)",
+    "#MF x87 FPU Floating-Point Error (Math Fault)",
+    "#AC Alignment Check",
+    "#MC Machine Check",
+    "#XF SIMD Floating-Point Exception"
+};
+
 static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privilege) {
     GATE *int_desc = idt + vector;
     int_desc->selector = SELECTOR_KERNEL_CS;
@@ -91,33 +114,10 @@ void init_interrupt() {
 }
 
 void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
-    char *err_msg[] = {
-        "#DE Divide Error",
-        "#DB RESERVED",
-        "—  NMI Interrupt",
-        "#BP Breakpoint",
-        "#OF Overflow",
-        "#BR BOUND Range Exceeded",
-        "#UD Invalid Opcode (Undefined Opcode)",
-        "#NM Device Not Available (No Math Coprocessor)",
-        "#DF Double Fault",
-        "    Coprocessor Segment Overrun (reserved)",
-        "#TS Invalid TSS",
-        "#NP Segment Not Present",
-        "#SS Stack-Segment Fault",
-        "#GP General Protection",
-        "#PF Page Fault",
-        "—  (Intel reserved. Do not use.)",
-        "#MF x87 FPU Floating-Point Error (Math Fault)",
-        "#AC Alignment Check",
-        "#MC Machine Check",
-        "#XF SIMD Floating-Point Exception"
-    };
-
     int color = get_text_color();
     set_text_color(0x74); /* 灰底红字 */
     printf("\nException! --> \n");
-    printf("%s\n", err_msg[vec_no]);
+    printf("%s\n", int_err_msg[vec_no]);
     printf("EFLAGS: 0x%x\n", eflags);
     printf("CS: 0x%x\n", cs);
     printf("EIP: 0x%x\n", eip);
