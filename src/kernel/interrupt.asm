@@ -1,7 +1,7 @@
 extern exception_handler
 extern send_eoi
 
-extern clock_int
+extern clock_int_handler
 extern keyboard_int
 extern serial2_int
 extern serial1_int
@@ -109,7 +109,7 @@ exception:
     iret
 
 hwint00:
-    call clock_int
+    call clock_int_handler
     call send_eoi
     iret
 hwint01:

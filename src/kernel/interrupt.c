@@ -128,10 +128,6 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
     set_text_color(color);
 }
 
-void clock_int() {
-    // puts("clock\n");
-}
-
 void keyboard_int() {
     printf("keyboard: 0x%x\n", in_byte(0x60));
 }

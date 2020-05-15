@@ -103,6 +103,9 @@ SetupPagingMsgLen           equ $ - SetupPagingMsg
 ProgramCopiedMsg            db ' program(s) copied'
 ProgramCopiedMsgLen         equ $ - ProgramCopiedMsg
 
+NOBITSInitMsg               db ' NOBITS(s) initialized'
+NOBITSInitMsgLen            equ $ - NOBITSInitMsg
+
 DotStr                      db    '.'
 
 
@@ -166,6 +169,7 @@ LABEL_START:
     jmp dword   SelectorFlatC:(paddr(LABEL_PM_START))
 
 ReadKernel:
+    push es
     ; compute root directory sector numbers
     mov al, CONST_BPB_RootEntCnt
     mov bl, 32
@@ -198,28 +202,25 @@ ReadKernel:
     int 13h
 
     ; read root directory
-    push es
     mov ax, BaseOfKernelFile
     mov es, ax
     mov bx, OffsetOfKernelFile
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
     call ReadSector
-    pop es
 
     ; read FAT table
-    push es
     mov ax, [BaseOfFATTable]
     mov es, ax
     xor bx, bx
     mov ax, 1
     mov cx, CONST_BPB_FATSz16
 	call ReadSector
-    pop es
 
     ; read Kernel
     call SearchAndReadKernel
 
+    pop es
     ret
 
 ; function: read secotr
@@ -523,6 +524,8 @@ RelocateKernel:
     je  .continue
     callPrintStrln InvalidKernelFileMsg
     jmp $
+
+    ; handle program headers
 .continue:    
     xor ecx, ecx
     mov word [ebp-2], 0
@@ -537,14 +540,14 @@ RelocateKernel:
     add eax, edx
     mov esi, [KernelFilePhyAddr+28] ; program header table offset
     add esi, eax
-    add esi, KernelFilePhyAddr ; esi is the absolute address of some program header in memory
+    add esi, KernelFilePhyAddr ; esi is the absolute address of certain program header in memory
 
     mov ecx, [esi+16] ; program size
     mov edi, [esi+8] ; p_vaddr in memory
     mov esi, [esi+4] ; p_offset in file
     add esi, KernelFilePhyAddr ; absolute address in memmory
-    mov ax, ds
-    mov es, ax
+    ; mov ax, ds
+    ; mov es, ax    
     rep movsb
     inc word [ebp-2]
     pop ecx
@@ -554,6 +557,38 @@ RelocateKernel:
     call Digital2Char
     callPrintChar
     callPrintStrln ProgramCopiedMsg
+
+    ; handle section: initialize .bss section
+    xor ecx, ecx
+    mov word [ebp-2], 0
+    mov cx, [KernelFilePhyAddr+48] ; section header number
+.nextb:
+    push ecx
+    mov ax, [KernelFilePhyAddr+48]
+    sub ax, cx
+    mul word [KernelFilePhyAddr+46] ; section header entity size
+    and eax, 0ffh
+    shl edx, 16
+    add eax, edx
+    mov esi, [KernelFilePhyAddr+32] ; section header table offset
+    add esi, eax
+    add esi, KernelFilePhyAddr
+    cmp dword [esi+4], 8 ; NOBITS type
+    jne .skip
+    ; clear NOBITS type
+    mov ecx, [esi+20]
+    mov edi, [esi+12]
+    mov al, 0
+    rep stosb
+    inc word [ebp-2]
+.skip:
+    pop ecx
+    loop .nextb
+
+    mov ax, [ebp-2]
+    call Digital2Char
+    callPrintChar
+    callPrintStrln NOBITSInitMsg
 
     ; entry point
     mov eax, [KernelFilePhyAddr+24]
