@@ -11,7 +11,7 @@
 u8 gdt_ptr[6];
 DESCRIPTOR gdt[GDT_SIZE];
 
-const char *banner[] = {
+static const char *banner[] = {
   "\n     / /                          //   ) ) //   ) ) \n",
     "    / /         ___      ___     //   / / ((        \n",
     "   / /        //___) ) //___) ) //   / /    \\      \n",
