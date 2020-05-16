@@ -17,5 +17,7 @@
 #define INT_S_CTLMASK 0xa1 /* setting bits in this port disables ints <Slave>  */
 
 #define NULL 0
+#define SUCCESS 0
+#define FAILED  -1
 
 #endif

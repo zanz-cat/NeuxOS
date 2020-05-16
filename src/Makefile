@@ -65,11 +65,20 @@ unistd_a.o: lib/unistd.asm
 unistd.o: lib/unistd.c include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-clock.o: kernel/clock.c include/stdio.h include/type.h
+app.o: app/app.c include/stdio.h include/type.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+clock.o: kernel/clock.c include/stdio.h include/type.h \
+ include/schedule.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+schedule.o: kernel/schedule.c include/const.h \
+ include/stdio.h include/type.h include/proc.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
- stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o clock.o 
+ stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o clock.o \
+ schedule.o app.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:

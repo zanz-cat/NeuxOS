@@ -34,6 +34,4 @@ void display_banner() {
         puts(*s);
     }
     reset_text_color();
-    
-    puts("liwei-pc login: ");
 }
