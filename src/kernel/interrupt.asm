@@ -109,8 +109,15 @@ exception:
     iret
 
 hwint00:
+    push ds
+    push es
+    mov ax, 10h
+    mov ds, ax
+    mov es, ax
     call clock_int_handler
     call send_eoi
+    pop es
+    pop ds
     iret
 hwint01:
     call keyboard_int

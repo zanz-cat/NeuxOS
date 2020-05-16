@@ -56,17 +56,9 @@ schedule:
     add esp, 4
 
     ; main loop
-    jmp .check
 .hlt:
     hlt
-.check:
-    cmp dword [current], 0
-    je  .hlt
-
-    mov eax, [current]
-    call [eax+4]
-
-    jmp .check
+    jmp .hlt
 
 _proc1:
     call app1

@@ -23,7 +23,6 @@ t_proc *create_proc(void *text) {
 }
 
 void next_proc() {
-    asm("xchg %bx, %bx");
     pos = (pos == proc_num - 1) ? 0 : (pos+1);
     current = &proc_list[pos];
 }
