@@ -4,6 +4,6 @@
 #include "proc.h"
 
 t_proc *create_proc(void *text);
-void next_proc();
+t_proc *next_proc();
 
 #endif

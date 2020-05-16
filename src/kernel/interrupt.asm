@@ -115,9 +115,17 @@ hwint00:
     mov ds, ax
     mov es, ax
     call clock_int_handler
+    push eax
     call send_eoi
+    pop eax
     pop es
     pop ds
+    
+    xchg bx, bx
+    add esp, 10
+    push dword [eax+8]
+    push cs
+    push dword [eax+4]
     iret
 hwint01:
     call keyboard_int

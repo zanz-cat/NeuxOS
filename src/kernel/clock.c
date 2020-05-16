@@ -1,6 +1,6 @@
 #include "stdio.h"
 #include "schedule.h"
 
-void clock_int_handler() {
-    next_proc();
+t_proc *clock_int_handler() {
+    return next_proc();
 }

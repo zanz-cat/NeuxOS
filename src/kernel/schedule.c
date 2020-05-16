@@ -22,7 +22,8 @@ t_proc *create_proc(void *text) {
     return proc;
 }
 
-void next_proc() {
+t_proc *next_proc() {
     pos = (pos == proc_num - 1) ? 0 : (pos+1);
     current = &proc_list[pos];
+    return current;
 }

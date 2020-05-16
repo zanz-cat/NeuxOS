@@ -8,6 +8,7 @@
 typedef struct s_proc {
     int pid;
     void *text;
+    int eflags;
     u8  stack[DEFAULT_STACK_SIZE];
 } t_proc;
 
