@@ -13,6 +13,8 @@ extern mouse_int
 extern copr_int
 extern harddisk_int
 
+extern current
+
 [SECTION .text]
 
 global divide_error
@@ -114,18 +116,38 @@ hwint00:
     mov ax, 10h
     mov ds, ax
     mov es, ax
+
+    cmp dword [current], 0
+    je  .skip
+    ; the proc interrupted
+    mov edi, [current]
+    ; save eflags
+    mov eax, [esp+16]
+    mov [edi+8], eax
+    ; save cs and eip
+    ; TODO
+.skip:
     call clock_int_handler
     push eax
     call send_eoi
-    pop eax
+    pop esi
+
+    ; init new proc   TODO: move to c code
+    mov eax, [esi+8]
+    mov [esi+1036-4], eax
+
+    xor eax, eax
+    mov ax, cs
+    mov [esi+1036-8], eax
+
+    mov eax, [esi+4]
+    mov [esi+1036-12], eax
+
     pop es
     pop ds
-    
-    xchg bx, bx
-    add esp, 10
-    push dword [eax+8]
-    push cs
-    push dword [eax+4]
+
+    ; switch stack
+    lea esp, [esi+1036-12]
     iret
 hwint01:
     call keyboard_int

@@ -25,5 +25,9 @@ t_proc *create_proc(void *text) {
 t_proc *next_proc() {
     pos = (pos == proc_num - 1) ? 0 : (pos+1);
     current = &proc_list[pos];
+    if (!current->eflags) {
+        current->eflags = 0x200;
+    }
+    
     return current;
 }

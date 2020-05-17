@@ -6,6 +6,7 @@ extern relocate_gdt
 extern init_interrupt
 extern display_banner
 extern sleep
+extern clear_screen
 
 extern create_proc
 extern current
@@ -40,9 +41,6 @@ csinit:
     ; display banner
     call display_banner
 
-    ; enable interrupt
-    sti
-
     jmp SELECTOR_KERNEL_CS:schedule
 
 schedule:
@@ -54,6 +52,12 @@ schedule:
     push _proc2
     call create_proc
     add esp, 4
+
+    ; clean screen
+    call clear_screen
+    
+    ; enable interrupt
+    sti
 
     ; main loop
 .hlt:

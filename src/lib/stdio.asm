@@ -2,8 +2,10 @@
 
 global _backspace
 global _putchar
+global _putchar_pos
 global out_byte
 global in_byte
+global clear_screen
 
 [SECTION .data]
 cursor_pos  dw  -1
@@ -104,6 +106,21 @@ _putchar:
     pop ebp
     ret
 
+; u32 _putchar_pos(u32 ch, u16 pos, u8 color)
+_putchar_pos:
+    push ebp
+    mov ebp, esp
+
+    mov eax, arg(0)
+    mov ah, arg(2)
+    mov di, arg(1)
+    shl di, 1
+    mov [gs:di], ax
+
+    mov eax, arg(0)
+    pop ebp
+    ret
+
 set_cursor:
     push ax
     push dx
@@ -179,4 +196,21 @@ scroll_up_screen:
     call set_cursor
 
     pop ecx
+    ret
+
+clear_screen:
+    push es
+
+    mov ax, gs
+    mov es, ax
+    xor edi, edi
+    xor ax, ax
+    mov ecx, 80 * 25
+    rep stosw
+    
+    mov word [cursor_pos], 0
+    call set_cursor
+    xor eax, eax
+
+    pop es
     ret
