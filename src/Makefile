@@ -14,7 +14,7 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-CFLAGS:=-m32 -g -O0 -Iinclude -fno-builtin -fno-leading-underscore
+CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore
 
 .PHONY: mount umount run debug jrun jdebug clean
 

@@ -2,7 +2,9 @@
 #define __STRING_H__
 
 #include "const.h"
+#include "type.h"
 
-void* memcpy(void *pDst, void *pSrc, int iSize);
+void* memcpy(void *dst, void *src, u32 size);
+void *memset(void *s, int ch, u32 size);
 
 #endif

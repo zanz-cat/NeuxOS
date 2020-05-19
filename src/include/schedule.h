@@ -3,6 +3,7 @@
 
 #include "proc.h"
 
+extern t_proc *current;
 t_proc *create_proc(void *text);
 t_proc *next_proc();
 

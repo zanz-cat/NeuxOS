@@ -1,6 +1,7 @@
 global memcpy
 
 [SECTION .text]
+; void* memcpy(void *dst, void *src, u32 size);
 memcpy:
     push ebp
     mov ebp, esp
@@ -21,4 +22,9 @@ memcpy:
     pop edi
     
     pop ebp
+    ret
+
+; void *memset(void *s, int ch, u32 size);
+memset:
+    ; TODO
     ret

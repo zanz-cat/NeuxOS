@@ -111,43 +111,34 @@ exception:
     iret
 
 hwint00:
+    cmp dword [current], 0
+    je  .sched
+    ; save regs
+    pusha
     push ds
     push es
-    mov ax, 10h
-    mov ds, ax
-    mov es, ax
-
-    cmp dword [current], 0
-    je  .skip
-    ; the proc interrupted
-    mov edi, [current]
-    ; save eflags
-    mov eax, [esp+16]
-    mov [edi+8], eax
-    ; save cs and eip
-    ; TODO
-.skip:
+    push fs
+    push gs
+    ; save stack
+    mov eax, [current]
+    mov [eax+8], ss
+    mov [eax+12], esp
+.sched:
+    ; schedule
     call clock_int_handler
-    push eax
+    ; KGMX
     call send_eoi
-    pop esi
-
-    ; init new proc   TODO: move to c code
-    mov eax, [esi+8]
-    mov [esi+1036-4], eax
-
-    xor eax, eax
-    mov ax, cs
-    mov [esi+1036-8], eax
-
-    mov eax, [esi+4]
-    mov [esi+1036-12], eax
-
+    ; restore stack
+    mov eax, [current]
+    mov ebx, [eax+8]
+    mov ss, bx
+    mov esp, [eax+12]
+    ; restore regs
+    pop gs
+    pop fs
     pop es
     pop ds
-
-    ; switch stack
-    lea esp, [esi+1036-12]
+    popa
     iret
 hwint01:
     call keyboard_int
