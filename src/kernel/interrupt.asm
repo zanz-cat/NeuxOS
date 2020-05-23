@@ -124,10 +124,14 @@ hwint00:
     mov [eax+8], ss
     mov [eax+12], esp
 .sched:
+    ; restore kernel regs and stack
     ; schedule
     call clock_int_handler
     ; KGMX
     call send_eoi
+    
+    ; save kernel regs and stack stack
+
     ; restore stack
     mov eax, [current]
     mov ebx, [eax+8]

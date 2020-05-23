@@ -53,6 +53,9 @@ schedule:
     call create_proc
     add esp, 4
 
+    push 5
+    call sleep
+    add esp, 4
     ; clean screen
     call clear_screen
     
