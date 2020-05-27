@@ -3,27 +3,23 @@ SELECTOR_KERNEL_CS  equ 1000b
 extern gdt_ptr
 extern idt_ptr
 extern relocate_gdt
+extern kernel_idle
+
 extern init_interrupt
-extern display_banner
-extern sleep
 extern clear_screen
 
-extern create_proc
-extern current
-
-extern app1
-extern app2
+extern init_system
 
 [SECTION .bss]
-StackSpace  resb    2 * 1024
-StackTop: 
+stack_space  resb    2 * 1024
+stacktop: 
 
 [SECTION .text]
 global _start
 
 _start:
     ; init kernel stack
-    mov esp, StackTop
+    mov esp, stacktop
 
     ; move GDT to kernel
     sgdt [gdt_ptr]
@@ -38,27 +34,9 @@ _start:
     jmp SELECTOR_KERNEL_CS:csinit
 
 csinit:
-    ; display banner
-    call display_banner
+    ; init system
+    call init_system
 
-    jmp SELECTOR_KERNEL_CS:schedule
-
-schedule:
-    ; create proc
-    push _proc1
-    call create_proc
-    add esp, 4
-
-    push _proc2
-    call create_proc
-    add esp, 4
-
-    push 5
-    call sleep
-    add esp, 4
-    ; clean screen
-    call clear_screen
-    
     ; enable interrupt
     sti
 
@@ -66,11 +44,3 @@ schedule:
 .hlt:
     hlt
     jmp .hlt
-
-_proc1:
-    call app1
-    ret
-
-_proc2:
-    call app2
-    ret

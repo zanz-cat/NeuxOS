@@ -1,3 +1,5 @@
+SELECTOR_FLAT_RW  equ 10000b
+
 extern exception_handler
 extern send_eoi
 
@@ -12,6 +14,7 @@ extern real_clock_int
 extern mouse_int
 extern copr_int
 extern harddisk_int
+extern clock_int_stacktop
 
 extern current
 
@@ -111,33 +114,28 @@ exception:
     iret
 
 hwint00:
-    cmp dword [current], 0
-    je  .sched
-    ; save regs
+    ; save old proc
     pusha
     push ds
     push es
     push fs
     push gs
-    ; save stack
     mov eax, [current]
     mov [eax+8], ss
     mov [eax+12], esp
-.sched:
-    ; restore kernel regs and stack
-    ; schedule
-    call clock_int_handler
-    ; KGMX
-    call send_eoi
-    
-    ; save kernel regs and stack stack
 
-    ; restore stack
+    ; switch to clock interrupt stack
+    mov ax, SELECTOR_FLAT_RW
+    mov ss, ax
+    mov esp, clock_int_stacktop
+    ; call clock interrupt handler
+    call clock_int_handler
+    
+    ; switch back to [new] proc
     mov eax, [current]
     mov ebx, [eax+8]
     mov ss, bx
     mov esp, [eax+12]
-    ; restore regs
     pop gs
     pop fs
     pop es

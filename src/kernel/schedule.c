@@ -6,10 +6,12 @@
 #define MAX_PROC_NUM 10
 #define INITIAL_EFLAGS  0x200
 
-t_proc *current = NULL;
-static t_proc proc_list[MAX_PROC_NUM];
-static int proc_num = 0;
-static int pos = -1;
+/* the first process is cpu idle process 
+ * which keeps cpu running while no task to run
+ */
+static t_proc proc_list[MAX_PROC_NUM+1];
+static int proc_num = 1;
+t_proc *current = &proc_list[0];
 
 static void init_proc(t_proc *proc, u32 pid, void *text) {
     proc->pid = pid;
@@ -50,12 +52,14 @@ t_proc *create_proc(void *text) {
     }
 
     t_proc *proc = &proc_list[proc_num++];
-    init_proc(proc, proc_num, text);
-    printf("process(%d) created\n", proc->pid);
+    init_proc(proc, proc_num-1, text);
+    printf("process created, pid: %d\n", proc->pid);
     return proc;
 }
 
 t_proc *next_proc() {
+    static int pos = -1;
+
     if (!proc_num) {
         current = NULL;
         return current;
