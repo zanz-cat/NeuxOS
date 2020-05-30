@@ -33,6 +33,37 @@ typedef struct s_gate
 	u16	offset_high;	/* Offset High */
 }GATE;
 
+/* 任务状态段 */
+typedef struct s_tss {
+	u32 prev;
+	u32 esp0;
+	u32 ss0;
+	u32 esp1;
+	u32 ss1;
+	u32 esp2;
+	u32 ss2;
+	u32 cr3;
+	u32 eip;
+	u32 eflags;
+	u32 eax;
+	u32 ecx;
+	u32 edx;
+	u32 ebx;
+	u32 esp;
+	u32 ebp;
+	u32 esi;
+	u32 edi;
+	u32 es;
+	u32 cs;
+	u32 ss;
+	u32 ds;
+	u32 fs;
+	u32 gs;
+	u32 ldt;
+	u16 attrs;
+	u16 io;
+} TSS;
+
 
 /* GDT */
 /* 描述符索引 */
@@ -51,8 +82,8 @@ typedef struct s_gate
 
 
 /* 描述符类型值说明 */
-#define	DA_32			0x4000	/* 32 位段				*/
-#define	DA_LIMIT_4K		0x8000	/* 段界限粒度为 4K 字节			*/
+#define	DA_32			0x40	/* 32 位段				*/
+#define	DA_LIMIT_4K		0x80	/* 段界限粒度为 4K 字节			*/
 #define	DA_DPL0			0x00	/* DPL = 0				*/
 #define	DA_DPL1			0x20	/* DPL = 1				*/
 #define	DA_DPL2			0x40	/* DPL = 2				*/

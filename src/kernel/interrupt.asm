@@ -114,6 +114,7 @@ exception:
     iret
 
 hwint00:
+    iret
     ; save old proc
     pusha
     push ds
