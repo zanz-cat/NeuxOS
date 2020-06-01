@@ -69,18 +69,16 @@ static int _num_strlen(int num, u8 radix) {
     return len;
 }
 
-int printf(const char *fmt, ...) {
+int vprintf(const char *fmt, __builtin_va_list args) {
     int intarg, len, rem;
     const char *strarg;
     char *pc = print_buf;
-    __builtin_va_list ap;
-    __builtin_va_start(ap, fmt);
     for (const char *i = fmt; *i != '\0'; i++) {
         if (*i == '%') {
             int found = 1;
             switch (*(i+1)) {
             case 'd':
-                intarg = __builtin_va_arg(ap, int);
+                intarg = __builtin_va_arg(args, int);
                 len = _num_strlen(intarg, 10);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 10;
@@ -90,7 +88,7 @@ int printf(const char *fmt, ...) {
                 pc += len;
                 break;
             case 'x':
-                intarg = __builtin_va_arg(ap, int);
+                intarg = __builtin_va_arg(args, int);
                 len = _num_strlen(intarg, 16);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 16;
@@ -100,7 +98,7 @@ int printf(const char *fmt, ...) {
                 pc += len;
                 break;
             case 's':
-                strarg = __builtin_va_arg(ap, const char*);
+                strarg = __builtin_va_arg(args, const char*);
                 while (*strarg) {
                     *pc++ = *strarg++;
                 }                
@@ -118,7 +116,6 @@ int printf(const char *fmt, ...) {
 
         *pc++ = *i;        
     }
-    __builtin_va_end(ap);
 
     for (char *i = print_buf; i < pc; i++) {
         _putchar(*i, text_color);
@@ -126,18 +123,24 @@ int printf(const char *fmt, ...) {
     return pc - print_buf;
 }
 
-int printf_pos(u16 pos, const char *fmt, ...) {
+int printf(const char *fmt, ...) {
+    __builtin_va_list args;
+    __builtin_va_start(args, fmt);
+    int n = vprintf(fmt, args);
+    __builtin_va_end(args);
+    return n;
+}
+
+int vprintf_pos(u16 pos, const char *fmt, __builtin_va_list args) {
     int intarg, len, rem;
     const char *strarg;
     char *pc = print_buf;
-    __builtin_va_list ap;
-    __builtin_va_start(ap, fmt);
     for (const char *i = fmt; *i != '\0'; i++) {
         if (*i == '%') {
             int found = 1;
             switch (*(i+1)) {
             case 'd':
-                intarg = __builtin_va_arg(ap, int);
+                intarg = __builtin_va_arg(args, int);
                 len = _num_strlen(intarg, 10);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 10;
@@ -147,7 +150,7 @@ int printf_pos(u16 pos, const char *fmt, ...) {
                 pc += len;
                 break;
             case 'x':
-                intarg = __builtin_va_arg(ap, int);
+                intarg = __builtin_va_arg(args, int);
                 len = _num_strlen(intarg, 16);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 16;
@@ -157,7 +160,7 @@ int printf_pos(u16 pos, const char *fmt, ...) {
                 pc += len;
                 break;
             case 's':
-                strarg = __builtin_va_arg(ap, const char*);
+                strarg = __builtin_va_arg(args, const char*);
                 while (*strarg) {
                     *pc++ = *strarg++;
                 }                
@@ -175,10 +178,17 @@ int printf_pos(u16 pos, const char *fmt, ...) {
 
         *pc++ = *i;        
     }
-    __builtin_va_end(ap);
 
     for (char *i = print_buf; i < pc; i++) {
         _putchar_pos(*i, pos+i-print_buf, text_color);
     }
     return pc - print_buf;
+}
+
+int printf_pos(u16 pos, const char *fmt, ...) {
+    __builtin_va_list args;
+    __builtin_va_start(args, fmt);
+    int n = vprintf_pos(pos, fmt, args);
+    __builtin_va_end(args);
+    return n;    
 }

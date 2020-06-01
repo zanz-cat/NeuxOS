@@ -5,6 +5,7 @@
 #include "unistd.h"
 #include "protect.h"
 #include "schedule.h"
+#include "log.h"
 
 extern void app1();
 extern void app2();
@@ -29,6 +30,8 @@ void kernel_idle() {
 }
 
 void init_system() {
+    set_log_level(DEBUG);
+    
     // display banner
     display_banner();
 

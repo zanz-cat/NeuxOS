@@ -40,10 +40,8 @@ csinit:
     ; init system
     call init_system
 
-    xchg bx, bx
-
     ; enable interrupt
-    sti
+    ; sti
 
     mov eax, [current]
     lldt word [eax+1040]

@@ -1,9 +1,13 @@
 #include "log.h"
 #include "stdio.h"
 
-int log(enum LEVEL level, const char *fmt, ...) {    
-	__builtin_va_list args;
-	__builtin_va_start(args, fmt);
+static LOG_LEVEL log_level = INFO;
+
+static int log(LOG_LEVEL level, const char *fmt, __builtin_va_list args) {
+    if (level < log_level) {
+        return 0;
+    }
+    
     switch (level){
     case DEBUG:
         puts("[DEBUG] ");
@@ -23,9 +27,11 @@ int log(enum LEVEL level, const char *fmt, ...) {
     default:
         break;
     }
-	printf(fmt, args);
-	__builtin_va_end(args);
+	return vprintf(fmt, args);
+}
 
+int set_log_level(LOG_LEVEL level) {
+    log_level = level;
     return 0;
 }
 

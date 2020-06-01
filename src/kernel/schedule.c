@@ -80,11 +80,10 @@ static int init_proc(t_proc *proc, u32 pid, void *text) {
     /* install ldt */
     ret = install_ldt(proc->ldt, LDT_SIZE);
     if (ret < 0) {
-        printf("install ldt error, pid: %d, errno: %d\n", proc->pid, ret);
+        log_error("install ldt error, pid: %d, errno: %d\n", proc->pid, ret);
         return ret;
     }
     proc->ldt_selector = ret;
-    printf("proc pid: %d, ldt selector: 0x%x\n", proc->pid, proc->ldt_selector);
 
     /* init tss */
     proc->tss.prev = 0;
@@ -95,29 +94,29 @@ static int init_proc(t_proc *proc, u32 pid, void *text) {
     /* install tss */
     ret = install_tss(&proc->tss);
     if (ret < 0) {
-        printf("install tss error, pid: %d, errno: %d\n", proc->pid, ret);
+        log_error("install tss error, pid: %d, errno: %d\n", proc->pid, ret);
         return ret;
     }
     proc->tss_selector = ret;
-    printf("proc pid: %d, tss selector: 0x%x\n", proc->pid, proc->tss_selector);
 
     return 0;
 }
 
 t_proc *create_proc(void *text) {
     if (proc_num == MAX_PROC_NUM) {
-        printf("max process number(%d) exceed!\n", MAX_PROC_NUM);
+        log_error("max process number(%d) exceed!\n", MAX_PROC_NUM);
         return NULL;
     }
 
     t_proc *proc = &proc_list[proc_num];
     int ret = init_proc(proc, proc_num, text);
     if (ret < 0) {
-        printf("init proc error, pid: %d, errno: %d\n", proc->pid, ret);
+        log_error("init proc error, pid: %d, errno: %d\n", proc->pid, ret);
         return NULL;
     }
     proc_num++;
-    log_info("process created, pid: %d\n", proc->pid);
+    log_debug("process created, pid: %d, ldt selector: 0x%x, tss selector: 0x%x\n", 
+        proc->pid, proc->ldt_selector, proc->tss_selector);
     return proc;
 }
 

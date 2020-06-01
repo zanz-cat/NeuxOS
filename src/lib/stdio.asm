@@ -15,15 +15,19 @@ cursor_pos  dw  -1
 out_byte:
     push ebp
     mov ebp, esp
+    push eax
+    push edx
 
-    mov edx, [ebp+8]
-    mov al, [ebp+12]    
+    mov edx, arg(0)
+    mov al, arg(1)
     out dx, al
     nop
     nop
     nop
     nop
 
+    pop edx
+    pop eax
     pop ebp
     ret
 
@@ -31,8 +35,10 @@ out_byte:
 in_byte:
     push ebp
     mov ebp, esp
+    push eax
+    push edx
 
-    mov edx, [ebp+8]
+    mov edx, arg(0)
     in al, dx
     and eax, 0ffh
     nop
@@ -40,6 +46,8 @@ in_byte:
     nop
     nop
 
+    pop edx
+    pop eax
     pop ebp
     ret
 

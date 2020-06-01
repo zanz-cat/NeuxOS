@@ -24,7 +24,7 @@ int install_tss(TSS *ptss) {
     }
     
     DESCRIPTOR *pdesc = &gdt[++index];
-    pdesc->base_low = (u32)ptss && 0xffff;
+    pdesc->base_low = (u32)ptss & 0xffff;
     pdesc->base_mid = ((u32)ptss >> 16) & 0xf;
     pdesc->base_high = (u32)ptss >> 24;
 
@@ -42,7 +42,7 @@ int install_ldt(void *ldt, u16 size) {
     }
 
     DESCRIPTOR *pdesc = &gdt[++index];
-    pdesc->base_low = (u32)ldt && 0xffff;
+    pdesc->base_low = (u32)ldt & 0xffff;
     pdesc->base_mid = ((u32)ldt >> 16) & 0xf;
     pdesc->base_high = (u32)ldt >> 24;
 

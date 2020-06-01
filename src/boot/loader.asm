@@ -58,7 +58,7 @@ KernelEntryPointAddr    dd 0
 MemSizeMB               dd 0
 
 ; Strings
-LOADING_MESSAGE             db  'Start to load'
+LOADING_MESSAGE             db  'Start to load kernel'
 LOADING_MESSAGE_LEN         equ $ - LOADING_MESSAGE
 
 OKMsg                       db    'ok'
@@ -73,11 +73,8 @@ NotFoundMsgLen              equ $ - NotFoundMsg
 BadSectorMsg                db 'Bad Sector!'
 BadSectorMsgLen             equ $ - BadSectorMsg
 
-KernelMsg                   db 'Kernel'
+KernelMsg                   db 'Kernel...'
 KernelMsgLen                equ $ - KernelMsg
-
-LoadedMsg                   db 'loaded'
-LoadedMsgLen                equ $ - LoadedMsg
 
 MemInfoMsg                  db 'Memory Information'
 MemInfoMsgLen               equ $ - MemInfoMsg
@@ -105,8 +102,6 @@ ProgramCopiedMsgLen         equ $ - ProgramCopiedMsg
 
 NOBITSInitMsg               db ' NOBITS(s) initialized'
 NOBITSInitMsgLen            equ $ - NOBITSInitMsg
-
-DotStr                      db    '.'
 
 
 ; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
@@ -138,9 +133,6 @@ LABEL_START:
     mov cx, KernelMsgLen
     call DispStr
     call ReadKernel
-    mov bp, LoadedMsg
-    mov cx, LoadedMsgLen
-    call DispStr
     call DispEnter
 
     ; stop floppy motor
@@ -292,7 +284,13 @@ SearchAndReadKernel:
     jmp $
     
 .a2:
-    mov ax, [es:di+0x1a]
+    ; alloc screen space for display the number read
+    mov ah, 03h
+    mov bh, 0
+    int 10h
+    add dl, 6
+    mov ah, 02h
+    int 10h
 
     ; alloc local variable for bytes already read
     push bp
@@ -300,6 +298,7 @@ SearchAndReadKernel:
     sub sp, 2
     mov word [bp-2], 0
 
+    mov ax, [es:di+0x1a]
 .readSector:
     ; ax is logical sector number
     push ax
@@ -313,14 +312,18 @@ SearchAndReadKernel:
     add bx, [bp-2]
     call ReadSector
 
-    ; display dot
-    push bp
-    mov ax, cs
-    mov es, ax
-    mov bp, DotStr
-    mov cx, 1
-    call DispStr
-    pop bp
+    ; backspace x 6
+    push ax
+    mov ah, 03h
+    mov bh, 0
+    int 10h
+    sub dl, 6
+    mov ah, 02h
+    int 10h
+    ; display the number read
+    mov ax, [bp-2]
+    call DisplayReadNum
+    pop ax
 
     pop ax
     call GetFATEntry
@@ -423,6 +426,63 @@ DispStr:
    pop ax
    ret
 
+; display the number read in bytes
+DisplayReadNum:
+    push bp
+    mov bp, sp
+    push ax
+    sub sp, 8   ; 65535 + nextaddr
+    mov word [bp-8], 0
+    mov word [bp-6], 0
+    mov word [bp-4], 0
+    mov byte [bp-3], 'B'
+    lea si, [bp-4]
+    mov [bp-10], si
+.next:
+    ; high byte
+    mov ax, [bp-2]
+    shr ax, 8
+    mov bl, 10
+    div bl
+    push ax
+    ; low byte
+    mov ax, [bp-2]
+    and ax, 0ffh
+    mov bx, [bp-12]
+    and bx, 0ff00h
+    add ax, bx
+    mov bl, 10
+    div bl
+    ; result
+    add ah, '0'
+    mov si, [bp-10]
+    mov [ss:si], ah
+    and ax, 0ffh
+    pop bx
+    shl bx, 8
+    add ax, bx
+    mov [bp-2], ax
+    dec word [bp-10]
+    cmp ax, 0
+    jne .next
+    ; display
+    push bp
+    push es
+    push cx
+    mov cx, 6
+    mov ax, ss
+    mov es, ax
+    lea bp, [bp-8]
+    call DispStr
+    pop bp
+    pop es
+    pop cx
+
+    add sp, 8
+    pop ax
+    pop bp
+    ret
+
 DispEnter:
    push ax
    push bx
@@ -494,7 +554,7 @@ LABEL_PM_START:
     call GetCursor
 
     ; display memory info
-    call DisplayARDS
+    ; call DisplayARDS
 
     ; setup paging
     callPrintStr SetupPagingMsg

@@ -10,5 +10,4 @@ void *clock_int_stacktop;
 
 void clock_int_handler() {
     next_proc();
-    send_eoi();
 }

@@ -114,6 +114,7 @@ exception:
     iret
 
 hwint00:
+    call send_eoi
     iret
     ; save old proc
     pusha
@@ -131,6 +132,7 @@ hwint00:
     mov esp, clock_int_stacktop
     ; call clock interrupt handler
     call clock_int_handler
+    call send_eoi
     
     ; switch back to [new] proc
     mov eax, [current]
