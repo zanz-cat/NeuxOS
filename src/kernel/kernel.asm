@@ -1,28 +1,29 @@
+%include "include/common.inc"
+
 SELECTOR_KERNEL_CS  equ 1000b
 
 global _start
+global sys_stacktop
+global kernel_idle
 
 extern gdt_ptr
 extern idt_ptr
 extern init_gdt
-extern kernel_idle
-
 extern init_interrupt
 extern clear_screen
-
 extern init_system
-
+extern _idle
+extern tss_sel
 extern current
 
 [SECTION .bss]
 stack_space  resb    2 * 1024
-stacktop: 
+sys_stacktop: 
 
 [SECTION .text]
-
 _start:
-    ; init kernel stack
-    mov esp, stacktop
+    ; init system stack
+    mov esp, sys_stacktop
 
     ; move GDT to kernel
     sgdt [gdt_ptr]
@@ -39,31 +40,30 @@ _start:
 csinit:
     ; init system
     call init_system
+    cmp eax, 0
+    je  .continue
+    hlt
+.continue:
+    ; load tss
+    ltr word [tss_sel]
 
     ; enable interrupt
-    ; sti
+    ; sti   ; not neccessary because iret will enable interrupt
 
+    ; load and jmp to idle proc
     mov eax, [current]
-    lldt word [eax+1040]
-    ltr word [eax+1148]
-    push dword [eax+8]
-    push dword [eax+12]
-    mov ecx, 15
-    lea esi, [eax+3200-4]
-    lea edi, [esp-4]
-    std
-    rep movsd
-    cld
-    sub esp, 15*4
-
+    lldt word [eax+1100]
+    mov esp, [eax+15*4]
+    mov eax, [eax+16*4]
+    mov ss, ax
     pop gs
     pop fs
     pop es
     pop ds
     popa
-    iretd
+    iret
 
-    ; main loop
-.hlt:
+kernel_idle:
+    call _idle
     hlt
-    jmp .hlt
+    jmp kernel_idle

@@ -3,6 +3,7 @@
 #include "protect.h"
 #include "stdio.h"
 #include "i8259a.h"
+#include "schedule.h"
 
 typedef void (*int_handler)();
 
@@ -34,6 +35,10 @@ void hwint08();
 void hwint12();
 void hwint13();
 void hwint14();
+
+extern void app1();
+extern void app2();
+extern void kapp1();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
@@ -128,8 +133,40 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
     set_text_color(color);
 }
 
+static int f = 0;
+static int a = 0;
 void keyboard_int() {
-    printf("keyboard: 0x%x\n", in_byte(0x60));
+    f = !f;
+    u8 code = in_byte(0x60);
+    if (f) {
+        return;
+    }
+    a %= 6;
+    switch (a)
+    {
+    case 0:
+        create_proc(app1);
+        break;
+    case 1:
+        create_proc(app2);
+        break;
+    case 2:
+        create_kproc(kapp1);
+        break;
+    case 3:
+        destroy_proc();
+        break;
+    case 4:
+        destroy_proc();
+        break;
+    case 5:
+        destroy_proc();
+        break;
+    default:
+        break;
+    }
+
+    a++;
 }
 
 void serial2_int() {

@@ -1,4 +1,7 @@
+%include "include/common.inc"
+
 global memcpy
+global memset
 
 [SECTION .text]
 ; void* memcpy(void *dst, void *src, u32 size);
@@ -11,9 +14,9 @@ memcpy:
     push ecx
     push es
 
-    mov edi, [ebp+8]    ; Destination
-    mov esi, [ebp+12]   ; Source
-    mov ecx, [ebp+16]   ; Size
+    mov edi, arg(0)    ; Destination
+    mov esi, arg(1)   ; Source
+    mov ecx, arg(2)   ; Size
     rep movsb
 
     pop es
@@ -26,5 +29,21 @@ memcpy:
 
 ; void *memset(void *s, int ch, u32 size);
 memset:
-    ; TODO
+    push ebp
+    mov ebp, esp
+    
+    push eax
+    push edi
+    push ecx
+
+    xor eax, eax
+    mov edi, arg(0)
+    mov ecx, arg(1)
+    rep stosb
+
+    pop ecx
+    pop edi
+    pop eax
+
+    pop ebp
     ret

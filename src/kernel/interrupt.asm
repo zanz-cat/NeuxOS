@@ -1,9 +1,25 @@
-SELECTOR_FLAT_RW  equ 10000b
+%macro SAVE_STATE 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+%endmacro
+
+%macro RESTORE_STATE 0
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+%endmacro
+
+SELECTOR_KERNEL_DS  equ 10000b
 
 extern exception_handler
 extern send_eoi
 
-extern clock_int_handler
+extern clock_handler
 extern keyboard_int
 extern serial2_int
 extern serial1_int
@@ -17,8 +33,8 @@ extern harddisk_int
 extern clock_int_stacktop
 
 extern current
-
-[SECTION .text]
+extern sys_stacktop
+extern tss
 
 global divide_error
 global single_step_exception
@@ -49,6 +65,7 @@ global hwint12
 global hwint13
 global hwint14
 
+[SECTION .text]
 divide_error:
     push 0ffffffffh
     push 0
@@ -114,40 +131,55 @@ exception:
     iret
 
 hwint00:
-    call send_eoi
-    iret
-    ; save old proc
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
+    SAVE_STATE
+    ; save proc stack info if is kernel proc
     mov eax, [current]
-    mov [eax+8], ss
-    mov [eax+12], esp
-
-    ; switch to clock interrupt stack
-    mov ax, SELECTOR_FLAT_RW
+    cmp dword [eax+18*4], 0
+    jne .skip
+    mov [eax+15*4], esp
+    mov [eax+16*4], ss
+.skip:
+    ; switch to system stack
+    mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
-    mov esp, clock_int_stacktop
-    ; call clock interrupt handler
-    call clock_int_handler
+    mov esp, sys_stacktop
+    ; schedule
+    call clock_handler
     call send_eoi
-    
-    ; switch back to [new] proc
+    ; switch to kernel stack of proc
     mov eax, [current]
-    mov ebx, [eax+8]
-    mov ss, bx
-    mov esp, [eax+12]
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
+    lldt word [eax+1100]
+    cmp dword [eax+18*4], 0
+    jne .user_proc
+    mov ss, [eax+16*4]
+    mov esp, [eax+15*4]
+    jmp .fini
+.user_proc:
+    lea ebx, [eax+17*4]
+    mov [tss+4], ebx
+    mov esp, eax
+    mov ax, SELECTOR_KERNEL_DS
+    mov ss, ax
+.fini:
+    RESTORE_STATE
     iret
+    
 hwint01:
+    SAVE_STATE
+    ; save stack info to system stack
+    mov [sys_stacktop - 4], ss
+    mov [sys_stacktop - 8], esp
+    ; switch to system stack
+    mov ax, SELECTOR_KERNEL_DS
+    mov ss, ax
+    lea esp, [sys_stacktop - 8]
+    ; handle
     call keyboard_int
     call send_eoi
+    ; switch back to kernel stack of proc
+    mov esp, [sys_stacktop - 8]
+    mov ss, [sys_stacktop - 4]
+    RESTORE_STATE
     iret
 hwint03:
     call serial2_int

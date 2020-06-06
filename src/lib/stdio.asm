@@ -1,4 +1,4 @@
-%define arg(i) [ebp+4*(i+2)]
+%include "include/common.inc"
 
 global _backspace
 global _putchar
