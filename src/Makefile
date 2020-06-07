@@ -37,10 +37,13 @@ loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
 interrupt_a.o: kernel/interrupt.asm include/const.inc
 	nasm -f elf -o $@ $<
 
-interrupt.o: kernel/interrupt.c include/type.h
+interrupt.o: kernel/interrupt.c include/type.h \
+ include/const.h include/protect.h include/stdio.h \
+ include/i8259a.h include/schedule.h include/proc.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-i8259a.o: kernel/i8259a.c include/const.h include/type.h
+i8259a.o: kernel/i8259a.c include/const.h \
+ include/protect.h include/type.h include/stdio.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 kernel_a.o: kernel/kernel.asm include/common.inc \
@@ -48,7 +51,9 @@ kernel_a.o: kernel/kernel.asm include/common.inc \
 	nasm -f elf -o $@ $<
 
 kernel.o: kernel/kernel.c include/const.h include/string.h \
- include/type.h include/stdio.h include/unistd.h
+ include/type.h include/stdio.h include/unistd.h \
+ include/schedule.h include/proc.h include/protect.h \
+ include/log.h include/gdt.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 string.o: lib/string.asm include/common.inc
@@ -69,16 +74,19 @@ unistd.o: lib/unistd.c include/type.h
 app.o: app/app.c include/stdio.h include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-clock.o: kernel/clock.c include/stdio.h \
- include/type.h include/schedule.h
+clock.o: kernel/clock.c include/type.h \
+ include/stdio.h include/i8259a.h include/schedule.h \
+ include/proc.h include/protect.h include/unistd.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 schedule.o: kernel/schedule.c include/const.h \
- include/stdio.h include/type.h include/proc.h
+ include/stdio.h include/type.h include/proc.h \
+ include/protect.h include/gdt.h include/log.h \
+ include/string.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 gdt.o: kernel/gdt.c include/type.h \
- include/protect.h include/type.h
+ include/protect.h include/string.h include/const.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 log.o: lib/log.c include/log.h include/stdio.h \

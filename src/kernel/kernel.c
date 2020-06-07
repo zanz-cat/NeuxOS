@@ -58,6 +58,5 @@ int init_system() {
     clear_screen();
 
     current = create_kproc(kernel_idle);
-    
     return 0;
 }

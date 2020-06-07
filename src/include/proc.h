@@ -31,9 +31,9 @@ typedef struct {
 typedef struct {
     stack_frame regs;
     u32 pid;
-    u32 type;
-    DESCRIPTOR ldt[LDT_SIZE];
+    u16 type;
     u16 ldt_sel;
+    DESCRIPTOR ldt[LDT_SIZE];
     u8  stack[STACK_SIZE];
 } t_proc;
 

@@ -21,9 +21,9 @@ OFFSET_PROC_ESP         equ         OFFSET_PROC_EFLAGS + 4
 OFFSET_PROC_SS          equ         OFFSET_PROC_ESP + 4
 OFFSET_PROC_PID         equ         OFFSET_PROC_SS + 4
 OFFSET_PROC_TYPE        equ         OFFSET_PROC_PID + 4
-OFFSET_PROC_LDT         equ         OFFSET_PROC_TYPE + 4
-OFFSET_PROC_LDT_SEL     equ         OFFSET_PROC_LDT + 8 * LDT_SIZE
-OFFSET_PROC_STACK       equ         OFFSET_PROC_LDT_SEL + 4
+OFFSET_PROC_LDT_SEL     equ         OFFSET_PROC_TYPE + 2
+OFFSET_PROC_LDT         equ         OFFSET_PROC_LDT_SEL + 2
+OFFSET_PROC_STACK       equ         OFFSET_PROC_LDT + 8 * LDT_SIZE
 
 OFFSET_TSS_PREV         equ         0
 OFFSET_TSS_ESP0         equ         OFFSET_TSS_PREV + 4

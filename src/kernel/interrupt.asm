@@ -157,7 +157,7 @@ hwint00:
     ; sti
     ; save proc stack info if is kernel proc
     mov eax, [current]
-    cmp dword [eax+OFFSET_PROC_TYPE], 0
+    cmp word [eax+OFFSET_PROC_TYPE], 0
     jne .skip
     mov [eax+OFFSET_PROC_ESP], esp
     mov [eax+OFFSET_PROC_SS], ss
@@ -172,7 +172,7 @@ hwint00:
     ; switch to kernel stack of proc
     mov eax, [current]
     lldt word [eax+OFFSET_PROC_LDT_SEL]
-    cmp dword [eax+OFFSET_PROC_TYPE], 0
+    cmp word [eax+OFFSET_PROC_TYPE], 0
     jne .user_proc
     mov ss, [eax+OFFSET_PROC_SS]
     mov esp, [eax+OFFSET_PROC_ESP]
