@@ -80,6 +80,9 @@ global hwint12
 global hwint13
 global hwint14
 
+[SECTION .data]
+clock_reentry   db  0
+
 [SECTION .text]
 divide_error:
     push 0ffffffffh
@@ -147,6 +150,11 @@ exception:
 
 hwint00:
     SAVE_STATE
+    
+    ; cmp byte [clock_reentry], 0
+    ; jne .reentry_skip
+    ; inc byte [clock_reentry]
+    ; sti
     ; save proc stack info if is kernel proc
     mov eax, [current]
     cmp dword [eax+OFFSET_PROC_TYPE], 0
@@ -176,6 +184,8 @@ hwint00:
     mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
 .fini:
+;     dec byte [clock_reentry]
+; .reentry_skip:
     RESTORE_STATE
     iret
     

@@ -55,6 +55,7 @@ in_byte:
 _backspace:
     push ebp
     mov ebp, esp
+    push edi
 
     cmp word [cursor_pos], -1
     jne .skip
@@ -65,6 +66,8 @@ _backspace:
     mov di, [cursor_pos]
     shl di, 1
     mov word [gs:di], 0700h
+
+    pop edi
     pop ebp
     ret
 
@@ -72,8 +75,8 @@ _backspace:
 _putchar:
     push ebp
     mov ebp, esp
-    push dx
-    push bx
+    push edx
+    push ebx
 
     cmp word [cursor_pos], -1
     jne .skip
@@ -109,8 +112,8 @@ _putchar:
 
 .out:
     mov eax, arg(0)
-    pop bx
-    pop dx
+    pop ebx
+    pop edx
     pop ebp
     ret
 
@@ -208,6 +211,9 @@ scroll_up_screen:
 
 clear_screen:
     push es
+    push eax
+    push edi
+    push ecx
 
     mov ax, gs
     mov es, ax
@@ -220,5 +226,8 @@ clear_screen:
     call set_cursor
     xor eax, eax
 
+    pop ecx
+    pop edi
+    pop eax
     pop es
     ret
