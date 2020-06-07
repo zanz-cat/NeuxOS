@@ -34,7 +34,7 @@ loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
  boot/fat12hdr.inc
 	nasm -o $@ $<
 
-interrupt_a.o: kernel/interrupt.asm
+interrupt_a.o: kernel/interrupt.asm include/const.inc
 	nasm -f elf -o $@ $<
 
 interrupt.o: kernel/interrupt.c include/type.h
@@ -43,17 +43,18 @@ interrupt.o: kernel/interrupt.c include/type.h
 i8259a.o: kernel/i8259a.c include/const.h include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-kernel_a.o: kernel/kernel.asm
+kernel_a.o: kernel/kernel.asm include/common.inc \
+ include/const.inc
 	nasm -f elf -o $@ $<
 
 kernel.o: kernel/kernel.c include/const.h include/string.h \
  include/type.h include/stdio.h include/unistd.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-string.o: lib/string.asm
+string.o: lib/string.asm include/common.inc
 	nasm -f elf -o $@ $<
 
-stdio_a.o: lib/stdio.asm
+stdio_a.o: lib/stdio.asm include/common.inc
 	nasm -f elf -o $@ $<
 
 stdio.o: lib/stdio.c include/type.h

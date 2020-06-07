@@ -1,6 +1,5 @@
 %include "include/common.inc"
-
-SELECTOR_KERNEL_CS  equ 1000b
+%include "include/const.inc"
 
 global _start
 global sys_stacktop
@@ -52,10 +51,9 @@ csinit:
 
     ; load and jmp to idle proc
     mov eax, [current]
-    lldt word [eax+1100]
-    mov esp, [eax+15*4]
-    mov eax, [eax+16*4]
-    mov ss, ax
+    lldt word [eax+OFFSET_PROC_LDT_SEL]
+    mov esp, [eax+OFFSET_PROC_ESP]
+    mov ss, [eax+OFFSET_PROC_SS]
     pop gs
     pop fs
     pop es

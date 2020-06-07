@@ -28,7 +28,6 @@ typedef struct {
     u32 ss;
 } stack_frame;
 
-
 typedef struct {
     stack_frame regs;
     u32 pid;

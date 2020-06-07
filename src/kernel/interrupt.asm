@@ -1,3 +1,5 @@
+%include "include/const.inc"
+
 %macro SAVE_STATE 0
     pusha
     push ds
@@ -14,7 +16,20 @@
     popa
 %endmacro
 
-SELECTOR_KERNEL_DS  equ 10000b
+; save stack info to system stack and switch to system stack
+%macro SWTICH_TO_SYSSTACK 0
+    mov [sys_stacktop - 4], ss
+    mov [sys_stacktop - 8], esp
+    mov ax, SELECTOR_KERNEL_DS
+    mov ss, ax
+    lea esp, [sys_stacktop - 8]    
+%endmacro
+
+; switch back to kernel stack of proc
+%macro SWTICH_BACK_TO_USERSTACK 0
+    mov esp, [sys_stacktop - 8]
+    mov ss, [sys_stacktop - 4]
+%endmacro
 
 extern exception_handler
 extern send_eoi
@@ -134,10 +149,10 @@ hwint00:
     SAVE_STATE
     ; save proc stack info if is kernel proc
     mov eax, [current]
-    cmp dword [eax+18*4], 0
+    cmp dword [eax+OFFSET_PROC_TYPE], 0
     jne .skip
-    mov [eax+15*4], esp
-    mov [eax+16*4], ss
+    mov [eax+OFFSET_PROC_ESP], esp
+    mov [eax+OFFSET_PROC_SS], ss
 .skip:
     ; switch to system stack
     mov ax, SELECTOR_KERNEL_DS
@@ -148,15 +163,15 @@ hwint00:
     call send_eoi
     ; switch to kernel stack of proc
     mov eax, [current]
-    lldt word [eax+1100]
-    cmp dword [eax+18*4], 0
+    lldt word [eax+OFFSET_PROC_LDT_SEL]
+    cmp dword [eax+OFFSET_PROC_TYPE], 0
     jne .user_proc
-    mov ss, [eax+16*4]
-    mov esp, [eax+15*4]
+    mov ss, [eax+OFFSET_PROC_SS]
+    mov esp, [eax+OFFSET_PROC_ESP]
     jmp .fini
 .user_proc:
-    lea ebx, [eax+17*4]
-    mov [tss+4], ebx
+    lea ebx, [eax+OFFSET_PROC_PID]  ; kernel stack top of user proc
+    mov [tss+OFFSET_TSS_ESP0], ebx
     mov esp, eax
     mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
@@ -166,19 +181,13 @@ hwint00:
     
 hwint01:
     SAVE_STATE
-    ; save stack info to system stack
-    mov [sys_stacktop - 4], ss
-    mov [sys_stacktop - 8], esp
-    ; switch to system stack
-    mov ax, SELECTOR_KERNEL_DS
-    mov ss, ax
-    lea esp, [sys_stacktop - 8]
+    SWTICH_TO_SYSSTACK
+    
     ; handle
     call keyboard_int
     call send_eoi
-    ; switch back to kernel stack of proc
-    mov esp, [sys_stacktop - 8]
-    mov ss, [sys_stacktop - 4]
+
+    SWTICH_BACK_TO_USERSTACK
     RESTORE_STATE
     iret
 hwint03:
