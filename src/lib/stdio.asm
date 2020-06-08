@@ -77,6 +77,7 @@ _putchar:
     mov ebp, esp
     push edx
     push ebx
+    push edi
 
     cmp word [cursor_pos], -1
     jne .skip
@@ -98,20 +99,21 @@ _putchar:
     je  .scrollup
     call set_cursor
     jmp .out
-.scrollup:
-    call scroll_up_screen
-    jmp .out
-
 .1:
     mov ah, arg(1)
     mov di, [cursor_pos]
     shl di, 1
     mov [gs:di], ax
     inc word [cursor_pos]
+    cmp word [cursor_pos], 80*25
+    je .scrollup
     call set_cursor
-
+    jmp .out
+.scrollup:
+    call scroll_up_screen
 .out:
     mov eax, arg(0)
+    pop edi
     pop ebx
     pop edx
     pop ebp
@@ -121,6 +123,7 @@ _putchar:
 _putchar_pos:
     push ebp
     mov ebp, esp
+    push edi
 
     mov eax, arg(0)
     mov ah, arg(2)
@@ -129,6 +132,7 @@ _putchar_pos:
     mov [gs:di], ax
 
     mov eax, arg(0)
+    pop edi
     pop ebp
     ret
 

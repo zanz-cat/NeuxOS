@@ -150,7 +150,10 @@ exception:
 
 hwint00:
     SAVE_STATE
-    
+    mov ax, SELECTOR_KERNEL_DS
+    mov ds, ax
+    mov es, ax
+
     ; cmp byte [clock_reentry], 0
     ; jne .reentry_skip
     ; inc byte [clock_reentry]
@@ -191,6 +194,9 @@ hwint00:
     
 hwint01:
     SAVE_STATE
+    mov ax, SELECTOR_KERNEL_DS
+    mov ds, ax
+    mov es, ax
     SWTICH_TO_SYSSTACK
     
     ; handle

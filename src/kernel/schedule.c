@@ -7,7 +7,7 @@
 #include "string.h"
 
 #define MAX_PROC_NUM            10
-#define INITIAL_EFLAGS          0x200
+#define INITIAL_EFLAGS          0x200 | 0x3000
 
 #define SELECTOR_TASK_CS        0x7
 #define SELECTOR_TASK_DS        0xf

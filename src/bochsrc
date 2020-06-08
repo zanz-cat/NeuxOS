@@ -9,6 +9,8 @@ megs: 32
 romimage: file=../bios/BIOS-bochs-latest
 vgaromimage: file=../bios/VGABIOS-elpin-2.40
 
+vga: update_freq=60, realtime=0
+
 # what disk images will be used
 floppya: 1_44=a.img, status=inserted
 
