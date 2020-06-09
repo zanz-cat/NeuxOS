@@ -18,7 +18,3 @@ void init_8259A() {
     out_byte(INT_M_CTLMASK, 0xfc);
     out_byte(INT_S_CTLMASK, 0xff);
 }
-
-void send_eoi() {
-    out_byte(INT_M_CTL, 0x20);
-}

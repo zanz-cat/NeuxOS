@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "i8259a.h"
 #include "schedule.h"
+#include "clock.h"
 
 typedef void (*int_handler)();
 
@@ -42,6 +43,7 @@ extern void kapp1();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
+void *hw_irq_handler_table[15];
 
 static char *int_err_msg[] = {
     "#DE Divide Error",
@@ -75,48 +77,6 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
     int_desc->offset_low = (u32)handler & 0xffff;
 }
 
-void init_interrupt() {    
-    puts("Init 8259A Interrupt Controller\n");
-    init_8259A();
-    
-    puts("Init IDT\n");
-    // init system int vector
-    init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_NMI, DA_386IGate, nmi, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_BREAKPOINT, DA_386IGate, breakpoint_exception, PRIVILEGE_USER);
-    init_int_desc(INT_VECTOR_OVERFLOW, DA_386IGate, overflow, PRIVILEGE_USER);
-    init_int_desc(INT_VECTOR_BOUNDS, DA_386IGate, bounds_check, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_INVAL_OP, DA_386IGate, inval_opcode, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COPROC_NOT, DA_386IGate, copr_not_available, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_DOUBLE_FAULT, DA_386IGate, double_fault, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COPROC_SEG, DA_386IGate, copr_seg_overrun, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_INVAL_TSS, DA_386IGate, inval_tss, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_SEG_NOT, DA_386IGate, segment_not_present, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_STACK_FAULT, DA_386IGate, stack_exception, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
-
-    // init 8259A int vector
-    init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint03, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 4, DA_386IGate, hwint04, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 5, DA_386IGate, hwint05, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 6, DA_386IGate, hwint06, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 7, DA_386IGate, hwint07, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 0, DA_386IGate, hwint08, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 4, DA_386IGate, hwint12, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint13, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
-
-    // init idt ptr
-    u16 *p_idt_limit = (u16*)idt_ptr;
-    u32 *p_idt_base = (u32*)(idt_ptr+2);
-    *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
-    *p_idt_base = (u32)&idt;
-}
 
 void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
     int color = get_text_color();
@@ -135,7 +95,7 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
 
 static int f = 0;
 static int a = 0;
-void keyboard_int() {
+void keyboard_handler() {
     f = !f;
     u8 code = in_byte(0x60);
     if (f) {
@@ -169,38 +129,93 @@ void keyboard_int() {
     a++;
 }
 
-void serial2_int() {
-    puts("serial2_int\n");
+void serial2_handler() {
+    puts("serial2_handler\n");
 }
 
-void serial1_int() {
-    puts("serial1_int\n");
+void serial1_handler() {
+    puts("serial1_handler\n");
 }
 
-void lpt2_int() {
-    puts("lpt2_int\n");
+void lpt2_handler() {
+    puts("lpt2_handler\n");
 }
 
-void floppy_int() {
-    puts("floppy_int\n");
+void floppy_handler() {
+    puts("floppy_handler\n");
 }
 
-void lpt1_int() {
-    puts("lpt1_int\n");
+void lpt1_handler() {
+    puts("lpt1_handler\n");
 }
 
-void real_clock_int() {
-    puts("real_clock_int\n");
+void real_clock_handler() {
+    puts("real_clock_handler\n");
 }
 
-void mouse_int() {
-    puts("mouse_int\n");
+void mouse_handler() {
+    puts("mouse_handler\n");
 }
 
-void copr_int() {
-    puts("copr_int\n");
+void copr_handler() {
+    puts("copr_handler\n");
 }
 
-void harddisk_int() {
-    puts("harddisk_int\n");
+void harddisk_handler() {
+    puts("harddisk_handler\n");
+}
+
+void init_interrupt() {    
+    puts("Init 8259A Interrupt Controller\n");
+    init_8259A();
+    
+    puts("Init IDT\n");
+    // init system int vector
+    init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_NMI, DA_386IGate, nmi, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_BREAKPOINT, DA_386IGate, breakpoint_exception, PRIVILEGE_USER);
+    init_int_desc(INT_VECTOR_OVERFLOW, DA_386IGate, overflow, PRIVILEGE_USER);
+    init_int_desc(INT_VECTOR_BOUNDS, DA_386IGate, bounds_check, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_INVAL_OP, DA_386IGate, inval_opcode, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_COPROC_NOT, DA_386IGate, copr_not_available, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_DOUBLE_FAULT, DA_386IGate, double_fault, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_COPROC_SEG, DA_386IGate, copr_seg_overrun, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_INVAL_TSS, DA_386IGate, inval_tss, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_SEG_NOT, DA_386IGate, segment_not_present, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_STACK_FAULT, DA_386IGate, stack_exception, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
+
+    // init hardware int vector
+    init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint03, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 4, DA_386IGate, hwint04, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 5, DA_386IGate, hwint05, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 6, DA_386IGate, hwint06, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ0 + 7, DA_386IGate, hwint07, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 0, DA_386IGate, hwint08, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 4, DA_386IGate, hwint12, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint13, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
+
+    hw_irq_handler_table[0] = clock_handler;
+    hw_irq_handler_table[1] = keyboard_handler;
+    hw_irq_handler_table[3] = serial2_handler;
+    hw_irq_handler_table[4] = serial1_handler;
+    hw_irq_handler_table[5] = lpt2_handler;
+    hw_irq_handler_table[6] = floppy_handler;
+    hw_irq_handler_table[7] = lpt1_handler;
+    hw_irq_handler_table[8] = real_clock_handler;
+    hw_irq_handler_table[12] = mouse_handler;
+    hw_irq_handler_table[13] = copr_handler;
+    hw_irq_handler_table[14] = harddisk_handler;
+
+    // init idt ptr
+    u16 *p_idt_limit = (u16*)idt_ptr;
+    u32 *p_idt_base = (u32*)(idt_ptr+2);
+    *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
+    *p_idt_base = (u32)&idt;
 }

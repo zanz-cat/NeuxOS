@@ -27,3 +27,9 @@ OFFSET_PROC_STACK       equ         OFFSET_PROC_LDT + 8 * LDT_SIZE
 
 OFFSET_TSS_PREV         equ         0
 OFFSET_TSS_ESP0         equ         OFFSET_TSS_PREV + 4
+
+INT_M_CTL               equ         0x20
+INT_M_CTLMASK           equ         0x21
+INT_S_CTL               equ         0xa0
+INT_S_CTLMASK           equ         0xa1
+INT_EOI                 equ         0x20

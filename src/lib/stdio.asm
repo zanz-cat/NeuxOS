@@ -35,19 +35,17 @@ out_byte:
 in_byte:
     push ebp
     mov ebp, esp
-    push eax
     push edx
 
     mov edx, arg(0)
+    xor eax, eax
     in al, dx
-    and eax, 0ffh
     nop
     nop
     nop
     nop
 
     pop edx
-    pop eax
     pop ebp
     ret
 
