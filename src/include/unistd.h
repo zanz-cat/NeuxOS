@@ -5,5 +5,6 @@
 
 u32 sleep(u32 seconds);
 int usleep(u32 usec);
+u32 get_ticks();
 
 #endif

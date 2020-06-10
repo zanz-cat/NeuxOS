@@ -24,6 +24,7 @@ void stack_exception();
 void general_protection();
 void page_fault();
 void copr_error();
+void syscall();
 
 void hwint00();
 void hwint01();
@@ -43,7 +44,7 @@ extern void kapp1();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
-void *hw_irq_handler_table[15];
+void *irq_handler_table[15];
 
 static char *int_err_msg[] = {
     "#DE Divide Error",
@@ -187,6 +188,7 @@ void init_interrupt() {
     init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
+    init_int_desc(INT_VECTOR_SYSCALL, DA_386IGate, syscall, PRIVILEGE_KRNL);
 
     // init hardware int vector
     init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
@@ -201,17 +203,18 @@ void init_interrupt() {
     init_int_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint13, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
 
-    hw_irq_handler_table[0] = clock_handler;
-    hw_irq_handler_table[1] = keyboard_handler;
-    hw_irq_handler_table[3] = serial2_handler;
-    hw_irq_handler_table[4] = serial1_handler;
-    hw_irq_handler_table[5] = lpt2_handler;
-    hw_irq_handler_table[6] = floppy_handler;
-    hw_irq_handler_table[7] = lpt1_handler;
-    hw_irq_handler_table[8] = real_clock_handler;
-    hw_irq_handler_table[12] = mouse_handler;
-    hw_irq_handler_table[13] = copr_handler;
-    hw_irq_handler_table[14] = harddisk_handler;
+    // install hardware int handlers
+    irq_handler_table[0] = clock_handler;
+    irq_handler_table[1] = keyboard_handler;
+    irq_handler_table[3] = serial2_handler;
+    irq_handler_table[4] = serial1_handler;
+    irq_handler_table[5] = lpt2_handler;
+    irq_handler_table[6] = floppy_handler;
+    irq_handler_table[7] = lpt1_handler;
+    irq_handler_table[8] = real_clock_handler;
+    irq_handler_table[12] = mouse_handler;
+    irq_handler_table[13] = copr_handler;
+    irq_handler_table[14] = harddisk_handler;
 
     // init idt ptr
     u16 *p_idt_limit = (u16*)idt_ptr;

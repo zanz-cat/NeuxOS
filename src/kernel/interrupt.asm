@@ -16,7 +16,7 @@
     popa
 %endmacro
 
-%macro hwint 2
+%macro hwint 1
     ; save state
     SAVE_STATE
     mov ax, SELECTOR_KERNEL_DS
@@ -24,13 +24,13 @@
     mov es, ax
 
     ; close current interrupt
-    %if %1 = 0
+    %if %1 < 8
         in al, INT_M_CTLMASK
-        or al, (1 << %2)
+        or al, (1 << %1)
         out INT_M_CTLMASK, al
     %else
         in al, INT_S_CTLMASK
-        or al, (1 << %2)
+        or al, (1 << (%1 % 8))
         out INT_S_CTLMASK, al
     %endif
     ; enable interrupt
@@ -47,7 +47,7 @@
     mov ss, ax
     mov esp, sys_stacktop
     ; call handler
-    call [hw_irq_handler_table + 4*%1]
+    call [irq_handler_table + 4*%1]
     ; switch to kernel stack of proc
     mov eax, [current]
     lldt word [eax+OFFSET_PROC_LDT_SEL]
@@ -64,13 +64,13 @@
     mov ss, ax
 .fini:
     ; open current interrupt
-    %if %1 = 0
+    %if %1 < 8
         in al, INT_M_CTLMASK
-        and al, ~(1 << %2)
+        and al, ~(1 << %1)
         out INT_M_CTLMASK, al
     %else
         in al, INT_S_CTLMASK
-        and al, ~(1 << %2)
+        and al, ~(1 << (%1 % 8))
         out INT_S_CTLMASK, al
     %endif
     ; send eoi
@@ -81,7 +81,7 @@
     iret
 %endmacro
 
-extern hw_irq_handler_table
+extern irq_handler_table
 extern current
 extern sys_stacktop
 extern tss
@@ -182,35 +182,35 @@ exception:
     iret
 
 hwint00:
-    hwint 0, 0
+    hwint 0
     
 hwint01:
-    hwint 0, 1
+    hwint 1
 
 hwint03:
-    hwint 0, 3
+    hwint 3
     
 hwint04:
-    hwint 0, 4
+    hwint 4
     
 hwint05:
-    hwint 0, 5
+    hwint 5
     
 hwint06:
-    hwint 0, 6
+    hwint 6
     
 hwint07:
-    hwint 0, 7
+    hwint 7
     
 hwint08:
-    hwint 1, 0
+    hwint 8
     
 hwint12:
-    hwint 1, 4
+    hwint 12
     
 hwint13:
-    hwint 1, 5
+    hwint 13
     
 hwint14:
-    hwint 1, 6
+    hwint 14
 

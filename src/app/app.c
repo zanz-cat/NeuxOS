@@ -7,6 +7,7 @@ void app1() {
         set_text_color(0x4);
         printf_pos(915, "app1: %d", count++);
         reset_text_color();
+        get_ticks();
     }
 }
 

@@ -68,6 +68,9 @@ stdio.o: lib/stdio.c include/type.h
 unistd_a.o: lib/unistd.asm
 	nasm -f elf -o $@ $<
 
+syscall.o:	kernel/syscall.asm
+	nasm -f elf -o $@ $<
+
 unistd.o: lib/unistd.c include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
@@ -95,7 +98,7 @@ log.o: lib/log.c include/log.h include/stdio.h \
 
 kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
  stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o clock.o \
- schedule.o gdt.o log.o app.o
+ schedule.o gdt.o log.o syscall.o app.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:

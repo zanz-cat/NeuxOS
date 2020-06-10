@@ -16,3 +16,8 @@ int usleep(u32 usec) {
     }
     return 0;
 }
+
+u32 get_ticks() {
+    asm("movl $0, %eax\n\t"
+        "int $0x70");
+}
