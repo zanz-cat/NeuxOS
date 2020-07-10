@@ -33,36 +33,53 @@
         or al, (1 << (%1 % 8))
         out INT_S_CTLMASK, al
     %endif
-    ; enable interrupt
-    sti
-    ; save proc stack info if is kernel proc
+
     mov eax, [current]
-    cmp word [eax+OFFSET_PROC_TYPE], 0
-    jne .skip
-    mov [eax+OFFSET_PROC_ESP], esp
-    mov [eax+OFFSET_PROC_SS], ss
-.skip:
+    ; save proc stack info
+    lea ebx, [hwint_stacks + HWINT_STACK_SIZE*%1]
+    %if %1 = 0
+        mov [eax + OFFSET_PROC_ESP0], esp
+        mov [eax + OFFSET_PROC_SS0], ss
+    %else
+        sub ebx, 2
+        mov [ebx], ss
+        sub ebx, 4
+        mov [ebx], esp
+    %endif
+
     ; switch to system stack
     mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
-    mov esp, sys_stacktop
+    mov esp, ebx
+
+    ; enable interrupt
+    sti
+
     ; call handler
     call [irq_handler_table + 4*%1]
-    ; switch to kernel stack of proc
+
+    ; disable interrupt
+    cli
+
     mov eax, [current]
-    lldt word [eax+OFFSET_PROC_LDT_SEL]
-    cmp word [eax+OFFSET_PROC_TYPE], 0
-    jne .user_proc
-    mov ss, [eax+OFFSET_PROC_SS]
-    mov esp, [eax+OFFSET_PROC_ESP]
-    jmp .fini
-.user_proc:
-    lea ebx, [eax+OFFSET_PROC_PID]  ; kernel stack top of user proc
-    mov [tss+OFFSET_TSS_ESP0], ebx
-    mov esp, eax
-    mov ax, SELECTOR_KERNEL_DS
-    mov ss, ax
-.fini:
+    ; load ldt and store stack0 to tr.esp0
+    %if %1 = 0
+        lldt word [eax+OFFSET_PROC_LDT_SEL]
+        lea ebx, [eax + OFFSET_PROC_STACK3]
+        mov [tss+OFFSET_TSS_ESP0], ebx
+    %endif
+
+    ; switch to kernel stack of proc
+    %if %1 = 0
+        mov ss, [eax+OFFSET_PROC_SS0]
+        mov esp, [eax+OFFSET_PROC_ESP0]
+    %else
+        mov ebx, esp
+        mov esp, [ebx]
+        add ebx, 4
+        mov ss, [ebx]
+    %endif
+
     ; open current interrupt
     %if %1 < 8
         in al, INT_M_CTLMASK
@@ -73,9 +90,11 @@
         and al, ~(1 << (%1 % 8))
         out INT_S_CTLMASK, al
     %endif
+
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
+    
     ; restore state
     RESTORE_STATE
     iret
@@ -115,6 +134,10 @@ global hwint08
 global hwint12
 global hwint13
 global hwint14
+
+[SECTION .bss]
+resb    HWINT_STACK_SIZE * 16
+hwint_stacks:
 
 [SECTION .text]
 divide_error:

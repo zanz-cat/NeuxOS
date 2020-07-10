@@ -14,9 +14,9 @@ memcpy:
     push ecx
     push es
 
-    mov edi, arg(0)    ; Destination
-    mov esi, arg(1)   ; Source
-    mov ecx, arg(2)   ; Size
+    mov edi, arg(0)   ; destination
+    mov esi, arg(1)   ; source
+    mov ecx, arg(2)   ; size
     rep movsb
 
     pop es
@@ -36,9 +36,9 @@ memset:
     push edi
     push ecx
 
-    xor eax, eax
     mov edi, arg(0)
-    mov ecx, arg(1)
+    mov eax, arg(1)
+    mov ecx, arg(2)
     rep stosb
 
     pop ecx

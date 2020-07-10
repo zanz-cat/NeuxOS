@@ -11,11 +11,12 @@
 
 #define SELECTOR_TASK_CS        0x7
 #define SELECTOR_TASK_DS        0xf
-#define SELECTOR_TASK_SS        0xf
+#define SELECTOR_TASK_SS0       0x14
+#define SELECTOR_TASK_SS3       SELECTOR_TASK_DS
 
 #define SELECTOR_KERN_TASK_CS   0x4
 #define SELECTOR_KERN_TASK_DS   0xc
-#define SELECTOR_KERN_TASK_SS   0xc
+#define SELECTOR_KERN_TASK_SS   SELECTOR_KERN_TASK_DS
 
 /* the first process is cpu idle process 
  * which keeps cpu running while no task to run
@@ -28,15 +29,19 @@ static int init_proc(t_proc *proc, u32 pid, void *text) {
     proc->pid = pid;
     proc->type = 1;
 
-    proc->regs.ds = SELECTOR_TASK_DS;
-    proc->regs.es = SELECTOR_TASK_DS;
-    proc->regs.gs = SELECTOR_VIDEO;
-    proc->regs.eip = (u32)text;
-    proc->regs.cs = SELECTOR_TASK_CS;
-    proc->regs.eflags = INITIAL_EFLAGS;
-    proc->regs.esp = proc_stack_top(proc);
-    proc->regs.ss = SELECTOR_TASK_SS;
+    /* construct initial kernel stack */
+    user_proc_stack_frame* frame = (user_proc_stack_frame*)(proc_kernel_stack(proc) - sizeof(*frame));
+    frame->gs = SELECTOR_VIDEO;
+    frame->es = SELECTOR_TASK_DS;
+    frame->ds = SELECTOR_TASK_DS;
+    frame->eip = (u32)text;
+    frame->cs = SELECTOR_TASK_CS;
+    frame->eflags = INITIAL_EFLAGS;
+    frame->esp3 = proc_user_stack(proc);
+    frame->ss3 = SELECTOR_TASK_SS3;
 
+    proc->ss0 = SELECTOR_TASK_SS0;
+    proc->esp0 = (u32)frame;
 
     /* init ldt */
     u16 i = SELECTOR_TASK_CS >> 3;
@@ -47,13 +52,21 @@ static int init_proc(t_proc *proc, u32 pid, void *text) {
     proc->ldt[i].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     proc->ldt[i].attr1 = DA_C | DA_DPL3;
 
-    i = SELECTOR_TASK_DS >> 3;   // for ds, es, ss
+    i = SELECTOR_TASK_DS >> 3;   // for ds, es, ss3
     proc->ldt[i].base_low = 0;
     proc->ldt[i].base_mid = 0;
     proc->ldt[i].base_high = 0;
     proc->ldt[i].limit_low = 0xffff;
     proc->ldt[i].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     proc->ldt[i].attr1 = DA_DRW | DA_DPL3;
+
+    i = SELECTOR_TASK_SS0 >> 3;   // for ss0
+    proc->ldt[i].base_low = 0;
+    proc->ldt[i].base_mid = 0;
+    proc->ldt[i].base_high = 0;
+    proc->ldt[i].limit_low = 0xffff;
+    proc->ldt[i].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
+    proc->ldt[i].attr1 = DA_DRW | DA_DPL0;
 
     /* install ldt */
     int sel = install_ldt(proc->ldt, LDT_SIZE);
@@ -70,33 +83,17 @@ static int init_kproc(t_proc *proc, u32 pid, void *text) {
     proc->pid = pid;
     proc->type = 0;
 
-    proc->regs.esp = proc_stack_top(proc);
-    proc->regs.ss = SELECTOR_KERN_TASK_SS;
+    /* construct initial kernel stack */
+    kernel_proc_stack_frame* frame = (kernel_proc_stack_frame*)(proc_kernel_stack(proc) - sizeof(*frame));
+    frame->gs = SELECTOR_VIDEO;
+    frame->es = SELECTOR_KERN_TASK_DS;
+    frame->ds = SELECTOR_KERN_TASK_DS;
+    frame->eip = (u32)text;
+    frame->cs = SELECTOR_KERN_TASK_CS;
+    frame->eflags = INITIAL_EFLAGS;
 
-    /* push eflags */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = INITIAL_EFLAGS;
-    /* push cs */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = SELECTOR_KERN_TASK_CS;
-    /* push eip */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = (u32)text;
-    /* pusha */
-    proc->regs.esp -= 8*4;
-    memset((void *)proc->regs.esp, 0, 8*4);
-    /* ds */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = SELECTOR_KERN_TASK_DS;
-    /* es */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = SELECTOR_KERN_TASK_DS;
-    /* fs */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = 0;
-    /* gs */
-    proc->regs.esp -= 4;
-    *((u32*)proc->regs.esp) = SELECTOR_VIDEO;
+    proc->ss0 = SELECTOR_KERN_TASK_DS; // FIXME
+    proc->esp0 = (u32)frame;
 
     /* init ldt */
     u16 i = SELECTOR_KERN_TASK_CS >> 3;
@@ -134,6 +131,7 @@ static t_proc *_create_proc(void *text, u16 type) {
 
     int ret;
     t_proc *proc = &proc_list[proc_num];
+    memset(proc, 0, sizeof(*proc));
     if (0 == type) {
         ret = init_kproc(proc, proc_num, text);
     } else {
@@ -147,6 +145,8 @@ static t_proc *_create_proc(void *text, u16 type) {
     proc_num++;
     log_debug("process created, pid: %d, ldt selector: 0x%x\n", 
         proc->pid, proc->ldt_sel);
+
+    log_info("ldt index: %d\n", proc->ldt_sel >> 3);
     return proc;
 }
 

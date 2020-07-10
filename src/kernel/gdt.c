@@ -8,7 +8,7 @@
 u8 gdt_ptr[6];
 DESCRIPTOR gdt[GDT_SIZE];
 
-static u16 index = 3;
+static u16 index = 4;
 
 void init_gdt() {
     memcpy(&gdt, (void*)(*((u32*)(&gdt_ptr[2]))), *((u16*)(&gdt_ptr[0]))+1);
@@ -19,11 +19,11 @@ void init_gdt() {
 }
 
 int install_tss(TSS *ptss) {
-    if (index == GDT_SIZE - 1) {
+    if (index > GDT_SIZE - 1) {
         return -1;
     }
     
-    DESCRIPTOR *pdesc = &gdt[++index];
+    DESCRIPTOR *pdesc = &gdt[index++];
     pdesc->base_low = (u32)ptss & 0xffff;
     pdesc->base_mid = ((u32)ptss >> 16) & 0xf;
     pdesc->base_high = (u32)ptss >> 24;
@@ -33,15 +33,15 @@ int install_tss(TSS *ptss) {
     pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
     pdesc->attr1 = DA_386TSS | DA_DPL0;
 
-    return index << 3;
+    return (index-1) << 3;
 }
 
 int install_ldt(void *ldt, u16 size) {
-    if (index == GDT_SIZE - 1) {
+    if (index > GDT_SIZE - 1) {
         return -1;
     }
 
-    DESCRIPTOR *pdesc = &gdt[++index];
+    DESCRIPTOR *pdesc = &gdt[index++];
     pdesc->base_low = (u32)ldt & 0xffff;
     pdesc->base_mid = ((u32)ldt >> 16) & 0xf;
     pdesc->base_high = (u32)ldt >> 24;
@@ -51,5 +51,5 @@ int install_ldt(void *ldt, u16 size) {
     pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
     pdesc->attr1 = DA_LDT | DA_DPL0;
 
-    return index << 3;
+    return (index-1) << 3;
 }

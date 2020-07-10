@@ -2,7 +2,6 @@
 %include "include/const.inc"
 
 global _start
-global sys_stacktop
 global kernel_idle
 
 extern gdt_ptr
@@ -16,7 +15,7 @@ extern tss_sel
 extern current
 
 [SECTION .bss]
-stack_space  resb    2 * 1024
+resb    1024
 sys_stacktop: 
 
 [SECTION .text]
@@ -52,8 +51,8 @@ csinit:
     ; load and jmp to idle proc
     mov eax, [current]
     lldt word [eax+OFFSET_PROC_LDT_SEL]
-    mov esp, [eax+OFFSET_PROC_ESP]
-    mov ss, [eax+OFFSET_PROC_SS]
+    mov esp, [eax+OFFSET_PROC_ESP0]
+    mov ss, [eax+OFFSET_PROC_SS0]
     pop gs
     pop fs
     pop es

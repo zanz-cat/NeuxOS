@@ -79,6 +79,10 @@ int vprintf(const char *fmt, __builtin_va_list args) {
             switch (*(i+1)) {
             case 'd':
                 intarg = __builtin_va_arg(args, int);
+                if (intarg & 0x8000) {
+                    intarg = ~intarg + 1;
+                    *(pc++) = '-';
+                }
                 len = _num_strlen(intarg, 10);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 10;

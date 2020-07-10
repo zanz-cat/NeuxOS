@@ -41,6 +41,7 @@ void hwint14();
 extern void app1();
 extern void app2();
 extern void kapp1();
+extern void kapp2();
 
 u8 idt_ptr[6];
 GATE idt[IDT_SIZE];
@@ -102,7 +103,7 @@ void keyboard_handler() {
     if (f) {
         return;
     }
-    a %= 6;
+    a %= 8;
     switch (a)
     {
     case 0:
@@ -115,12 +116,18 @@ void keyboard_handler() {
         create_kproc(kapp1);
         break;
     case 3:
-        destroy_proc();
+        create_kproc(kapp2);
         break;
     case 4:
         destroy_proc();
         break;
     case 5:
+        destroy_proc();
+        break;
+    case 6:
+        destroy_proc();
+        break;
+    case 7:
         destroy_proc();
         break;
     default:
