@@ -143,10 +143,9 @@ static t_proc *_create_proc(void *text, u16 type) {
         return NULL;
     }
     proc_num++;
-    log_debug("process created, pid: %d, ldt selector: 0x%x\n", 
-        proc->pid, proc->ldt_sel);
+    log_debug("process created, pid: %d, ldt sel: 0x%x(%d)\n", 
+        proc->pid, proc->ldt_sel, proc->ldt_sel >> 3);
 
-    log_info("ldt index: %d\n", proc->ldt_sel >> 3);
     return proc;
 }
 

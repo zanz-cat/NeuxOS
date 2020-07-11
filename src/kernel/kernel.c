@@ -41,7 +41,7 @@ void _idle() {
 }
 
 int init_system() {
-    // set_log_level(DEBUG);
+    set_log_level(DEBUG);
 
     // init TSS
     tss.ss0 = SELECTOR_KERNEL_DS;
