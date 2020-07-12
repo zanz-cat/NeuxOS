@@ -9,6 +9,13 @@
 #define STACK0_SIZE  1024
 #define STACK3_SIZE  1024
 
+#define PROC_STATE_INIT         0
+#define PROC_STATE_RUNNING      1
+#define PROC_STATE_DEAD         2
+
+#define PROC_TYPE_KERNEL    0
+#define PROC_TYPE_USER      1
+
 typedef struct {
     u32 gs;
     u32 fs;
@@ -49,7 +56,8 @@ typedef struct {
 
 typedef struct {
     u32 pid;
-    u16 type;
+    u8  type;
+    u8  state;
     u16 ss0;
     u32 esp0;
     u16 ldt_sel;

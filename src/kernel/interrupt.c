@@ -97,6 +97,7 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
 
 static int f = 0;
 static int a = 0;
+static t_proc *p1, *p2, *p3, *p4;
 void keyboard_handler() {
     f = !f;
     u8 code = in_byte(0x60);
@@ -107,28 +108,28 @@ void keyboard_handler() {
     switch (a)
     {
     case 0:
-        create_proc(app1);
+        p1 = create_proc(app1);
         break;
     case 1:
-        create_proc(app2);
+        p2 = create_proc(app2);
         break;
     case 2:
-        create_kproc(kapp1);
+        p3 = create_kproc(kapp1);
         break;
     case 3:
-        create_kproc(kapp2);
+        p4 = create_kproc(kapp2);
         break;
     case 4:
-        destroy_proc();
+        terminate_proc(p4);
         break;
     case 5:
-        destroy_proc();
+        terminate_proc(p3);
         break;
     case 6:
-        destroy_proc();
+        terminate_proc(p2);
         break;
     case 7:
-        destroy_proc();
+        terminate_proc(p1);
         break;
     default:
         break;

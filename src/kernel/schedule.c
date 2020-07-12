@@ -132,7 +132,8 @@ static t_proc *_create_proc(void *text, u16 type) {
     int ret;
     t_proc *proc = &proc_list[proc_num];
     memset(proc, 0, sizeof(*proc));
-    if (0 == type) {
+    proc->state = PROC_STATE_INIT;
+    if (PROC_TYPE_KERNEL == type) {
         ret = init_kproc(proc, proc_num, text);
     } else {
         ret = init_proc(proc, proc_num, text);
@@ -143,6 +144,7 @@ static t_proc *_create_proc(void *text, u16 type) {
         return NULL;
     }
     proc_num++;
+    proc->state = PROC_STATE_RUNNING;
     log_debug("process created, pid: %d, ldt sel: 0x%x(%d)\n", 
         proc->pid, proc->ldt_sel, proc->ldt_sel >> 3);
 
@@ -150,11 +152,11 @@ static t_proc *_create_proc(void *text, u16 type) {
 }
 
 t_proc *create_proc(void *text) {
-    return _create_proc(text, 1);
+    return _create_proc(text, PROC_TYPE_USER);
 }
 
 t_proc *create_kproc(void *text) {
-    return _create_proc(text, 0);
+    return _create_proc(text, PROC_TYPE_KERNEL);
 }
 
 t_proc *next_proc() {
@@ -171,6 +173,12 @@ t_proc *next_proc() {
     return current;
 }
 
-void destroy_proc() {
+void terminate_proc(t_proc *proc) {
     proc_num--;
+    proc->state = PROC_STATE_DEAD;
+}
+
+void destroy_proc(t_proc *proc) {
+    uninstall_ldt(proc->ldt_sel);
+    memset(proc, 0, sizeof(*proc));
 }

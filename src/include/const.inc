@@ -6,7 +6,8 @@ HWINT_STACK_SIZE        equ         1024
 
 OFFSET_PROC_PID         equ         0
 OFFSET_PROC_TYPE        equ         OFFSET_PROC_PID + 4
-OFFSET_PROC_SS0         equ         OFFSET_PROC_TYPE + 2
+OFFSET_PROC_STATE       equ         OFFSET_PROC_TYPE + 1
+OFFSET_PROC_SS0         equ         OFFSET_PROC_STATE + 1
 OFFSET_PROC_ESP0        equ         OFFSET_PROC_SS0 + 2
 OFFSET_PROC_LDT_SEL     equ         OFFSET_PROC_ESP0 + 4
 OFFSET_PROC_LDT         equ         OFFSET_PROC_LDT_SEL + 2
