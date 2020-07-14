@@ -125,7 +125,7 @@ static int init_kproc(t_proc *proc, u32 pid, void *text) {
 
 static t_proc *_create_proc(void *text, u16 type) {
     if (proc_num == MAX_PROC_NUM) {
-        log_error("max process number(%d) exceed!\n", MAX_PROC_NUM);
+        log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
         return NULL;
     }
 
@@ -145,7 +145,7 @@ static t_proc *_create_proc(void *text, u16 type) {
     }
     proc_num++;
     proc->state = PROC_STATE_RUNNING;
-    log_debug("process created, pid: %d, ldt sel: 0x%x(%d)\n", 
+    log_debug("proc created, pid: %d, ldt sel: 0x%x(%d)\n", 
         proc->pid, proc->ldt_sel, proc->ldt_sel >> 3);
 
     return proc;
@@ -169,16 +169,31 @@ t_proc *next_proc() {
         pos++;
     }
 
-    current = &proc_list[pos];
-    return current;
+    return &proc_list[pos];
 }
 
 void terminate_proc(t_proc *proc) {
-    proc_num--;
-    proc->state = PROC_STATE_DEAD;
+    proc->state = PROC_STATE_TERM;
 }
 
-void destroy_proc(t_proc *proc) {
-    uninstall_ldt(proc->ldt_sel);
-    memset(proc, 0, sizeof(*proc));
+void proc_sched() {
+    while (proc_num) {
+        t_proc *proc = next_proc();
+        switch (proc->state) {
+            case PROC_STATE_INIT:
+                break;
+            case PROC_STATE_RUNNING:
+                current = proc;
+                return;
+            case PROC_STATE_TERM:
+                log_debug("destroy proc: %d\n", proc->pid);
+                proc_num--;
+                uninstall_ldt(proc->ldt_sel);
+                memset(proc, 0, sizeof(*proc));
+                break;
+            default:
+                log_error("unknown state, pid: %d, state: %d\n", proc->pid, proc->state);
+                break;
+        }
+    }
 }

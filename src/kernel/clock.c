@@ -5,5 +5,5 @@
 #include "unistd.h"
 
 void clock_handler() {
-    next_proc();
+    proc_sched();
 }

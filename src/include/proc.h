@@ -11,7 +11,7 @@
 
 #define PROC_STATE_INIT         0
 #define PROC_STATE_RUNNING      1
-#define PROC_STATE_DEAD         2
+#define PROC_STATE_TERM         2
 
 #define PROC_TYPE_KERNEL    0
 #define PROC_TYPE_USER      1

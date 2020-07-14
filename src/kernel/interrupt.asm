@@ -35,7 +35,7 @@
     %endif
 
     mov eax, [current]
-    ; save proc stack info
+    ; save proc kernel stack info
     lea ebx, [hwint_stacks + HWINT_STACK_SIZE*%1]
     %if %1 = 0
         mov [eax + OFFSET_PROC_ESP0], esp
@@ -47,7 +47,7 @@
         mov [ebx], esp
     %endif
 
-    ; switch to system stack
+    ; switch to interrupt stack
     mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
     mov esp, ebx
