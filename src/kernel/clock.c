@@ -4,6 +4,13 @@
 #include "schedule.h"
 #include "unistd.h"
 
+static int ticks = 0;
+
 void clock_handler() {
+    ticks++;
     proc_sched();
+}
+
+int sys_get_ticks() {
+    return ticks;
 }

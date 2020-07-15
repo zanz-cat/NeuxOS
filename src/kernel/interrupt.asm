@@ -1,20 +1,5 @@
 %include "include/const.inc"
-
-%macro SAVE_STATE 0
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
-%endmacro
-
-%macro RESTORE_STATE 0
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-%endmacro
+%include "include/common.inc"
 
 %macro hwint 1
     ; save state
@@ -34,18 +19,28 @@
         out INT_S_CTLMASK, al
     %endif
 
-    mov eax, [current]
-    ; save proc kernel stack info
+    ; save kernel stack info of interrupted routine
     lea ebx, [hwint_stacks + HWINT_STACK_SIZE*%1]
-    %if %1 = 0
-        mov [eax + OFFSET_PROC_ESP0], esp
-        mov [eax + OFFSET_PROC_SS0], ss
-    %else
-        sub ebx, 2
-        mov [ebx], ss
-        sub ebx, 4
-        mov [ebx], esp
-    %endif
+    mov eax, [current]
+    cmp eax, 0
+    je  .non_proc
+    ; save kernel stack info to proc
+    mov [eax + OFFSET_PROC_ESP0], esp
+    mov [eax + OFFSET_PROC_SS0], ss
+    mov dword [current], 0
+    ; save dummy stack info to interrupt stack
+    sub ebx, 2
+    mov word [ebx], 0
+    sub ebx, 4
+    mov dword [ebx], 0
+    jmp .kern_stack_saved
+.non_proc:
+    ; save stack info to nested interrupt stack
+    sub ebx, 2
+    mov [ebx], ss
+    sub ebx, 4
+    mov [ebx], esp
+.kern_stack_saved:
 
     ; switch to interrupt stack
     mov ax, SELECTOR_KERNEL_DS
@@ -61,24 +56,28 @@
     ; disable interrupt
     cli
 
+    cmp dword [esp], 0
+    je  .sched_proc
+    ; restore outer kernel stack
+    mov ebx, esp
+    mov esp, [ebx]
+    add ebx, 4
+    mov ss, [ebx]
+    jmp .next_selected
+.sched_proc:
+    %if %1 != 0
+        call proc_sched
+    %endif
     mov eax, [current]
-    ; load ldt and store stack0 to tr.esp0
-    %if %1 = 0
-        lldt word [eax+OFFSET_PROC_LDT_SEL]
-        lea ebx, [eax + OFFSET_PROC_STACK3]
-        mov [tss+OFFSET_TSS_ESP0], ebx
-    %endif
-
-    ; switch to kernel stack of proc
-    %if %1 = 0
-        mov ss, [eax+OFFSET_PROC_SS0]
-        mov esp, [eax+OFFSET_PROC_ESP0]
-    %else
-        mov ebx, esp
-        mov esp, [ebx]
-        add ebx, 4
-        mov ss, [ebx]
-    %endif
+    ; load proc ldt
+    lldt word [eax+OFFSET_PROC_LDT_SEL]
+    ; setup tr.esp0
+    lea ebx, [eax + OFFSET_PROC_STACK0]
+    mov [tss+OFFSET_TSS_ESP0], ebx
+    ; restore proc kernel stack
+    mov ss, [eax+OFFSET_PROC_SS0]
+    mov esp, [eax+OFFSET_PROC_ESP0]
+.next_selected:
 
     ; open current interrupt
     %if %1 < 8
@@ -100,11 +99,11 @@
     iret
 %endmacro
 
-extern irq_handler_table
-extern current
-extern sys_stacktop
 extern tss
+extern current
+extern irq_handler_table
 extern exception_handler
+extern proc_sched
 
 global divide_error
 global single_step_exception

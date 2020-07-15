@@ -1,4 +1,5 @@
 #include "type.h"
+#include "const.h"
 
 void _sleep_sec();
 void _sleep_usec();
@@ -18,6 +19,8 @@ int usleep(u32 usec) {
 }
 
 u32 get_ticks() {
-    asm("movl $0, %eax\n\t"
-        "int $0x70");
+    asm("movl %0, %%eax;"
+        "int $0x70;"
+        ::"i"(SYSCALL_GET_TICKS)
+        :"%eax");
 }

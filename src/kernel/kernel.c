@@ -11,7 +11,6 @@
 extern void app1();
 extern void app2();
 extern void kernel_idle();
-extern u32 sys_stacktop;
 extern t_proc *current;
 
 TSS tss;
@@ -22,7 +21,7 @@ static const char *banner =
     "    / /         ___      ___     //   / / ((        \n"
     "   / /        //___) ) //___) ) //   / /    \\      \n"
     "  / /        //       //       //   / /       ) )   \n"
-    " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.1\n\n";
+    " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.01\n\n";
 
 static void display_banner() {
     set_text_color(0xa);

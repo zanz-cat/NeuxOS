@@ -20,4 +20,6 @@
 #define SUCCESS 0
 #define FAILED  -1
 
+#define SYSCALL_GET_TICKS   0
+
 #endif

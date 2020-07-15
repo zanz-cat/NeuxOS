@@ -1,17 +1,19 @@
-SYSCALL_GET_TICKS       equ     0
+%include "include/const.inc"
+%include "include/common.inc"
+
+extern current
+extern syscall_handler_table
 
 global syscall
 
-[SECTION .data]
-syscall_handler_table:
-dd get_ticks
-
 [SECTION .text]
 syscall:
-    xchg bx, bx
-    call [syscall_handler_table + 4*eax]
-    ret
+    SAVE_STATE
 
-get_ticks:
-    xchg bx, bx
-    ret
+    call [syscall_handler_table + 4*eax]
+
+    mov esi, [current]
+    mov [esi+OFFSET_PROC_STACK0-6*4], eax
+
+    RESTORE_STATE
+    iret

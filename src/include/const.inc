@@ -2,6 +2,7 @@ SELECTOR_KERNEL_CS      equ         1000b
 SELECTOR_KERNEL_DS      equ         10000b
 LDT_SIZE                equ         128
 STACK0_SIZE             equ         1024
+STACK3_SIZE             equ         1024
 HWINT_STACK_SIZE        equ         1024
 
 OFFSET_PROC_PID         equ         0
@@ -11,8 +12,10 @@ OFFSET_PROC_SS0         equ         OFFSET_PROC_STATE + 1
 OFFSET_PROC_ESP0        equ         OFFSET_PROC_SS0 + 2
 OFFSET_PROC_LDT_SEL     equ         OFFSET_PROC_ESP0 + 4
 OFFSET_PROC_LDT         equ         OFFSET_PROC_LDT_SEL + 2
-OFFSET_PROC_STACK0      equ         OFFSET_PROC_LDT + 8 * LDT_SIZE
-OFFSET_PROC_STACK3      equ         OFFSET_PROC_STACK0 + STACK0_SIZE
+OFFSET_PROC_STACK0_TOP  equ         OFFSET_PROC_LDT + 8 * LDT_SIZE
+OFFSET_PROC_STACK0      equ         OFFSET_PROC_STACK0_TOP + STACK0_SIZE
+OFFSET_PROC_STACK3_TOP  equ         OFFSET_PROC_STACK0
+OFFSET_PROC_STACK3      equ         OFFSET_PROC_STACK3_TOP + STACK3_SIZE
 
 OFFSET_TSS_PREV         equ         0
 OFFSET_TSS_ESP0         equ         OFFSET_TSS_PREV + 4
