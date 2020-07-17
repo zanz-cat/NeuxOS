@@ -39,7 +39,7 @@ interrupt_a.o: kernel/interrupt.asm include/const.inc
 
 interrupt.o: kernel/interrupt.c include/type.h \
  include/const.h include/protect.h include/stdio.h \
- include/i8259a.h include/schedule.h include/proc.h
+ include/i8259a.h include/sched.h include/proc.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 i8259a.o: kernel/i8259a.c include/const.h \
@@ -52,7 +52,7 @@ kernel_a.o: kernel/kernel.asm include/common.inc \
 
 kernel.o: kernel/kernel.c include/const.h include/string.h \
  include/type.h include/stdio.h include/unistd.h \
- include/schedule.h include/proc.h include/protect.h \
+ include/sched.h include/proc.h include/protect.h \
  include/log.h include/gdt.h
 	gcc -c $(CFLAGS) -o $@ $<
 
@@ -65,13 +65,10 @@ stdio_a.o: lib/stdio.asm include/common.inc
 stdio.o: lib/stdio.c include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-unistd_a.o: lib/unistd.asm
-	nasm -f elf -o $@ $<
-
 syscall_a.o: kernel/syscall.asm
 	nasm -f elf -o $@ $<
 
-syscall.o: kernel/syscall.c
+syscall.o: kernel/syscall.c include/clock.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 unistd.o: lib/unistd.c include/type.h
@@ -81,11 +78,11 @@ app.o: app/app.c include/stdio.h include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 clock.o: kernel/clock.c include/type.h \
- include/stdio.h include/i8259a.h include/schedule.h \
+ include/stdio.h include/i8259a.h include/sched.h \
  include/proc.h include/protect.h include/unistd.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-schedule.o: kernel/schedule.c include/const.h \
+sched.o: kernel/sched.c include/const.h \
  include/stdio.h include/type.h include/proc.h \
  include/protect.h include/gdt.h include/log.h \
  include/string.h
@@ -100,8 +97,8 @@ log.o: lib/log.c include/log.h include/stdio.h \
 	gcc -c $(CFLAGS) -o $@ $<
 
 kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
- stdio.o unistd_a.o unistd.o interrupt_a.o interrupt.o clock.o \
- schedule.o gdt.o log.o syscall.o syscall_a.o app.o
+ stdio.o unistd.o interrupt_a.o interrupt.o clock.o \
+ sched.o gdt.o log.o syscall.o syscall_a.o app.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:

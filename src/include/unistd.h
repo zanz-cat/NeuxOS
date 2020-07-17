@@ -3,8 +3,8 @@
 
 #include "type.h"
 
-u32 sleep(u32 seconds);
-int usleep(u32 usec);
+u32 sleep(u32 sec);
+u32 msleep(u32 msec);
 u32 get_ticks();
 
 #endif

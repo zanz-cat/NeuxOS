@@ -3,8 +3,9 @@
 #include "protect.h"
 #include "stdio.h"
 #include "i8259a.h"
-#include "schedule.h"
+#include "sched.h"
 #include "clock.h"
+#include "log.h"
 
 typedef void (*int_handler)();
 
@@ -175,10 +176,10 @@ void harddisk_handler() {
 }
 
 void init_interrupt() {    
-    puts("Init 8259A Interrupt Controller\n");
+    log_info("init 8259A interrupt controller\n");
     init_8259A();
     
-    puts("Init IDT\n");
+    log_info("init interrupt descriptor table\n");
     // init system int vector
     init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
@@ -229,4 +230,6 @@ void init_interrupt() {
     u32 *p_idt_base = (u32*)(idt_ptr+2);
     *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
     *p_idt_base = (u32)&idt;
+
+    asm("lidt %0"::"m"(idt_ptr):);
 }

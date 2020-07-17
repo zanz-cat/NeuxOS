@@ -4,13 +4,14 @@
 #include "stdio.h"
 #include "unistd.h"
 #include "protect.h"
-#include "schedule.h"
+#include "sched.h"
 #include "log.h"
 #include "gdt.h"
 
 extern void app1();
 extern void app2();
 extern void kernel_idle();
+extern void init_interrupt();
 extern t_proc *current;
 
 TSS tss;
@@ -29,6 +30,13 @@ static void display_banner() {
     reset_text_color();
 }
 
+static void init_timer() {
+    log_info("init system timer\n");
+    out_byte(TIMER_MODE, RATE_GENERATOR);
+    out_byte(TIMER0, (u8)(TIMER_FREQ/HZ));
+    out_byte(TIMER0, (u8)((TIMER_FREQ/HZ) >> 8));
+}
+
 void _idle() {
     static int count = 0;
     if (count++ % 100) {
@@ -42,6 +50,10 @@ void _idle() {
 int init_system() {
     set_log_level(DEBUG);
 
+    init_interrupt();
+
+    init_timer();
+
     // init TSS
     tss.ss0 = SELECTOR_KERNEL_DS;
     tss_sel = install_tss(&tss);
@@ -53,8 +65,7 @@ int init_system() {
     // display banner
     display_banner();
 
-    sleep(1);
-    clear_screen();
+    // clear_screen();
 
     current = create_kproc(kernel_idle);
     return 0;

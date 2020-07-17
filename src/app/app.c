@@ -4,8 +4,9 @@
 void app1() {
     static int count = 0;
     while (1) {
+        sleep(1);
         set_text_color(0x4);
-        printf_pos(935, "app1: %d", get_ticks());
+        printf_pos(935, "app1: %d", count++);
         reset_text_color();
     }
 }
@@ -13,6 +14,7 @@ void app1() {
 void app2() {
     static int count = 0;
     while (1) {
+        msleep(100);
         set_text_color(0x2);
         printf_pos(1015, "app2: %d", count++);
         reset_text_color();

@@ -4,10 +4,7 @@
 global _start
 global kernel_idle
 
-extern gdt_ptr
-extern idt_ptr
 extern init_gdt
-extern init_interrupt
 extern clear_screen
 extern init_system
 extern _idle
@@ -16,21 +13,15 @@ extern current
 
 [SECTION .bss]
 resb    1024
-sys_stacktop: 
+temp_stacktop: 
 
 [SECTION .text]
 _start:
     ; init system stack
-    mov esp, sys_stacktop
+    mov esp, temp_stacktop
 
     ; move GDT to kernel
-    sgdt [gdt_ptr]
     call init_gdt
-    lgdt [gdt_ptr]
-
-    ; init interrupt
-    call init_interrupt
-    lidt [idt_ptr]
 
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit
