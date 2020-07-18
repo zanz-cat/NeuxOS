@@ -8,8 +8,6 @@ static int log(LOG_LEVEL level, const char *fmt, __builtin_va_list args) {
         return 0;
     }
     
-    int color = get_text_color();
-    reset_text_color();
     switch (level){
     case DEBUG:
         puts("[DEBUG] ");
@@ -29,9 +27,7 @@ static int log(LOG_LEVEL level, const char *fmt, __builtin_va_list args) {
     default:
         break;
     }
-	int ret = vprintf(fmt, args);
-    set_text_color(color);
-    return ret;
+	return vprintf(fmt, args);
 }
 
 int set_log_level(LOG_LEVEL level) {
@@ -55,14 +51,6 @@ int log_info(const char *fmt, ...) {
     return ret;
 }
 
-int log_warn(const char *fmt, ...) {
-	__builtin_va_list args;
-	__builtin_va_start(args, fmt);
-	int ret = log(WARN, fmt, args);
-	__builtin_va_end(args);
-    return ret;
-}
-
 int log_error(const char *fmt, ...) {
 	__builtin_va_list args;
 	__builtin_va_start(args, fmt);
@@ -74,7 +62,10 @@ int log_error(const char *fmt, ...) {
 int log_fatal(const char *fmt, ...) {
 	__builtin_va_list args;
 	__builtin_va_start(args, fmt);
+    int color = get_text_color();
+    set_text_color(0x4);    
 	int ret = log(FATAL, fmt, args);
+    set_text_color(color);
 	__builtin_va_end(args);
     return ret;
 }

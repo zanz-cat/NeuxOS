@@ -2,14 +2,10 @@
 %include "include/const.inc"
 
 global _start
-global kernel_idle
 
-extern init_gdt
-extern clear_screen
-extern init_system
-extern _idle
-extern tss_sel
 extern current
+extern init_gdt
+extern init_system
 
 [SECTION .bss]
 resb    1024
@@ -29,12 +25,6 @@ _start:
 csinit:
     ; init system
     call init_system
-    cmp eax, 0
-    je  .continue
-    hlt
-.continue:
-    ; load tss
-    ltr word [tss_sel]
 
     ; enable interrupt
     ; sti   ; not neccessary because iret will enable interrupt
@@ -50,8 +40,3 @@ csinit:
     pop ds
     popa
     iret
-
-kernel_idle:
-    call _idle
-    hlt
-    jmp kernel_idle

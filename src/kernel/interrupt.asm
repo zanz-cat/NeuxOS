@@ -164,6 +164,7 @@ bounds_check:
     push 5
     jmp exception
 inval_opcode:
+    xchg bx, bx
     push 0ffffffffh
     push 6
     jmp exception
