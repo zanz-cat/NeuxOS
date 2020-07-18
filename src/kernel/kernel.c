@@ -22,7 +22,7 @@ static const char *banner =
     "    / /         ___      ___     //   / / ((        \n"
     "   / /        //___) ) //___) ) //   / /    \\      \n"
     "  / /        //       //       //   / /       ) )   \n"
-    " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.01\n\n";
+    " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.02\n\n";
 
 static void display_banner() {
     set_text_color(0xa);
@@ -48,7 +48,7 @@ void _idle() {
 }
 
 int init_system() {
-    set_log_level(DEBUG);
+    // set_log_level(DEBUG);
 
     init_interrupt();
 
