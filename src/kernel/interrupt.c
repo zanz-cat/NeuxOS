@@ -176,7 +176,7 @@ void harddisk_handler() {
 }
 
 void init_interrupt() {    
-    log_info("init 8259A interrupt controller\n");
+    log_info("init interrupt controller\n");
     init_8259A();
     
     log_info("init interrupt descriptor table\n");

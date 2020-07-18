@@ -50,6 +50,9 @@ void _idle() {
 int init_system() {
     // set_log_level(DEBUG);
 
+    // display banner
+    display_banner();
+    
     init_interrupt();
 
     init_timer();
@@ -61,9 +64,6 @@ int init_system() {
         log_error("install TSS error: %d\n", tss_sel);
         return -1;
     }
-    
-    // display banner
-    display_banner();
 
     // clear_screen();
 
