@@ -7,6 +7,7 @@
 #include "sched.h"
 #include "log.h"
 #include "gdt.h"
+#include "clock.h"
 
 extern void app1();
 extern void app2();
@@ -36,10 +37,9 @@ static void init_timer() {
 }
 
 static void idle() {
-    static int count = 0;
     while (1) {
         set_text_color(0x2);
-        printf_pos(60, "kernel idle: %d", count++);
+        printf_pos(60, "idle: %d", kget_ticks());
         reset_text_color();
         asm("hlt");
     }
@@ -68,5 +68,5 @@ void init_system() {
 
     current = create_kproc(idle);
 
-    log_info("System kernel started, launching procs\n");
+    log_info("system kernel started, launching procs\n");
 }

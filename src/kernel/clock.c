@@ -4,9 +4,13 @@
 #include "sched.h"
 #include "unistd.h"
 
-int ticks = 0;
+static int ticks = 0;
 
 void clock_handler() {
     ticks++;
     proc_sched();
+}
+
+int kget_ticks() {
+    return ticks;
 }
