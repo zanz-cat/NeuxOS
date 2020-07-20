@@ -272,15 +272,15 @@ DispStr:
 
    ret
 
-BootMsg               db    'Booting'
+BootMsg               db    'booting'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
 
-LoaderNotFoundMsg     db    'Loader not found!'
+LoaderNotFoundMsg     db    'loader not found!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 
-BadSectorMsg          db    'Bad sector'
+BadSectorMsg          db    'bad sector'
 BadSectorMsgLen       equ   $ - BadSectorMsg
 
 LoaderName            db    'LOADER  BIN'

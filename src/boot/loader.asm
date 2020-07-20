@@ -58,7 +58,7 @@ KernelEntryPointAddr    dd 0
 MemSizeMB               dd 0
 
 ; Strings
-LOADING_MESSAGE             db  'Start to load kernel'
+LOADING_MESSAGE             db  'start to load kernel'
 LOADING_MESSAGE_LEN         equ $ - LOADING_MESSAGE
 
 OKMsg                       db    'ok'
@@ -67,34 +67,34 @@ OKMsgLen                    equ   $ - OKMsg
 KernelName                  db 'KERNEL  ELF'
 KernelNameLen               equ $ - KernelName
 
-NotFoundMsg                 db ' Not Found!'
+NotFoundMsg                 db ' not found!'
 NotFoundMsgLen              equ $ - NotFoundMsg
 
-BadSectorMsg                db 'Bad Sector!'
+BadSectorMsg                db 'bad sector!'
 BadSectorMsgLen             equ $ - BadSectorMsg
 
-KernelMsg                   db 'Kernel...'
+KernelMsg                   db 'kernel...'
 KernelMsgLen                equ $ - KernelMsg
 
-MemInfoMsg                  db 'Memory Information'
+MemInfoMsg                  db 'memory information'
 MemInfoMsgLen               equ $ - MemInfoMsg
 
-StartKernelMsg              db 'Start kernel up'
+StartKernelMsg              db 'start kernel up'
 StartKernelMsgLen           equ $ - StartKernelMsg
 
-MemBlockAddrMsg             db 'Address'
+MemBlockAddrMsg             db 'address'
 MemBlockAddrMsgLen          equ $ - MemBlockAddrMsg
 
-MemBlockLengthMsg           db 'Length'
+MemBlockLengthMsg           db 'length'
 MemBlockLengthMsgLen        equ $ - MemBlockLengthMsg
 
-MemBlockTypeMsg             db 'Type'
+MemBlockTypeMsg             db 'type'
 MemBlockTypeMsgLen          equ $ - MemBlockTypeMsg
 
-InvalidKernelFileMsg        db 'Invalid Kernel File!'
+InvalidKernelFileMsg        db 'invalid kernel file!'
 InvalidKernelFileMsgLen     equ $ - InvalidKernelFileMsg
 
-SetupPagingMsg              db 'Setup paging...'
+SetupPagingMsg              db 'setup paging...'
 SetupPagingMsgLen           equ $ - SetupPagingMsg
 
 ProgramCopiedMsg            db ' program(s) copied'
