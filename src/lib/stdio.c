@@ -77,6 +77,10 @@ int vprintf(const char *fmt, __builtin_va_list args) {
         if (*i == '%') {
             int found = 1;
             switch (*(i+1)) {
+            case 'c':
+                intarg = __builtin_va_arg(args, int);
+                *pc++ = intarg;
+                break;
             case 'd':
                 intarg = __builtin_va_arg(args, int);
                 if (intarg & 0x8000) {
@@ -143,6 +147,9 @@ int vprintf_pos(u16 pos, const char *fmt, __builtin_va_list args) {
         if (*i == '%') {
             int found = 1;
             switch (*(i+1)) {
+            case 'c':
+                intarg = __builtin_va_arg(args, int);
+                *pc++ = intarg;
             case 'd':
                 intarg = __builtin_va_arg(args, int);
                 len = _num_strlen(intarg, 10);

@@ -8,6 +8,8 @@
 #include "log.h"
 #include "gdt.h"
 #include "clock.h"
+#include "keyboard.h"
+#include "tty.h"
 
 extern void app1();
 extern void app2();
@@ -29,13 +31,6 @@ static void display_banner() {
     reset_text_color();
 }
 
-static void init_timer() {
-    log_info("init system timer\n");
-    out_byte(TIMER_MODE, RATE_GENERATOR);
-    out_byte(TIMER0, (u8)(TIMER_FREQ/HZ));
-    out_byte(TIMER0, (u8)((TIMER_FREQ/HZ) >> 8));
-}
-
 static void idle() {
     while (1) {
         set_text_color(0x2);
@@ -48,12 +43,11 @@ static void idle() {
 void init_system() {
     // set_log_level(DEBUG);
 
-    // display banner
     display_banner();
     
     init_interrupt();
-
-    init_timer();
+    init_clock();
+    init_keyboard();
 
     // init TSS
     tss.ss0 = SELECTOR_KERNEL_DS;
@@ -67,6 +61,7 @@ void init_system() {
     // clear_screen();
 
     current = create_kproc(idle);
+    create_kproc(task_tty);
 
     log_info("system kernel started, launching procs\n");
 }

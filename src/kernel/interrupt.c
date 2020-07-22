@@ -1,3 +1,4 @@
+#include "interrupt.h"
 #include "type.h"
 #include "const.h"
 #include "protect.h"
@@ -6,8 +7,7 @@
 #include "sched.h"
 #include "clock.h"
 #include "log.h"
-
-typedef void (*int_handler)();
+#include "keyboard.h"
 
 void divide_error();
 void single_step_exception();
@@ -96,49 +96,6 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
     set_text_color(color);
 }
 
-static int f = 0;
-static int a = 0;
-static t_proc *p1, *p2, *p3, *p4;
-void keyboard_handler() {
-    f = !f;
-    u8 code = in_byte(0x60);
-    if (f) {
-        return;
-    }
-    a %= 8;
-    switch (a)
-    {
-    case 0:
-        p1 = create_proc(app1);
-        break;
-    case 1:
-        p2 = create_proc(app2);
-        break;
-    case 2:
-        p3 = create_kproc(kapp1);
-        break;
-    case 3:
-        p4 = create_kproc(kapp2);
-        break;
-    case 4:
-        terminate_proc(p4);
-        break;
-    case 5:
-        terminate_proc(p3);
-        break;
-    case 6:
-        terminate_proc(p2);
-        break;
-    case 7:
-        terminate_proc(p1);
-        break;
-    default:
-        break;
-    }
-
-    a++;
-}
-
 void serial2_handler() {
     puts("serial2_handler\n");
 }
@@ -173,6 +130,22 @@ void copr_handler() {
 
 void harddisk_handler() {
     puts("harddisk_handler\n");
+}
+
+void put_irq_handler(int vector, int_handler h) {
+    irq_handler_table[vector] = h;
+}
+
+void enable_irq(int vector) {
+    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    u8 mask = in_byte(port);
+    out_byte(port, mask & (~(0x1 << vector)));
+}
+
+void disable_irq(int vector) {
+    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    u8 mask = in_byte(port);
+    out_byte(port, mask & (0x1 << vector));
 }
 
 void init_interrupt() {    
@@ -213,8 +186,6 @@ void init_interrupt() {
     init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
 
     // install hardware int handlers
-    irq_handler_table[0] = clock_handler;
-    irq_handler_table[1] = keyboard_handler;
     irq_handler_table[3] = serial2_handler;
     irq_handler_table[4] = serial1_handler;
     irq_handler_table[5] = lpt2_handler;

@@ -1,7 +1,7 @@
 #ifndef __CLOCK_H__
 #define __CLOCK_H__
 
-void clock_handler();
+void init_clock();
 int kget_ticks();
 
 #endif

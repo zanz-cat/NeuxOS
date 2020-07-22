@@ -29,4 +29,6 @@
 #define TIMER_FREQ      1193182L
 #define HZ              100
 
+#define KEYBOARD_IO_PORT    0x60
+
 #endif

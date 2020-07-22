@@ -14,7 +14,7 @@ else
 		UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
 endif
 
-CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore
+CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore -nostdinc
 
 .PHONY: mount umount run debug jrun jdebug clean
 
@@ -37,24 +37,9 @@ loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
 interrupt_a.o: kernel/interrupt.asm include/const.inc
 	nasm -f elf -o $@ $<
 
-interrupt.o: kernel/interrupt.c include/type.h \
- include/const.h include/protect.h include/stdio.h \
- include/i8259a.h include/sched.h include/proc.h
-	gcc -c $(CFLAGS) -o $@ $<
-
-i8259a.o: kernel/i8259a.c include/const.h \
- include/protect.h include/type.h include/stdio.h
-	gcc -c $(CFLAGS) -o $@ $<
-
 kernel_a.o: kernel/kernel.asm include/common.inc \
  include/const.inc
 	nasm -f elf -o $@ $<
-
-kernel.o: kernel/kernel.c include/const.h include/string.h \
- include/type.h include/stdio.h include/unistd.h \
- include/sched.h include/proc.h include/protect.h \
- include/log.h include/gdt.h
-	gcc -c $(CFLAGS) -o $@ $<
 
 string.o: lib/string.asm include/common.inc
 	nasm -f elf -o $@ $<
@@ -62,43 +47,67 @@ string.o: lib/string.asm include/common.inc
 stdio_a.o: lib/stdio.asm include/common.inc
 	nasm -f elf -o $@ $<
 
-stdio.o: lib/stdio.c include/type.h
-	gcc -c $(CFLAGS) -o $@ $<
-
 syscall_a.o: kernel/syscall.asm
 	nasm -f elf -o $@ $<
+
+i8259a.o: kernel/i8259a.c include/const.h include/protect.h \
+ include/type.h include/stdio.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+interrupt.o: kernel/interrupt.c include/interrupt.h include/type.h \
+ include/const.h include/protect.h include/type.h include/stdio.h \
+ include/i8259a.h include/sched.h include/proc.h include/protect.h \
+ include/clock.h include/log.h include/keyboard.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+keyboard.o: kernel/keyboard.c include/keyboard.h include/const.h \
+ include/type.h include/interrupt.h include/log.h include/stdio.h \
+ include/type.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+clock.o: kernel/clock.c include/type.h include/stdio.h include/type.h \
+ include/i8259a.h include/sched.h include/proc.h include/protect.h \
+ include/unistd.h include/const.h include/log.h include/interrupt.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+sched.o: kernel/sched.c include/const.h include/stdio.h include/type.h \
+ include/protect.h include/proc.h include/proc.h include/protect.h \
+ include/gdt.h include/log.h include/string.h include/const.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+kernel.o: kernel/kernel.c include/const.h include/string.h \
+ include/const.h include/type.h include/type.h include/stdio.h \
+ include/unistd.h include/protect.h include/sched.h include/proc.h \
+ include/protect.h include/log.h include/gdt.h include/clock.h \
+ include/keyboard.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+gdt.o: kernel/gdt.c include/type.h include/protect.h include/type.h \
+ include/string.h include/const.h include/log.h
+	gcc -c $(CFLAGS) -o $@ $<
 
 syscall.o: kernel/syscall.c include/clock.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-unistd.o: lib/unistd.c include/type.h
+app.o: app/app.c include/stdio.h include/type.h include/unistd.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-app.o: app/app.c include/stdio.h include/type.h
+unistd.o: lib/unistd.c include/type.h include/const.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-clock.o: kernel/clock.c include/type.h \
- include/stdio.h include/i8259a.h include/sched.h \
- include/proc.h include/protect.h include/unistd.h
+stdio.o: lib/stdio.c include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-sched.o: kernel/sched.c include/const.h \
- include/stdio.h include/type.h include/proc.h \
- include/protect.h include/gdt.h include/log.h \
- include/string.h
+log.o: lib/log.c include/log.h include/stdio.h include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-gdt.o: kernel/gdt.c include/type.h \
- include/protect.h include/string.h include/const.h
-	gcc -c $(CFLAGS) -o $@ $<
-
-log.o: lib/log.c include/log.h include/stdio.h \
- include/type.h
+tty.o: kernel/tty.c include/keyboard.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 kernel.elf: kernel_a.o kernel.o string.o i8259a.o stdio_a.o \
  stdio.o unistd.o interrupt_a.o interrupt.o clock.o \
- sched.o gdt.o log.o syscall.o syscall_a.o app.o
+ sched.o gdt.o log.o syscall.o syscall_a.o keyboard.o tty.o \
+ app.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:
