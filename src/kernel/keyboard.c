@@ -6,6 +6,7 @@
 #include "stdio.h"
 #include "keymap.h"
 #include "tty.h"
+#include "sched.h"
 
 static KEYBOARD_INPUT_BUFFER buf_in;
 
@@ -24,7 +25,6 @@ static void keyboard_handler() {
     buf_in.count++;
 }
 
-static int code_with_E0;
 static int shift_l;
 static int shift_r;
 static int alt_l;
@@ -38,7 +38,7 @@ static int column;
 
 u8 get_byte_from_kbuf() {
     while (buf_in.count <=0 ){
-        asm("hlt");
+        yield();
     }
     
     disable_irq(IRQ_KEYBOARD);
@@ -54,17 +54,13 @@ u8 get_byte_from_kbuf() {
 }
 
 void keyboard_read() {
-    if (buf_in.count <= 0) {
-        return;
-    }
-
     u8 scan_code;
     char output[2];
     int is_make;
     u32 key = 0;
     u32 *keyrow;
-    
-    code_with_E0 = 0;
+    int code_with_E0 = 0;
+
     scan_code = get_byte_from_kbuf();
     if (scan_code == 0xe1) {
         u8 pausebrk_scode[] = {0xe1, 0x1d, 0x45, 

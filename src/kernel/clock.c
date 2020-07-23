@@ -12,6 +12,7 @@ static int ticks = 0;
 static void clock_handler() {
     ticks++;
     proc_sched();
+    current->ticks++;
 }
 
 void init_clock() {

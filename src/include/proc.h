@@ -12,6 +12,7 @@
 #define PROC_STATE_INIT         0
 #define PROC_STATE_RUNNING      1
 #define PROC_STATE_TERM         2
+#define PROC_STATE_WAIT         3
 
 #define PROC_TYPE_KERNEL    0
 #define PROC_TYPE_USER      1
@@ -60,6 +61,7 @@ typedef struct {
     u8  state;
     u16 ss0;
     u32 esp0;
+    u32 ticks;
     u16 ldt_sel;
     DESCRIPTOR ldt[LDT_SIZE];
     u8  stack0[STACK0_SIZE];

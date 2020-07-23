@@ -221,6 +221,7 @@ clear_screen:
     mov es, ax
     xor edi, edi
     xor ax, ax
+    mov ah, 07h
     mov ecx, 80 * 25
     rep stosw
     
