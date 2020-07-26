@@ -972,8 +972,7 @@ ClearScreen:
     mov ax, gs
     mov es, ax
     xor edi, edi
-    xor ax, ax
-    mov ah, 07h
+    mov ax, 0700h
     mov ecx, 80 * 25
     rep stosw
     

@@ -62,6 +62,7 @@ void init_system() {
 
     current = create_kproc(idle);
     create_kproc(task_tty);
+    create_proc(app1);
 
     log_info("system kernel started, launching procs\n");
 }

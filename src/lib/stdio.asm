@@ -54,17 +54,27 @@ _backspace:
     push ebp
     mov ebp, esp
     push edi
+    push eax
+    push ebx
 
     cmp word [cursor_pos], -1
     jne .skip
     call get_cursor
 .skip:
+    mov word ax, [cursor_pos]
+    mov bl, 80
+    div bl
+    cmp ah, 0
+    je  .out
     dec word [cursor_pos]
     call set_cursor
     mov di, [cursor_pos]
     shl di, 1
     mov word [gs:di], 0700h
 
+.out:
+    pop ebx
+    pop eax
     pop edi
     pop ebp
     ret
@@ -82,8 +92,21 @@ _putchar:
     call get_cursor
 .skip:
     mov eax, arg(0)
-    cmp al, 10 ; newline
-    jne .1
+    cmp al, 0ah ; newline
+    je  .newline
+    cmp al, 08h ; backspace
+    je  .backspace
+.normaltext:
+    mov ah, arg(1)
+    mov di, [cursor_pos]
+    shl di, 1
+    mov [gs:di], ax
+    inc word [cursor_pos]
+    cmp word [cursor_pos], 80*25
+    je .scrollup
+    call set_cursor
+    jmp .out
+.newline:
     ; new line
     mov dx, [cursor_pos]
     mov ax, dx
@@ -97,15 +120,9 @@ _putchar:
     je  .scrollup
     call set_cursor
     jmp .out
-.1:
-    mov ah, arg(1)
-    mov di, [cursor_pos]
-    shl di, 1
-    mov [gs:di], ax
-    inc word [cursor_pos]
-    cmp word [cursor_pos], 80*25
-    je .scrollup
-    call set_cursor
+.backspace:
+    call _backspace
+    ; backspace
     jmp .out
 .scrollup:
     call scroll_up_screen
@@ -220,8 +237,7 @@ clear_screen:
     mov ax, gs
     mov es, ax
     xor edi, edi
-    xor ax, ax
-    mov ah, 07h
+    mov ax, 0700h
     mov ecx, 80 * 25
     rep stosw
     

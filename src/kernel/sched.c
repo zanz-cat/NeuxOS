@@ -177,8 +177,7 @@ void terminate_proc(t_proc *proc) {
 }
 
 void yield() {
-    current->state = PROC_STATE_WAIT;
-    asm("hlt");
+    //TODO
 }
 
 void proc_sched() {
@@ -196,10 +195,6 @@ void proc_sched() {
                 uninstall_ldt(proc->ldt_sel);
                 memset(proc, 0, sizeof(*proc));
                 break;
-            case PROC_STATE_WAIT:
-                proc->state = PROC_STATE_RUNNING;
-                current = &proc_list[0];
-                return;
             default:
                 log_error("unknown state, pid: %d, state: %d\n", proc->pid, proc->state);
                 break;

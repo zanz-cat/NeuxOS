@@ -17,6 +17,9 @@ void in_process(u32 key) {
         case ESC:
             clear_screen();
             break;
+        case BACKSPACE:
+            printf("\b");
+            break;
         default:
             break;
         }
