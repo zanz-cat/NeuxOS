@@ -1,9 +1,8 @@
-#include "type.h"
+#include "tty.h"
 
 #define DEFAULT_TEXT_COLOR 0x7
 #define DEFAULT_PRINT_BUF_SIZE 1024
 
-u32 _putchar(u32 ch, u8 color);
 u32 _putchar_pos(u32 ch, u16 pos, u8 color);
 void _backspace();
 
@@ -27,6 +26,34 @@ int reset_text_color() {
 int backspace() {
     _backspace();
     return 0;
+}
+
+u32 _putchar(u32 ch, u8 color) 
+{
+    u16 *p;
+    switch (ch)
+    {
+    case '\n':
+        cconsole->cursor += (NR_SCR_COLUMNS - cconsole->cursor % NR_SCR_COLUMNS);
+        break;
+    case '\b':
+        if (cconsole->cursor % NR_SCR_COLUMNS == 0) {
+            break;
+        }
+        cconsole->cursor--;
+        p = (u16 *)(VIDEO_MEM_ADDR(cconsole));
+        *p = (DEFAULT_TEXT_COLOR << 8) | 0x0;
+        break;
+    default:
+        p = (u16 *)(VIDEO_MEM_ADDR(cconsole));
+        *p = (color << 8) | (ch & 0xff);
+        cconsole->cursor++;
+        break;
+    }
+    set_cursor(cconsole->cursor);
+    while (cconsole->cursor >= cconsole->screen + NR_SCR_COLUMNS * NR_SCR_ROWS) {
+        scroll_down(cconsole);
+    }
 }
 
 int putchar(int ch) {

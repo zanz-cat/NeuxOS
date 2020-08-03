@@ -1,7 +1,6 @@
 %include "include/common.inc"
 
 global _backspace
-global _putchar
 global _putchar_pos
 global out_byte
 global in_byte

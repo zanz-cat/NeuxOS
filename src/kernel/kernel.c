@@ -43,8 +43,8 @@ static void idle() {
 void init_system() {
     // set_log_level(DEBUG);
 
+    init_console();
     display_banner();
-    
     init_interrupt();
     init_clock();
     init_keyboard();
