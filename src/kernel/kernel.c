@@ -25,22 +25,25 @@ static const char *banner =
     "  / /        //       //       //   / /       ) )   \n"
     " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.02\n\n";
 
-static void display_banner() {
-    set_text_color(0xa);
+static void display_banner() 
+{
+    current_console->color = 0xa;
     puts(banner);
-    reset_text_color();
+    current_console->color = DEFAULT_TEXT_COLOR;
 }
 
-static void idle() {
+static void idle() 
+{
     while (1) {
-        set_text_color(0x2);
-        printf_pos(60, "idle: %d", kget_ticks());
-        reset_text_color();
+        current_console->color = 0x2;
+        printf("idle: %d\n", kget_ticks());
+        current_console->color = DEFAULT_TEXT_COLOR;
         asm("hlt");
     }
 }
 
-void init_system() {
+void init_system() 
+{
     // set_log_level(DEBUG);
 
     init_console();
@@ -63,6 +66,7 @@ void init_system() {
     current = create_kproc(idle);
     create_kproc(task_tty);
     create_proc(app1);
+    create_proc(app2);
 
     log_info("system kernel started, launching procs\n");
 }

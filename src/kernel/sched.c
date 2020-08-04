@@ -25,7 +25,8 @@ static t_proc proc_list[MAX_PROC_NUM];
 static int proc_num = 0;
 t_proc *current = NULL;
 
-static int init_proc(t_proc *proc, u32 pid, void *text) {
+static int init_proc(t_proc *proc, u32 pid, void *text) 
+{
     proc->pid = pid;
     proc->type = 1;
 
@@ -79,7 +80,8 @@ static int init_proc(t_proc *proc, u32 pid, void *text) {
     return 0;
 }
 
-static int init_kproc(t_proc *proc, u32 pid, void *text) {
+static int init_kproc(t_proc *proc, u32 pid, void *text) 
+{
     proc->pid = pid;
     proc->type = 0;
 
@@ -123,7 +125,8 @@ static int init_kproc(t_proc *proc, u32 pid, void *text) {
     return 0;
 }
 
-static t_proc *_create_proc(void *text, u16 type) {
+static t_proc *_create_proc(void *text, u16 type) 
+{
     if (proc_num == MAX_PROC_NUM) {
         log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
         return NULL;

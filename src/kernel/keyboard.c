@@ -9,8 +9,19 @@
 #include "sched.h"
 
 static KEYBOARD_INPUT_BUFFER buf_in;
+static int shift_l;
+static int shift_r;
+static int alt_l;
+static int alt_r;
+static int ctrl_l;
+static int ctrl_r;
+static int caps_lock;
+static int num_lock;
+static int scroll_lock;
+static int column;
 
-static void keyboard_handler() {
+static void keyboard_handler() 
+{
     u8 scan_code = in_byte(KEYBOARD_IO_PORT);
     
     if (buf_in.count >= KEYBOARD_IN_BYTES) {
@@ -25,18 +36,8 @@ static void keyboard_handler() {
     buf_in.count++;
 }
 
-static int shift_l;
-static int shift_r;
-static int alt_l;
-static int alt_r;
-static int ctrl_l;
-static int ctrl_r;
-static int caps_lock;
-static int num_lock;
-static int scroll_lock;
-static int column;
-
-u8 get_byte_from_kbuf() {
+u8 get_byte_from_kbuf() 
+{
     while (buf_in.count <=0 ){
         yield();
     }
@@ -53,7 +54,8 @@ u8 get_byte_from_kbuf() {
     return scan_code;
 }
 
-void keyboard_read() {
+void keyboard_read() 
+{
     u8 scan_code;
     char output[2];
     int is_make;
@@ -144,7 +146,8 @@ void keyboard_read() {
     }
 }
 
-void init_keyboard() {
+void init_keyboard() 
+{
     log_info("init keyboard\n");
 
     buf_in.count = 0;

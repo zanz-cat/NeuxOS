@@ -9,13 +9,15 @@
 
 static int ticks = 0;
 
-static void clock_handler() {
+static void clock_handler() 
+{
     ticks++;
     proc_sched();
     current->ticks++;
 }
 
-void init_clock() {
+void init_clock() 
+{
     log_info("init clock\n");
 
     put_irq_handler(IRQ_CLOCK, clock_handler);
@@ -29,6 +31,7 @@ void init_clock() {
     enable_irq(IRQ_CLOCK);
 }
 
-int kget_ticks() {
+int kget_ticks() 
+{
     return ticks;
 }

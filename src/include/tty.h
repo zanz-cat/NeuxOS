@@ -2,8 +2,8 @@
 #define __TTY_H__
 #include "type.h"
 
-#define NR_CONSOLES 3
-#define SCREEN_BUFFER_SIZE 10*1024
+#define NR_CONSOLES     3
+#define CRT_BUF_SIZE    5*1024
 
 #define CRT_ADDR_REG    0x3d4
 #define CRT_DATA_REG    0x3d5
@@ -12,28 +12,50 @@
 #define CRT_START_H     0xc
 #define CRT_START_L     0xd
 
-#define NR_SCR_COLUMNS  80
-#define NR_SCR_ROWS     25
+#define NR_CRT_COLUMNS  80
+#define NR_CRT_ROWS     25
+#define CRT_SIZE        (NR_CRT_COLUMNS * NR_CRT_ROWS)
 
-#define VIDEO_MEM_START 0xb8000
+#define SCROLL_ROWS     15
+
+#define VIDEO_MEM_BASE 0xb8000
+
+#define DEFAULT_PRINT_BUF_SIZE 1024
+
+#define DEFAULT_TEXT_COLOR 0x7
+
+#define TTY1_INDEX      0
+#define TTY2_INDEX      1
+#define TTY3_INDEX      2
 
 struct console {
     u32 start;
     u32 limit;
     u32 screen; // relative to start
     u32 cursor; // relative to start
+    u8 color;
+    char print_buf[DEFAULT_PRINT_BUF_SIZE];
 };
 
 void init_console();
 void task_tty();
 void in_process(u32 key);
-u16 get_cursor();
-void set_cursor(u16 pos);
 void scroll_up(struct console *c);
 void scroll_down(struct console *c);
+void set_cursor(u16 pos);
+u16 get_cursor();
 
-/* current console */
-extern struct console *cconsole;
+struct console *get_console(int index);
 
-#define VIDEO_MEM_ADDR(c) (VIDEO_MEM_START + 2 * c->start + 2 * c->cursor)
+extern struct console *current_console;
+
+#define console_mem_addr(console, offset) \
+    ((void*)(VIDEO_MEM_BASE + 2 * ((console)->start + (offset))))
+
+#define screen_buf_full(console) \
+    ((console)->cursor == (console)->limit)
+
+#define screen_detached(console) \
+    ((console)->cursor >= (console)->screen + CRT_SIZE)
+
 #endif

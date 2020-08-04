@@ -71,7 +71,8 @@ static char *int_err_msg[] = {
     "#XF SIMD Floating-Point Exception"
 };
 
-static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privilege) {
+static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privilege) 
+{
     GATE *int_desc = idt + vector;
     int_desc->selector = SELECTOR_KERNEL_CS;
     int_desc->dcount = 0;
@@ -81,9 +82,10 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
 }
 
 
-void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
-    int color = get_text_color();
-    set_text_color(0x74); /* 灰底红字 */
+void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) 
+{
+    int color = current_console->color;
+    current_console->color = 0x74; /* 灰底红字 */
     printf("\nException! --> \n");
     printf("%s\n", int_err_msg[vec_no]);
     printf("EFLAGS: 0x%x\n", eflags);
@@ -93,62 +95,75 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) {
     if(err_code != 0xffffffff){
         printf("Error code: 0x%x\n", err_code);
     }
-    set_text_color(color);
+    current_console->color = color;
 }
 
-void serial2_handler() {
+void serial2_handler() 
+{
     puts("serial2_handler\n");
 }
 
-void serial1_handler() {
+void serial1_handler() 
+{
     puts("serial1_handler\n");
 }
 
-void lpt2_handler() {
+void lpt2_handler() 
+{
     puts("lpt2_handler\n");
 }
 
-void floppy_handler() {
+void floppy_handler() 
+{
     puts("floppy_handler\n");
 }
 
-void lpt1_handler() {
+void lpt1_handler() 
+{
     puts("lpt1_handler\n");
 }
 
-void real_clock_handler() {
+void real_clock_handler() 
+{
     puts("real_clock_handler\n");
 }
 
-void mouse_handler() {
+void mouse_handler() 
+{
     puts("mouse_handler\n");
 }
 
-void copr_handler() {
+void copr_handler() 
+{
     puts("copr_handler\n");
 }
 
-void harddisk_handler() {
+void harddisk_handler() 
+{
     puts("harddisk_handler\n");
 }
 
-void put_irq_handler(int vector, int_handler h) {
+void put_irq_handler(int vector, int_handler h) 
+{
     irq_handler_table[vector] = h;
 }
 
-void enable_irq(int vector) {
+void enable_irq(int vector) 
+{
     int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
     u8 mask = in_byte(port);
     out_byte(port, mask & (~(0x1 << vector)));
 }
 
-void disable_irq(int vector) {
+void disable_irq(int vector) 
+{
     int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
     u8 mask = in_byte(port);
     out_byte(port, mask & (0x1 << vector));
 }
 
-void init_interrupt() {    
+void init_interrupt() 
+{    
     log_info("init interrupt controller\n");
     init_8259A();
     

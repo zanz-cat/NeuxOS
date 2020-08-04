@@ -3,7 +3,7 @@
 ##################################################
 
 CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore -nostdinc
-BUILD_DIR=$(shell dirname `pwd`)/build
+BUILD_DIR=../build
 $(shell test -d $(BUILD_DIR) || mkdir $(BUILD_DIR))
 
 ifeq ($(OS), Windows_NT)

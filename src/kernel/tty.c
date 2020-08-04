@@ -1,19 +1,26 @@
 #include "tty.h"
 #include "keyboard.h"
 #include "stdio.h"
+#include "string.h"
 
-struct console consoles[NR_CONSOLES];
-struct console *cconsole = &consoles[0];
+struct console console_table[NR_CONSOLES];
+struct console *current_console = &console_table[0];
 
 void init_console() 
 {
     for (int i = 0; i < NR_CONSOLES; i++) {
-        consoles[i].start = i * SCREEN_BUFFER_SIZE;
-        consoles[i].limit = SCREEN_BUFFER_SIZE;
-        consoles[i].screen = 0;
-        consoles[i].cursor = 0;
+        console_table[i].start = i * CRT_BUF_SIZE;
+        console_table[i].limit = CRT_BUF_SIZE;
+        console_table[i].screen = 0;
+        if (i == 0) {
+            console_table[i].cursor = get_cursor();
+        } else {
+            console_table[i].cursor = 0;
+            fprintf(&console_table[i], "LeeOS liwei-PC tty%d\n", i+1);
+        }
+        console_table[i].color = DEFAULT_TEXT_COLOR;
+        memset(console_table[i].print_buf, 0, sizeof(console_table[i].print_buf));
     }
-    cconsole->cursor = get_cursor();
 }
 
 void task_tty() 
@@ -21,34 +28,6 @@ void task_tty()
     while (1) {
         keyboard_read();
     }
-}
-
-void in_process(u32 key) 
-{
-    if (key & FLAG_EXT) {
-        switch (key) {
-        case ENTER:
-            printf("\n");
-            break;
-        case ESC:
-            clear_screen();
-            break;
-        case BACKSPACE:
-            printf("\b");
-            break;
-        case PAGEUP:
-            scroll_up(cconsole);
-            break;
-        case PAGEDOWN:
-            scroll_down(cconsole);
-            break;
-        default:
-            break;
-        }
-
-        return;
-    }
-    printf("%c", (u8)key);
 }
 
 u16 get_cursor() 
@@ -69,26 +48,79 @@ void set_cursor(u16 pos)
 
 void scroll_up(struct console *c)
 {
-    if (c->start == c->screen) {
+    if (0 == c->screen) {
         return;
     }
 
-    c->screen -= NR_SCR_COLUMNS;
+    c->screen -= NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, c->screen >> 8);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, c->screen & 0xff);    
+    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);    
 }
 
 void scroll_down(struct console *c)
 {
-    if (c->cursor < c->screen + NR_SCR_COLUMNS * NR_SCR_ROWS) {
+    if (c->cursor < c->screen + CRT_SIZE) {
         return;
     }
 
-    c->screen += NR_SCR_COLUMNS;
+    c->screen += NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, c->screen >> 8);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, c->screen & 0xff);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);
+}
+
+void switch_tty(struct console *c)
+{
+    out_byte(CRT_ADDR_REG, CRT_START_H);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
+    out_byte(CRT_ADDR_REG, CRT_START_L);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);
+
+    set_cursor(c->start + c->cursor);
+
+    current_console = c;
+}
+
+void in_process(u32 key) 
+{
+    if (key & FLAG_EXT) {
+        switch (key) {
+        case ENTER:
+            printf("\n");
+            break;
+        case BACKSPACE:
+            backspace();
+            break;
+        case FLAG_SHIFT_L | PAGEUP:
+            for (int i = 0; i < SCROLL_ROWS; i++)
+                scroll_up(current_console);
+            break;
+        case FLAG_SHIFT_L | PAGEDOWN:
+            for (int i = 0; i < SCROLL_ROWS; i++)
+                scroll_down(current_console);
+            break;
+        case F1:
+            switch_tty(&console_table[TTY1_INDEX]);
+            break;
+        case F2:
+            switch_tty(&console_table[TTY2_INDEX]);
+            break;
+        case F3:
+            switch_tty(&console_table[TTY3_INDEX]);
+            break;
+        default:
+            break;
+        }
+
+        return;
+    }
+    printf("%c", (u8)key);
+}
+
+struct console *get_console(int index) 
+{
+    return &console_table[index];
 }

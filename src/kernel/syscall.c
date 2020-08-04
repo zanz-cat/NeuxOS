@@ -2,7 +2,8 @@
 
 typedef void* syscall_handler;
 
-int sys_get_ticks() {
+int sys_get_ticks() 
+{
     return kget_ticks();
 }
 

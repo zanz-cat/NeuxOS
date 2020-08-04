@@ -14,7 +14,8 @@ static u8 bitmap[GDT_SIZE/8];
 #define BITMAP_CLR(index) bitmap[index/8] &= (~(1 << (index%8)))
 #define BITMAP_GET(index) (bitmap[index/8] & (1 << (index%8)))
 
-static int alloc() {
+static int alloc() 
+{
     int i;
     for (i = 0; i < GDT_SIZE && BITMAP_GET(i); i++);
     if (i > GDT_SIZE - 1) {
@@ -26,7 +27,8 @@ static int alloc() {
     return i;
 }
 
-static void free(int index) {
+static void free(int index) 
+{
     if (index > GDT_SIZE - 1) {
         return;
     }
@@ -34,7 +36,8 @@ static void free(int index) {
     BITMAP_CLR(index);
 }
 
-static int uninstall_desc(u16 sel) {
+static int uninstall_desc(u16 sel) 
+{
     int index = sel >> 3;
     if (index > GDT_SIZE - 1) {
         return -1;
@@ -45,7 +48,8 @@ static int uninstall_desc(u16 sel) {
     return 0;
 }
 
-void init_gdt() {
+void init_gdt() 
+{
     asm("sgdt %0":"=m"(gdt_ptr)::);
     memset(gdt, 0, sizeof(gdt));
     memcpy(&gdt, (void*)(*((u32*)(&gdt_ptr[2]))), *((u16*)(&gdt_ptr[0]))+1);
@@ -62,7 +66,8 @@ void init_gdt() {
     BITMAP_SET(3);
 }
 
-int install_tss(TSS *ptss) {
+int install_tss(TSS *ptss) 
+{
     int index = alloc();
     if (index < 0) {
         log_error("alloc gdt space error\n");
@@ -82,11 +87,13 @@ int install_tss(TSS *ptss) {
     return index << 3;
 }
 
-int uninstall_tss(u16 sel) {
+int uninstall_tss(u16 sel) 
+{
     return uninstall_desc(sel);
 }
 
-int install_ldt(void *ldt, u16 size) {
+int install_ldt(void *ldt, u16 size) 
+{
     int index = alloc();
     if (index > GDT_SIZE - 1) {
         return -1;
@@ -105,6 +112,7 @@ int install_ldt(void *ldt, u16 size) {
     return index << 3;
 }
 
-int uninstall_ldt(u16 sel) {
+int uninstall_ldt(u16 sel) 
+{
     return uninstall_desc(sel);
 }

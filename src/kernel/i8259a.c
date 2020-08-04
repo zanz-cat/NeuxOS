@@ -2,7 +2,8 @@
 #include "protect.h"
 #include "stdio.h"
 
-void init_8259A() {
+void init_8259A() 
+{
     out_byte(INT_M_CTL, 0x11);
     out_byte(INT_S_CTL, 0x11);
 
