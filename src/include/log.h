@@ -1,15 +1,15 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
-typedef enum {
+enum log_level {
     DEBUG,
     INFO,
     WARN,
     ERROR,
     FATAL,
-} LOG_LEVEL;
+};
 
-int set_log_level(LOG_LEVEL level);
+int set_log_level(enum log_level level);
 int log_debug(const char *fmt, ...);
 int log_info(const char *fmt, ...);
 int log_error(const char *fmt, ...);

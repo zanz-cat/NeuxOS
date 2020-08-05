@@ -10,41 +10,42 @@ static void recycle_screen_buf(struct console *c)
         u16 *a = (u16*)console_mem_addr(c, c->limit - NR_CRT_COLUMNS + i);
         *a = (DEFAULT_TEXT_COLOR << 8);
     }
-    c->cursor -= NR_CRT_COLUMNS;
 }
 
 u32 _putchar(struct console *console, u32 ch) 
 {
     u16 *ptr;
     u32 tmp;
+    u32 cursor = console->cursor;
     switch (ch)
     {
     case '\n':
-        console->cursor += NR_CRT_COLUMNS - console->cursor % NR_CRT_COLUMNS;
+        cursor += NR_CRT_COLUMNS - cursor % NR_CRT_COLUMNS;
         break;
     case '\b':
-        if (console->cursor % NR_CRT_COLUMNS) {
-            console->cursor--;
-            ptr = (u16*)console_mem_addr(console, console->cursor);
+        if (cursor % NR_CRT_COLUMNS) {
+            cursor--;
+            ptr = (u16*)console_mem_addr(console, cursor);
             *ptr = (DEFAULT_TEXT_COLOR << 8);
         }
         break;
     default:
-        ptr = (u16*)console_mem_addr(console, console->cursor);
+        ptr = (u16*)console_mem_addr(console, cursor);
         *ptr = (console->color << 8) | (ch & 0xff);
-        console->cursor++;
+        cursor++;
         break;
     }
     
-    if (screen_buf_full(console)) {
+    if (cursor == console->limit) {
         recycle_screen_buf(console);
+        cursor -= NR_CRT_COLUMNS;
     }
+    console->cursor = cursor;
 
-    while (screen_detached(console)) {
+    while (console == current_console && screen_detached(console))
         scroll_down(console);
-    }
 
-    if (console == current_console)
+    if (console == current_console) 
         set_cursor(console->start + console->cursor);
 
     return ch;

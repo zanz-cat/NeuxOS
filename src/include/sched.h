@@ -3,10 +3,10 @@
 
 #include "proc.h"
 
-extern t_proc *current;
-t_proc *create_proc(void *text);
-t_proc *create_kproc(void *text);
-void terminate_proc(t_proc *proc);
+extern struct process *current;
+struct process *create_proc(void *text);
+struct process *create_kproc(void *text);
+void terminate_proc(struct process *proc);
 void yield();
 void proc_sched();
 

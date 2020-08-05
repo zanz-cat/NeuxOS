@@ -45,7 +45,7 @@ extern void kapp1();
 extern void kapp2();
 
 u8 idt_ptr[6];
-GATE idt[IDT_SIZE];
+struct gate idt[IDT_SIZE];
 void *irq_handler_table[15];
 
 static char *int_err_msg[] = {
@@ -73,7 +73,7 @@ static char *int_err_msg[] = {
 
 static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privilege) 
 {
-    GATE *int_desc = idt + vector;
+    struct gate *int_desc = idt + vector;
     int_desc->selector = SELECTOR_KERNEL_CS;
     int_desc->dcount = 0;
     int_desc->attr = desc_type | (privilege << 5);
@@ -92,9 +92,9 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
     printf("CS: 0x%x\n", cs);
     printf("EIP: 0x%x\n", eip);
 
-    if(err_code != 0xffffffff){
+    if(err_code != 0xffffffff)
         printf("Error code: 0x%x\n", err_code);
-    }
+
     current_console->color = color;
 }
 
@@ -214,7 +214,7 @@ void init_interrupt()
     // init idt ptr
     u16 *p_idt_limit = (u16*)idt_ptr;
     u32 *p_idt_base = (u32*)(idt_ptr+2);
-    *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
+    *p_idt_limit = IDT_SIZE * sizeof(struct gate) - 1;
     *p_idt_base = (u32)&idt;
 
     asm("lidt %0"::"m"(idt_ptr):);

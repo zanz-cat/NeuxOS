@@ -21,17 +21,17 @@
 /* the first process is cpu idle process 
  * which keeps cpu running while no task to run
  */
-static t_proc proc_list[MAX_PROC_NUM];
+static struct process proc_list[MAX_PROC_NUM];
 static int proc_num = 0;
-t_proc *current = NULL;
+struct process *current = NULL;
 
-static int init_proc(t_proc *proc, u32 pid, void *text) 
+static int init_proc(struct process *proc, u32 pid, void *text) 
 {
     proc->pid = pid;
     proc->type = 1;
 
     /* construct initial kernel stack */
-    user_proc_stack_frame* frame = (user_proc_stack_frame*)(proc_kernel_stack(proc) - sizeof(*frame));
+    struct user_stackframe* frame = (struct user_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
     frame->gs = SELECTOR_VIDEO;
     frame->es = SELECTOR_TASK_DS;
     frame->ds = SELECTOR_TASK_DS;
@@ -80,13 +80,13 @@ static int init_proc(t_proc *proc, u32 pid, void *text)
     return 0;
 }
 
-static int init_kproc(t_proc *proc, u32 pid, void *text) 
+static int init_kproc(struct process *proc, u32 pid, void *text) 
 {
     proc->pid = pid;
     proc->type = 0;
 
     /* construct initial kernel stack */
-    kernel_proc_stack_frame* frame = (kernel_proc_stack_frame*)(proc_kernel_stack(proc) - sizeof(*frame));
+    struct kern_stackframe* frame = (struct kern_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
     frame->gs = SELECTOR_VIDEO;
     frame->es = SELECTOR_KERN_TASK_DS;
     frame->ds = SELECTOR_KERN_TASK_DS;
@@ -125,7 +125,7 @@ static int init_kproc(t_proc *proc, u32 pid, void *text)
     return 0;
 }
 
-static t_proc *_create_proc(void *text, u16 type) 
+static struct process *_create_proc(void *text, u16 type) 
 {
     if (proc_num == MAX_PROC_NUM) {
         log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
@@ -133,14 +133,13 @@ static t_proc *_create_proc(void *text, u16 type)
     }
 
     int ret;
-    t_proc *proc = &proc_list[proc_num];
+    struct process *proc = &proc_list[proc_num];
     memset(proc, 0, sizeof(*proc));
     proc->state = PROC_STATE_INIT;
-    if (PROC_TYPE_KERNEL == type) {
+    if (PROC_TYPE_KERNEL == type) 
         ret = init_kproc(proc, proc_num, text);
-    } else {
+    else
         ret = init_proc(proc, proc_num, text);
-    }
 
     if (ret < 0) {
         log_error("init proc error, pid: %d, errno: %d\n", proc->pid, ret);
@@ -154,15 +153,15 @@ static t_proc *_create_proc(void *text, u16 type)
     return proc;
 }
 
-t_proc *create_proc(void *text) {
+struct process *create_proc(void *text) {
     return _create_proc(text, PROC_TYPE_USER);
 }
 
-t_proc *create_kproc(void *text) {
+struct process *create_kproc(void *text) {
     return _create_proc(text, PROC_TYPE_KERNEL);
 }
 
-t_proc *next_proc() {
+struct process *next_proc() {
     static int pos = 0;
 
     if (proc_num == 1) {
@@ -175,7 +174,7 @@ t_proc *next_proc() {
     return &proc_list[pos];
 }
 
-void terminate_proc(t_proc *proc) {
+void terminate_proc(struct process *proc) {
     proc->state = PROC_STATE_TERM;
 }
 
@@ -185,7 +184,7 @@ void yield() {
 
 void proc_sched() {
     while (proc_num) {
-        t_proc *proc = next_proc();
+        struct process *proc = next_proc();
         switch (proc->state) {
             case PROC_STATE_INIT:
                 break;

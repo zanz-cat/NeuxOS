@@ -12,14 +12,14 @@ void init_console()
         console_table[i].start = i * CRT_BUF_SIZE;
         console_table[i].limit = CRT_BUF_SIZE;
         console_table[i].screen = 0;
+        console_table[i].color = DEFAULT_TEXT_COLOR;
+        memset(console_table[i].print_buf, 0, sizeof(console_table[i].print_buf));
         if (i == 0) {
             console_table[i].cursor = get_cursor();
         } else {
             console_table[i].cursor = 0;
             fprintf(&console_table[i], "LeeOS liwei-PC tty%d\n", i+1);
         }
-        console_table[i].color = DEFAULT_TEXT_COLOR;
-        memset(console_table[i].print_buf, 0, sizeof(console_table[i].print_buf));
     }
 }
 
@@ -48,28 +48,26 @@ void set_cursor(u16 pos)
 
 void scroll_up(struct console *c)
 {
-    if (0 == c->screen) {
+    if (0 == c->screen)
         return;
-    }
 
     c->screen -= NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
     out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);    
+    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);       
 }
 
 void scroll_down(struct console *c)
 {
-    if (c->cursor < c->screen + CRT_SIZE) {
+    if (c->cursor < c->screen + CRT_SIZE)
         return;
-    }
 
     c->screen += NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
     out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);
+    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);    
 }
 
 void switch_tty(struct console *c)
@@ -80,7 +78,6 @@ void switch_tty(struct console *c)
     out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);
 
     set_cursor(c->start + c->cursor);
-
     current_console = c;
 }
 
@@ -114,7 +111,6 @@ void in_process(u32 key)
         default:
             break;
         }
-
         return;
     }
     printf("%c", (u8)key);

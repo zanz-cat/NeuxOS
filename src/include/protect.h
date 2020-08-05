@@ -9,7 +9,7 @@
 #include "type.h"
 
 /* 存储段描述符/系统段描述符 */
-typedef struct s_descriptor		/* 共 8 个字节 */
+struct descriptor		/* 共 8 个字节 */
 {
 	u16	limit_low;		/* Limit */
 	u16	base_low;		/* Base */
@@ -17,10 +17,10 @@ typedef struct s_descriptor		/* 共 8 个字节 */
 	u8	attr1;			/* P(1) DPL(2) DT(1) TYPE(4) */
 	u8	limit_high_attr2;	/* G(1) D(1) 0(1) AVL(1) LimitHigh(4) */
 	u8	base_high;		/* Base */
-}DESCRIPTOR;
+};
 
 /* 门描述符 */
-typedef struct s_gate
+struct gate
 {
 	u16	offset_low;	/* Offset Low */
 	u16	selector;	/* Selector */
@@ -31,10 +31,10 @@ typedef struct s_gate
 				   发生时，要复制的双字参数的数量。*/
 	u8	attr;		/* P(1) DPL(2) DT(1) TYPE(4) */
 	u16	offset_high;	/* Offset High */
-}GATE;
+};
 
 /* 任务状态段 */
-typedef struct s_tss {
+struct tss {
 	u32 prev;
 	u32 esp0;
 	u32 ss0;
@@ -62,7 +62,7 @@ typedef struct s_tss {
 	u32 ldt;
 	u16 attrs;
 	u16 io;
-} TSS;
+};
 
 
 /* GDT */

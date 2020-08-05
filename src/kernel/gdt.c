@@ -7,7 +7,7 @@
 #define	GDT_SIZE	128
 
 u8 gdt_ptr[6];
-DESCRIPTOR gdt[GDT_SIZE];
+struct descriptor gdt[GDT_SIZE];
 static u8 bitmap[GDT_SIZE/8];
 
 #define BITMAP_SET(index) bitmap[index/8] |= (1 << (index%8))
@@ -29,9 +29,8 @@ static int alloc()
 
 static void free(int index) 
 {
-    if (index > GDT_SIZE - 1) {
+    if (index > GDT_SIZE - 1)
         return;
-    }
 
     BITMAP_CLR(index);
 }
@@ -39,9 +38,9 @@ static void free(int index)
 static int uninstall_desc(u16 sel) 
 {
     int index = sel >> 3;
-    if (index > GDT_SIZE - 1) {
+    if (index > GDT_SIZE - 1)
         return -1;
-    }
+
     memset(&gdt[index], 0, sizeof(gdt[index]));
     free(index);
 
@@ -55,7 +54,7 @@ void init_gdt()
     memcpy(&gdt, (void*)(*((u32*)(&gdt_ptr[2]))), *((u16*)(&gdt_ptr[0]))+1);
     u16 *p_gdt_limit = (u16*)(&gdt_ptr[0]);
     u32 *p_gdt_base = (u32*)(&gdt_ptr[2]);
-    *p_gdt_limit = GDT_SIZE * sizeof(DESCRIPTOR) - 1;
+    *p_gdt_limit = GDT_SIZE * sizeof(struct descriptor) - 1;
     *p_gdt_base = (u32)&gdt;
     asm("lgdt %0"::"m"(gdt_ptr):);
 
@@ -66,7 +65,7 @@ void init_gdt()
     BITMAP_SET(3);
 }
 
-int install_tss(TSS *ptss) 
+int install_tss(struct tss *ptss) 
 {
     int index = alloc();
     if (index < 0) {
@@ -74,7 +73,7 @@ int install_tss(TSS *ptss)
         return -1;
     }
     
-    DESCRIPTOR *pdesc = &gdt[index];
+    struct descriptor *pdesc = &gdt[index];
     pdesc->base_low = (u32)ptss & 0xffff;
     pdesc->base_mid = ((u32)ptss >> 16) & 0xf;
     pdesc->base_high = (u32)ptss >> 24;
@@ -95,16 +94,15 @@ int uninstall_tss(u16 sel)
 int install_ldt(void *ldt, u16 size) 
 {
     int index = alloc();
-    if (index > GDT_SIZE - 1) {
+    if (index > GDT_SIZE - 1)
         return -1;
-    }
 
-    DESCRIPTOR *pdesc = &gdt[index];
+    struct descriptor *pdesc = &gdt[index];
     pdesc->base_low = (u32)ldt & 0xffff;
     pdesc->base_mid = ((u32)ldt >> 16) & 0xf;
     pdesc->base_high = (u32)ldt >> 24;
 
-    u32 limit = sizeof(DESCRIPTOR) * size - 1;
+    u32 limit = sizeof(struct descriptor) * size - 1;
     pdesc->limit_low = limit & 0xffff;
     pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
     pdesc->attr1 = DA_LDT | DA_DPL0;

@@ -16,7 +16,7 @@ extern void app2();
 extern void kernel_idle();
 extern void init_interrupt();
 
-TSS tss;
+struct tss tss;
 
 static const char *banner = 
   "\n     / /                          //   ) ) //   ) ) \n"
@@ -52,11 +52,11 @@ void init_system()
     init_clock();
     init_keyboard();
 
-    // init TSS
+    // init struct tss
     tss.ss0 = SELECTOR_KERNEL_DS;
     int tss_sel = install_tss(&tss);
     if (tss_sel < 0) {
-        log_fatal("install TSS error: %d\n", tss_sel);
+        log_fatal("install struct tss error: %d\n", tss_sel);
         asm("hlt");
     }
     asm("ltr %0"::"m"(tss_sel):);

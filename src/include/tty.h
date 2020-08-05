@@ -52,9 +52,6 @@ extern struct console *current_console;
 #define console_mem_addr(console, offset) \
     ((void*)(VIDEO_MEM_BASE + 2 * ((console)->start + (offset))))
 
-#define screen_buf_full(console) \
-    ((console)->cursor == (console)->limit)
-
 #define screen_detached(console) \
     ((console)->cursor >= (console)->screen + CRT_SIZE)
 

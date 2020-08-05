@@ -8,7 +8,7 @@
 #include "tty.h"
 #include "sched.h"
 
-static KEYBOARD_INPUT_BUFFER buf_in;
+static struct keyboard_input_buffer buf_in;
 static int shift_l;
 static int shift_r;
 static int alt_l;
@@ -24,30 +24,28 @@ static void keyboard_handler()
 {
     u8 scan_code = in_byte(KEYBOARD_IO_PORT);
     
-    if (buf_in.count >= KEYBOARD_IN_BYTES) {
+    if (buf_in.count >= KEYBOARD_IN_BYTES)
         return;
-    }
 
     *(buf_in.head) = scan_code;
     buf_in.head++;
-    if (buf_in.head == buf_in.data + KEYBOARD_IN_BYTES) {
+    if (buf_in.head == buf_in.data + KEYBOARD_IN_BYTES)
         buf_in.head = buf_in.data;
-    }
+
     buf_in.count++;
 }
 
 u8 get_byte_from_kbuf() 
 {
-    while (buf_in.count <=0 ){
+    while (buf_in.count <= 0)
         yield();
-    }
     
     disable_irq(IRQ_KEYBOARD);
     u8 scan_code = *(buf_in.tail);
     buf_in.tail++;
-    if (buf_in.tail == buf_in.data + KEYBOARD_IN_BYTES) {
+    if (buf_in.tail == buf_in.data + KEYBOARD_IN_BYTES) 
         buf_in.tail = buf_in.data;
-    }
+
     buf_in.count--;
     enable_irq(IRQ_KEYBOARD);
 
@@ -74,9 +72,10 @@ void keyboard_read()
                 break;
             }
         }
-        if(is_pausebrk) {
+
+        if(is_pausebrk)
             key = PAUSEBREAK;
-        }
+
     } else if (scan_code == 0xe0) {
         scan_code = get_byte_from_kbuf();
         /* printscreen keydown */
@@ -90,9 +89,8 @@ void keyboard_read()
             is_make = 0;
         }
         /* todo */
-        if (key == 0) {
+        if (key == 0) 
             code_with_E0 = 1;
-        }
     }
 
     if((key != PAUSEBREAK) && (key != PRINTSCREEN)) {
@@ -100,9 +98,8 @@ void keyboard_read()
         keyrow = &keymap[(scan_code & 0x7f) * MAP_COLS];
         column = 0;
         
-        if (shift_l || shift_r) {
+        if (shift_l || shift_r) 
             column = 1;
-        }
         
         if (code_with_E0) {
             column = 2;

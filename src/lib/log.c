@@ -1,13 +1,12 @@
 #include "log.h"
 #include "stdio.h"
 
-static LOG_LEVEL log_level = INFO;
+static enum log_level sys_level = INFO;
 
-static int log(LOG_LEVEL level, const char *fmt, __builtin_va_list args) 
+static int log(enum log_level level, const char *fmt, __builtin_va_list args) 
 {
-    if (level < log_level) {
+    if (level < sys_level)
         return 0;
-    }
     
     switch (level){
     case DEBUG:
@@ -31,9 +30,9 @@ static int log(LOG_LEVEL level, const char *fmt, __builtin_va_list args)
 	return fprintf(current_console, fmt, args);
 }
 
-int set_log_level(LOG_LEVEL level) 
+int set_log_level(enum log_level level) 
 {
-    log_level = level;
+    sys_level = level;
     return 0;
 }
 
