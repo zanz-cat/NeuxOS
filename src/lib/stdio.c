@@ -1,89 +1,9 @@
-#include "tty.h"
-#include "string.h"
+#include "sched.h"
+#include "unistd.h"
+#include "common.h"
+#include "stdio.h"
 
-static void recycle_screen_buf(struct console *c)
-{
-    void *src = console_mem_addr(c, NR_CRT_COLUMNS);
-    void *dst = console_mem_addr(c, 0);
-    memcpy(dst, src, 2*(c->limit - NR_CRT_COLUMNS));
-    for (int i = 0; i < NR_CRT_COLUMNS; i++) {
-        u16 *a = (u16*)console_mem_addr(c, c->limit - NR_CRT_COLUMNS + i);
-        *a = (DEFAULT_TEXT_COLOR << 8);
-    }
-}
-
-int fputchar(struct console *console, u32 ch) 
-{
-    u16 *ptr;
-    u32 tmp;
-    u32 cursor = console->cursor;
-    switch (ch)
-    {
-    case '\n':
-        cursor += NR_CRT_COLUMNS - cursor % NR_CRT_COLUMNS;
-        break;
-    case '\b':
-        if (cursor % NR_CRT_COLUMNS) {
-            cursor--;
-            ptr = (u16*)console_mem_addr(console, cursor);
-            *ptr = (DEFAULT_TEXT_COLOR << 8);
-        }
-        break;
-    default:
-        ptr = (u16*)console_mem_addr(console, cursor);
-        *ptr = (console->color << 8) | (ch & 0xff);
-        cursor++;
-        break;
-    }
-    
-    if (cursor == console->limit) {
-        recycle_screen_buf(console);
-        cursor -= NR_CRT_COLUMNS;
-    }
-    console->cursor = cursor;
-
-    while (console == current_console && screen_detached(console))
-        scroll_down(console);
-
-    if (console == current_console) 
-        set_cursor(console->start + console->cursor);
-
-    return ch;
-}
-
-int backspace() 
-{
-    return fputchar(current_console, '\b');
-}
-
-int putchar(int ch) 
-{
-    return fputchar(current_console, ch);
-}
-
-int puts(const char *str) 
-{
-    int ret = 0;
-    for(const char *i = str; *i != '\0'; i++) {
-        ret = fputchar(current_console, *i);
-        if (ret != *i) {
-            return ret;
-        }
-    }
-    
-    return 0;
-}
-
-static int _num_strlen(int num, u8 radix) 
-{
-    int len = 0;
-    do {
-        len++;
-    } while (num /= radix);
-    return len;
-}
-
-int vprintf(struct console *console, const char *fmt, __builtin_va_list args) 
+int vprint(struct console *console, const char *fmt, __builtin_va_list args) 
 {
     int intarg, len, rem;
     const char *strarg;
@@ -102,7 +22,7 @@ int vprintf(struct console *console, const char *fmt, __builtin_va_list args)
                     intarg = ~intarg + 1;
                     *(pc++) = '-';
                 }
-                len = _num_strlen(intarg, 10);
+                len = number_strlen(intarg, 10);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 10;
                     *(pc+j-1) = rem + '0';
@@ -112,7 +32,7 @@ int vprintf(struct console *console, const char *fmt, __builtin_va_list args)
                 break;
             case 'x':
                 intarg = __builtin_va_arg(args, int);
-                len = _num_strlen(intarg, 16);
+                len = number_strlen(intarg, 16);
                 for (int j = len; j > 0; j--) {
                     rem = intarg % 16;
                     *(pc+j-1) = rem > 9 ? (rem - 10 + 'a') : (rem + '0');
@@ -140,26 +60,16 @@ int vprintf(struct console *console, const char *fmt, __builtin_va_list args)
         *pc++ = *i;        
     }
 
-    for (char *i = console->print_buf; i < pc; i++) {
-        fputchar(console, *i);
-    }
-    return pc - console->print_buf;
+    len = pc - console->print_buf;
+    write(console->print_buf, len);
+    return len;
 }
 
 int printf(const char *fmt, ...) 
 {
     __builtin_va_list args;
     __builtin_va_start(args, fmt);
-    int n = vprintf(current_console, fmt, args);
-    __builtin_va_end(args);
-    return n;
-}
-
-int fprintf(struct console *console, const char *fmt, ...)
-{
-    __builtin_va_list args;
-    __builtin_va_start(args, fmt);
-    int n = vprintf(console, fmt, args);
+    int n = vprint(current->tty->console, fmt, args);
     __builtin_va_end(args);
     return n;
 }

@@ -1,11 +1,8 @@
 #include "keyboard.h"
 #include "const.h"
-#include "type.h"
 #include "interrupt.h"
 #include "log.h"
-#include "stdio.h"
 #include "keymap.h"
-#include "tty.h"
 #include "sched.h"
 
 static struct keyboard_input_buffer buf_in;

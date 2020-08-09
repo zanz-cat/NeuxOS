@@ -46,39 +46,36 @@ $(BUILD_DIR)/kernel_a.o: kernel/kernel.asm include/common.inc \
 $(BUILD_DIR)/string.o: lib/string.asm include/common.inc
 	nasm -f elf -o $@ $<
 
-$(BUILD_DIR)/stdio_a.o: lib/stdio.asm include/common.inc
-	nasm -f elf -o $@ $<
-
 $(BUILD_DIR)/syscall_a.o: kernel/syscall.asm
 	nasm -f elf -o $@ $<
 
 $(BUILD_DIR)/i8259a.o: kernel/i8259a.c include/const.h include/protect.h \
- include/type.h include/stdio.h
-	gcc -c $(CFLAGS) -o $@ $<
-
-$(BUILD_DIR)/interrupt.o: kernel/interrupt.c include/interrupt.h include/type.h \
- include/const.h include/protect.h include/type.h include/stdio.h \
- include/i8259a.h include/sched.h include/proc.h include/protect.h \
- include/clock.h include/log.h include/keyboard.h
-	gcc -c $(CFLAGS) -o $@ $<
-
-$(BUILD_DIR)/keyboard.o: kernel/keyboard.c include/keyboard.h include/const.h \
- include/type.h include/interrupt.h include/log.h include/stdio.h \
  include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(BUILD_DIR)/clock.o: kernel/clock.c include/type.h include/stdio.h include/type.h \
+$(BUILD_DIR)/interrupt.o: kernel/interrupt.c include/interrupt.h include/const.h \
+ include/print.h include/type.h include/tty.h include/i8259a.h \
+ include/sched.h include/proc.h include/protect.h include/log.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+$(BUILD_DIR)/keyboard.o: kernel/keyboard.c include/keyboard.h include/const.h \
+ include/interrupt.h include/log.h include/keymap.h include/type.h \
+ include/keyboard.h include/sched.h include/proc.h include/protect.h \
+ include/tty.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+$(BUILD_DIR)/clock.o: kernel/clock.c include/type.h include/print.h include/type.h \
  include/i8259a.h include/sched.h include/proc.h include/protect.h \
  include/unistd.h include/const.h include/log.h include/interrupt.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(BUILD_DIR)/sched.o: kernel/sched.c include/const.h include/stdio.h include/type.h \
+$(BUILD_DIR)/sched.o: kernel/sched.c include/const.h include/print.h include/type.h \
  include/protect.h include/proc.h include/proc.h include/protect.h \
  include/gdt.h include/log.h include/string.h include/const.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 $(BUILD_DIR)/kernel.o: kernel/kernel.c include/const.h include/string.h \
- include/const.h include/type.h include/type.h include/stdio.h \
+ include/const.h include/type.h include/type.h include/print.h \
  include/unistd.h include/protect.h include/sched.h include/proc.h \
  include/protect.h include/log.h include/gdt.h include/clock.h \
  include/keyboard.h
@@ -91,28 +88,34 @@ $(BUILD_DIR)/gdt.o: kernel/gdt.c include/type.h include/protect.h include/type.h
 $(BUILD_DIR)/syscall.o: kernel/syscall.c include/clock.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(BUILD_DIR)/app.o: app/app.c include/stdio.h include/type.h include/unistd.h
+$(BUILD_DIR)/app.o: app/app.c include/print.h include/type.h include/unistd.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 $(BUILD_DIR)/unistd.o: lib/unistd.c include/type.h include/const.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(BUILD_DIR)/stdio.o: lib/stdio.c include/type.h
+$(BUILD_DIR)/print.o: kernel/print.c include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(BUILD_DIR)/log.o: lib/log.c include/log.h include/stdio.h include/type.h
+$(BUILD_DIR)/log.o: lib/log.c include/log.h include/print.h include/type.h
 	gcc -c $(CFLAGS) -o $@ $<
 
 $(BUILD_DIR)/tty.o: kernel/tty.c include/keyboard.h
 	gcc -c $(CFLAGS) -o $@ $<
 
+$(BUILD_DIR)/stdio.o: lib/stdio.c include/stdio.h
+	gcc -c $(CFLAGS) -o $@ $<
+
+$(BUILD_DIR)/common.o: lib/common.c include/common.h
+	gcc -c $(CFLAGS) -o $@ $<
+
 $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/kernel_a.o $(BUILD_DIR)/kernel.o \
- $(BUILD_DIR)/string.o $(BUILD_DIR)/i8259a.o $(BUILD_DIR)/stdio_a.o \
- $(BUILD_DIR)/stdio.o $(BUILD_DIR)/unistd.o $(BUILD_DIR)/interrupt_a.o \
+ $(BUILD_DIR)/string.o $(BUILD_DIR)/i8259a.o $(BUILD_DIR)/tty.o \
+ $(BUILD_DIR)/print.o $(BUILD_DIR)/unistd.o $(BUILD_DIR)/interrupt_a.o \
  $(BUILD_DIR)/interrupt.o $(BUILD_DIR)/clock.o  $(BUILD_DIR)/sched.o \
  $(BUILD_DIR)/gdt.o $(BUILD_DIR)/log.o $(BUILD_DIR)/syscall.o \
- $(BUILD_DIR)/syscall_a.o $(BUILD_DIR)/keyboard.o $(BUILD_DIR)/tty.o \
- $(BUILD_DIR)/app.o
+ $(BUILD_DIR)/syscall_a.o $(BUILD_DIR)/keyboard.o $(BUILD_DIR)/common.o \
+ $(BUILD_DIR)/app.o $(BUILD_DIR)/stdio.o
 	ld -m elf_i386 -Ttext 0x30700 -o $@ $^
 
 mount:

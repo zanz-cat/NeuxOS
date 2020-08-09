@@ -1,5 +1,5 @@
 #include "log.h"
-#include "stdio.h"
+#include "print.h"
 
 static enum log_level sys_level = INFO;
 
@@ -10,24 +10,24 @@ static int log(enum log_level level, const char *fmt, __builtin_va_list args)
     
     switch (level){
     case DEBUG:
-        puts("[DEBUG] ");
+        putsk("[DEBUG] ");
         break;
     case INFO:
-        puts("[INFO] ");
+        putsk("[INFO] ");
         break;
     case WARN:
-        puts("[WARN] ");
+        putsk("[WARN] ");
         break;
     case ERROR:
-        puts("[ERROR] ");
+        putsk("[ERROR] ");
         break;
     case FATAL:
-        puts("[FATAL] ");
+        putsk("[FATAL] ");
         break;
     default:
         break;
     }
-	return fprintf(current_console, fmt, args);
+	return fprintk(current_console, fmt, args);
 }
 
 int set_log_level(enum log_level level) 

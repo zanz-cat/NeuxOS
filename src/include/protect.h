@@ -127,5 +127,7 @@ struct tss {
 #define	INT_VECTOR_IRQ0			0x20
 #define	INT_VECTOR_IRQ8			0x28
 
+void out_byte(u16 port, u8 value);
+u8 in_byte(u16 port);
 
 #endif /* __PROTECT_H__ */

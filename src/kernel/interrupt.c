@@ -1,13 +1,9 @@
 #include "interrupt.h"
-#include "type.h"
 #include "const.h"
-#include "protect.h"
-#include "stdio.h"
+#include "print.h"
 #include "i8259a.h"
 #include "sched.h"
-#include "clock.h"
 #include "log.h"
-#include "keyboard.h"
 
 void divide_error();
 void single_step_exception();
@@ -86,61 +82,61 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
     int color = current_console->color;
     current_console->color = 0x74; /* 灰底红字 */
-    printf("\nException! --> \n");
-    printf("%s\n", int_err_msg[vec_no]);
-    printf("EFLAGS: 0x%x\n", eflags);
-    printf("CS: 0x%x\n", cs);
-    printf("EIP: 0x%x\n", eip);
+    printk("\nException! --> \n");
+    printk("%s\n", int_err_msg[vec_no]);
+    printk("EFLAGS: 0x%x\n", eflags);
+    printk("CS: 0x%x\n", cs);
+    printk("EIP: 0x%x\n", eip);
 
     if(err_code != 0xffffffff)
-        printf("Error code: 0x%x\n", err_code);
+        printk("Error code: 0x%x\n", err_code);
 
     current_console->color = color;
 }
 
 void serial2_handler() 
 {
-    puts("serial2_handler\n");
+    putsk("serial2_handler\n");
 }
 
 void serial1_handler() 
 {
-    puts("serial1_handler\n");
+    putsk("serial1_handler\n");
 }
 
 void lpt2_handler() 
 {
-    puts("lpt2_handler\n");
+    putsk("lpt2_handler\n");
 }
 
 void floppy_handler() 
 {
-    puts("floppy_handler\n");
+    putsk("floppy_handler\n");
 }
 
 void lpt1_handler() 
 {
-    puts("lpt1_handler\n");
+    putsk("lpt1_handler\n");
 }
 
 void real_clock_handler() 
 {
-    puts("real_clock_handler\n");
+    putsk("real_clock_handler\n");
 }
 
 void mouse_handler() 
 {
-    puts("mouse_handler\n");
+    putsk("mouse_handler\n");
 }
 
 void copr_handler() 
 {
-    puts("copr_handler\n");
+    putsk("copr_handler\n");
 }
 
 void harddisk_handler() 
 {
-    puts("harddisk_handler\n");
+    putsk("harddisk_handler\n");
 }
 
 void put_irq_handler(int vector, int_handler h) 

@@ -1,8 +1,6 @@
 #include "type.h"
-#include "stdio.h"
 #include "i8259a.h"
 #include "sched.h"
-#include "unistd.h"
 #include "const.h"
 #include "log.h"
 #include "interrupt.h"

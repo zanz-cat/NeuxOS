@@ -1,8 +1,7 @@
 #include "const.h"
 #include "string.h"
 #include "type.h"
-#include "stdio.h"
-#include "unistd.h"
+#include "print.h"
 #include "protect.h"
 #include "sched.h"
 #include "log.h"
@@ -13,6 +12,7 @@
 
 extern void app1();
 extern void app2();
+extern void kapp1();
 extern void kernel_idle();
 extern void init_interrupt();
 
@@ -28,7 +28,7 @@ static const char *banner =
 static void display_banner() 
 {
     current_console->color = 0xa;
-    puts(banner);
+    putsk(banner);
     current_console->color = DEFAULT_TEXT_COLOR;
 }
 
@@ -36,7 +36,7 @@ static void idle()
 {
     while (1) {
         current_console->color = 0x2;
-        printf("idle: %d\n", kget_ticks());
+        printk("idle: %d\n", kget_ticks());
         current_console->color = DEFAULT_TEXT_COLOR;
         asm("hlt");
     }
@@ -62,12 +62,10 @@ void init_system()
     }
     asm("ltr %0"::"m"(tss_sel):);
 
-    // clear_screen();
-
-    current = create_kproc(idle);
-    create_kproc(task_tty);
-    create_proc(app1);
-    create_proc(app2);
+    current = create_kproc(idle, NULL);
+    create_kproc(task_tty, NULL);
+    create_proc(app1, get_tty(TTY2_INDEX));
+    create_proc(app2, get_tty(TTY3_INDEX));
 
     log_info("system kernel started, launching procs\n");
 }

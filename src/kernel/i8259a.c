@@ -1,6 +1,5 @@
 #include "const.h"
 #include "protect.h"
-#include "stdio.h"
 
 void init_8259A() 
 {

@@ -1,10 +1,10 @@
 #include "const.h"
-#include "stdio.h"
 #include "protect.h"
 #include "proc.h"
 #include "gdt.h"
 #include "log.h"
 #include "string.h"
+#include "sched.h"
 
 #define MAX_PROC_NUM            10
 #define INITIAL_EFLAGS          0x200 | 0x3000
@@ -25,11 +25,8 @@ static struct process proc_list[MAX_PROC_NUM];
 static int proc_num = 0;
 struct process *current = NULL;
 
-static int init_proc(struct process *proc, u32 pid, void *text) 
+static int init_proc(struct process *proc, void *text) 
 {
-    proc->pid = pid;
-    proc->type = 1;
-
     /* construct initial kernel stack */
     struct user_stackframe* frame = (struct user_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
     frame->gs = SELECTOR_VIDEO;
@@ -80,11 +77,8 @@ static int init_proc(struct process *proc, u32 pid, void *text)
     return 0;
 }
 
-static int init_kproc(struct process *proc, u32 pid, void *text) 
+static int init_kproc(struct process *proc, void *text) 
 {
-    proc->pid = pid;
-    proc->type = 0;
-
     /* construct initial kernel stack */
     struct kern_stackframe* frame = (struct kern_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
     frame->gs = SELECTOR_VIDEO;
@@ -125,7 +119,7 @@ static int init_kproc(struct process *proc, u32 pid, void *text)
     return 0;
 }
 
-static struct process *_create_proc(void *text, u16 type) 
+static struct process *_create_proc(void *text, u16 type, struct tty *ptty) 
 {
     if (proc_num == MAX_PROC_NUM) {
         log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
@@ -136,10 +130,14 @@ static struct process *_create_proc(void *text, u16 type)
     struct process *proc = &proc_list[proc_num];
     memset(proc, 0, sizeof(*proc));
     proc->state = PROC_STATE_INIT;
+    proc->type = type;
+    proc->pid = proc_num;
+    proc->tty = ptty;
+
     if (PROC_TYPE_KERNEL == type) 
-        ret = init_kproc(proc, proc_num, text);
+        ret = init_kproc(proc, text);
     else
-        ret = init_proc(proc, proc_num, text);
+        ret = init_proc(proc, text);
 
     if (ret < 0) {
         log_error("init proc error, pid: %d, errno: %d\n", proc->pid, ret);
@@ -153,12 +151,12 @@ static struct process *_create_proc(void *text, u16 type)
     return proc;
 }
 
-struct process *create_proc(void *text) {
-    return _create_proc(text, PROC_TYPE_USER);
+struct process *create_proc(void *text, struct tty *ptty) {
+    return _create_proc(text, PROC_TYPE_USER, ptty);
 }
 
-struct process *create_kproc(void *text) {
-    return _create_proc(text, PROC_TYPE_KERNEL);
+struct process *create_kproc(void *text, struct tty *ptty) {
+    return _create_proc(text, PROC_TYPE_KERNEL, ptty);
 }
 
 struct process *next_proc() {

@@ -1,6 +1,6 @@
 #include "tty.h"
 #include "keyboard.h"
-#include "stdio.h"
+#include "print.h"
 #include "string.h"
 
 struct console console_table[NR_CONSOLES];
@@ -21,7 +21,7 @@ static void tty_do_write(struct tty *tty)
             tty->p_inbuf_tail = tty->in_buf;
         }
         tty->inbuf_count--;
-        fputchar(tty->console, ch);
+        fputchark(tty->console, ch);
     }
 }
 
@@ -42,7 +42,7 @@ void init_console()
             console_table[i].cursor = get_cursor();
         } else {
             console_table[i].cursor = 0;
-            fprintf(&console_table[i], "LeeOS liwei-PC tty%d\n", i+1);
+            fprintk(&console_table[i], "LeeOS liwei-PC tty%d\n", i+1);
         }
     }
 }
@@ -124,10 +124,10 @@ void in_process(struct tty *tty, u32 key)
     if (key & FLAG_EXT) {
         switch (key) {
         case ENTER:
-            fprintf(tty->console, "\n");
+            fprintk(tty->console, "\n");
             break;
         case BACKSPACE:
-            fprintf(tty->console, "\b");
+            fprintk(tty->console, "\b");
             break;
         case FLAG_SHIFT_L | PAGEUP:
             for (int i = 0; i < SCROLL_ROWS; i++)
@@ -161,7 +161,7 @@ void in_process(struct tty *tty, u32 key)
     }
 }
 
-struct console *get_console(int index) 
+struct tty *get_tty(int index) 
 {
-    return &console_table[index];
+    return &tty_table[index];
 }

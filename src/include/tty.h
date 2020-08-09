@@ -57,7 +57,7 @@ void scroll_down(struct console *c);
 void set_cursor(u16 pos);
 u16 get_cursor();
 
-struct console *get_console(int index);
+struct tty *get_tty(int index);
 
 extern struct console *current_console;
 
