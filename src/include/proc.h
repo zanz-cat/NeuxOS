@@ -4,6 +4,7 @@
 #include "type.h"
 #include "proc.h"
 #include "protect.h"
+#include "tty.h"
 
 #define LDT_SIZE    128
 #define STACK0_SIZE  1024
@@ -64,6 +65,7 @@ struct process {
     u16 ss0;
     u32 esp0;
     u32 ticks;
+    struct tty* tty;
     u16 ldt_sel;
     struct descriptor ldt[LDT_SIZE];
     u8  stack0[STACK0_SIZE];

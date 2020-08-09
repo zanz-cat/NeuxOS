@@ -4,7 +4,31 @@
 #include "string.h"
 
 struct console console_table[NR_CONSOLES];
+struct tty  tty_table[NR_CONSOLES];
 struct console *current_console = &console_table[0];
+
+static void tty_do_read(struct tty *tty)
+{
+    if (is_current_console(tty->console))
+        keyboard_read(tty);
+}
+
+static void tty_do_write(struct tty *tty)
+{
+    if (tty->inbuf_count) {
+        char ch = *(tty->p_inbuf_tail++);
+        if (tty->p_inbuf_tail == tty->in_buf + TTY_IN_BYTES) {
+            tty->p_inbuf_tail = tty->in_buf;
+        }
+        tty->inbuf_count--;
+        fputchar(tty->console, ch);
+    }
+}
+
+int is_current_console(struct console *p_con)
+{
+    return (p_con == current_console);
+}
 
 void init_console() 
 {
@@ -23,10 +47,24 @@ void init_console()
     }
 }
 
+void init_tty()
+{
+    for (int i = 0; i < NR_CONSOLES; i++) {
+        tty_table[i].inbuf_count = 0;
+        tty_table[i].p_inbuf_head = tty_table[i].in_buf;
+        tty_table[i].p_inbuf_tail = tty_table[i].in_buf;
+        tty_table[i].console = &console_table[i];
+    }
+}
+
 void task_tty() 
 {
     while (1) {
-        keyboard_read();
+        for (int i = 0; i < NR_CONSOLES; i++) {
+            struct tty *tty = &tty_table[i];
+            tty_do_read(tty);
+            tty_do_write(tty);
+        }
     }
 }
 
@@ -81,23 +119,23 @@ void switch_tty(struct console *c)
     current_console = c;
 }
 
-void in_process(u32 key) 
+void in_process(struct tty *tty, u32 key) 
 {
     if (key & FLAG_EXT) {
         switch (key) {
         case ENTER:
-            printf("\n");
+            fprintf(tty->console, "\n");
             break;
         case BACKSPACE:
-            backspace();
+            fprintf(tty->console, "\b");
             break;
         case FLAG_SHIFT_L | PAGEUP:
             for (int i = 0; i < SCROLL_ROWS; i++)
-                scroll_up(current_console);
+                scroll_up(tty->console);
             break;
         case FLAG_SHIFT_L | PAGEDOWN:
             for (int i = 0; i < SCROLL_ROWS; i++)
-                scroll_down(current_console);
+                scroll_down(tty->console);
             break;
         case F1:
             switch_tty(&console_table[TTY1_INDEX]);
@@ -112,8 +150,15 @@ void in_process(u32 key)
             break;
         }
         return;
+    } else {
+        if (tty->inbuf_count < TTY_IN_BYTES) {
+            *(tty->p_inbuf_head++) = key;
+            if (tty->p_inbuf_head == tty->in_buf + TTY_IN_BYTES) {
+                tty->p_inbuf_head = tty->in_buf;
+            }
+            tty->inbuf_count++;
+        }
     }
-    printf("%c", (u8)key);
 }
 
 struct console *get_console(int index) 

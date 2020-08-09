@@ -24,6 +24,7 @@
 
 #define DEFAULT_TEXT_COLOR 0x7
 
+#define TTY_IN_BYTES    1024
 #define TTY1_INDEX      0
 #define TTY2_INDEX      1
 #define TTY3_INDEX      2
@@ -37,9 +38,20 @@ struct console {
     char print_buf[DEFAULT_PRINT_BUF_SIZE];
 };
 
+struct tty {
+    u32 in_buf[TTY_IN_BYTES];
+    u32 *p_inbuf_head;
+    u32 *p_inbuf_tail;
+    int inbuf_count;
+
+    struct console *console;
+};
+
 void init_console();
+void init_tty();
+int is_current_console(struct console *p_con);
 void task_tty();
-void in_process(u32 key);
+void in_process(struct tty *tty, u32 key);
 void scroll_up(struct console *c);
 void scroll_down(struct console *c);
 void set_cursor(u16 pos);

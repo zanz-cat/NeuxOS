@@ -10,8 +10,12 @@ global syscall
 syscall:
     SAVE_STATE
 
+    push dword [current]
+    push ecx
+    push ebx
     call [syscall_handler_table + 4*eax]
-
+    add esp, 4*3
+    
     mov esi, [current]
     mov [esi+OFFSET_PROC_STACK0-6*4], eax
 

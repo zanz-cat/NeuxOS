@@ -47,6 +47,7 @@ void init_system()
     // set_log_level(DEBUG);
 
     init_console();
+    init_tty();
     display_banner();
     init_interrupt();
     init_clock();

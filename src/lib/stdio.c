@@ -12,7 +12,7 @@ static void recycle_screen_buf(struct console *c)
     }
 }
 
-u32 _putchar(struct console *console, u32 ch) 
+int fputchar(struct console *console, u32 ch) 
 {
     u16 *ptr;
     u32 tmp;
@@ -53,19 +53,19 @@ u32 _putchar(struct console *console, u32 ch)
 
 int backspace() 
 {
-    return _putchar(current_console, '\b');
+    return fputchar(current_console, '\b');
 }
 
 int putchar(int ch) 
 {
-    return _putchar(current_console, ch);
+    return fputchar(current_console, ch);
 }
 
 int puts(const char *str) 
 {
     int ret = 0;
     for(const char *i = str; *i != '\0'; i++) {
-        ret = _putchar(current_console, *i);
+        ret = fputchar(current_console, *i);
         if (ret != *i) {
             return ret;
         }
@@ -141,7 +141,7 @@ int vprintf(struct console *console, const char *fmt, __builtin_va_list args)
     }
 
     for (char *i = console->print_buf; i < pc; i++) {
-        _putchar(console, *i);
+        fputchar(console, *i);
     }
     return pc - console->print_buf;
 }

@@ -107,6 +107,10 @@
 #define PAD_MID         PAD_5                   /* Middle key   */
 #define PAD_DEL         PAD_DOT                 /* Del          */
 
+#define LED_CODE        0xed
+#define KB_ACK          0xfa
+#define KB_CMD          0x64
+#define KB_DATA         0x60
 
 /************************************************************************/
 /*                         Stucture Definition                          */
