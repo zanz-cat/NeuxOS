@@ -1,8 +1,12 @@
 # LeeOS
+
+![输入图片说明](https://images.gitee.com/uploads/images/2020/0809/222534_b869446a_477202.png "屏幕截图.png")
+
 #### TODO
-1. 实现系统调用
-2. 进程表使用“链表”优化
-3. delay、sleep、usleep
+1. 常用文件系统
+2. shell
+3. exec执行文件系统上的程序
+4. 虚拟内存器
 
 #### 介绍
 {**以下是码云平台说明，您可以替换此简介**
