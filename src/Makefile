@@ -1,5 +1,5 @@
 ##################################################
-# Makefile of SeeOS
+# Makefile of LeeOS
 ##################################################
 
 CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore -nostdinc

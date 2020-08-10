@@ -42,7 +42,7 @@ void init_console()
             console_table[i].cursor = get_cursor();
         } else {
             console_table[i].cursor = 0;
-            fprintk(&console_table[i], "SeeOS liwei-PC tty%d\n", i+1);
+            fprintk(&console_table[i], "LeeOS liwei-PC tty%d\n", i+1);
         }
     }
 }
