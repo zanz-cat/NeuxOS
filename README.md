@@ -1,6 +1,6 @@
 # LeeOS
 
-![启动系统](https://images.gitee.com/uploads/images/2020/0810/224936_82218a52_477202.png "屏幕截图.png")
+![启动系统](https://images.gitee.com/uploads/images/2020/0810/224936_82218a52_477202.png "启动系统.png")
 #### 介绍
 《Orange'S：一个操作系统的实现》的实践项目
 
