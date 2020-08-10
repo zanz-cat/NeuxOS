@@ -1,6 +1,6 @@
 # LeeOS
 
-![输入图片说明](https://images.gitee.com/uploads/images/2020/0810/222027_6118af67_477202.png "屏幕截图.png")
+![输入图片说明](https://images.gitee.com/uploads/images/2020/0810/222116_1d6fd467_477202.png "LeeOS.PNG")
 #### 介绍
 《Orange'S：一个操作系统的实现》的实践项目
 
