@@ -21,6 +21,7 @@
 3.  xxxx
 
 #### TODO
+0. real idle
 1. 常用文件系统
 2. shell
 3. exec执行文件系统上的程序
