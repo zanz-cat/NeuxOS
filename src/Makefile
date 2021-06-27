@@ -1,8 +1,9 @@
 ##################################################
-# Makefile of LeeOS
+# Makefile of NeuxOS
 ##################################################
 
 CFLAGS:=-m32 -g -Werror -O0 -Iinclude -fno-builtin -fno-leading-underscore -nostdinc
+ASMFLAGS:=-Werror
 BUILD_DIR=../build
 $(shell test -d $(BUILD_DIR) || mkdir $(BUILD_DIR))
 
@@ -30,24 +31,24 @@ $(BUILD_DIR)/a.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/loader.bin $(BUILD_DIR)/k
 	$(UMOUNTIMG)
 
 $(BUILD_DIR)/boot.bin: boot/boot.asm boot/boot.inc boot/fat12hdr.inc
-	nasm -o $@ $<
+	nasm $(ASMFLAGS) -o $@ $<
 
 $(BUILD_DIR)/loader.bin: boot/loader.asm boot/loader.inc boot/boot.inc \
  boot/fat12hdr.inc
-	nasm -o $@ $<
+	nasm $(ASMFLAGS) -o $@ $<
 
 $(BUILD_DIR)/interrupt_a.o: kernel/interrupt.asm include/const.inc
-	nasm -f elf -o $@ $<
+	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 $(BUILD_DIR)/kernel_a.o: kernel/kernel.asm include/common.inc \
  include/const.inc
-	nasm -f elf -o $@ $<
+	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 $(BUILD_DIR)/string.o: lib/string.asm include/common.inc
-	nasm -f elf -o $@ $<
+	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 $(BUILD_DIR)/syscall_a.o: kernel/syscall.asm
-	nasm -f elf -o $@ $<
+	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 $(BUILD_DIR)/i8259a.o: kernel/i8259a.c include/const.h include/protect.h \
  include/type.h

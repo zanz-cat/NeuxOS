@@ -18,12 +18,16 @@ extern void init_interrupt();
 
 struct tss tss;
 
+/**
+ * https://www.bootschool.net/ascii
+ * font: 5lineoblique
+ **/
 static const char *banner = 
-  "\n     / /                          //   ) ) //   ) ) \n"
-    "    / /         ___      ___     //   / / ((        \n"
-    "   / /        //___) ) //___) ) //   / /    \\      \n"
-    "  / /        //       //       //   / /       ) )   \n"
-    " / /____/ / ((____   ((____   ((___/ / ((___ / /    v0.02\n\n";
+  "\n     /|    / /                          //   ) ) //   ) ) \n"
+    "    //|   / /  ___                     //   / / ((        \n"
+    "   // |  / / //___) ) //   / / \\\\ //  //   / /    \\\\      \n"
+    "  //  | / / //       //   / /   \\//  //   / /       ) )   \n"
+    " //   |/ / ((____   ((___( (    //\\ ((___/ / ((___ / /    v0.02\n\n";
 
 static void display_banner() 
 {
