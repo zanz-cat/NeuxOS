@@ -26,7 +26,7 @@ endif
 ifeq ($(OS),Darwin)
 	SUDO:=
 	MOUNTPOINT:=$(BUILD_DIR)/floppy
-	MOUNTIMG:=mount -t msdos `hdiutil attach -imagekey diskimage-class=CRawDiskImage -nomount $(BUILD_DIR)/a.img` $(MOUNTPOINT)
+	MOUNTIMG:=hdiutil attach -imagekey diskimage-class=CRawDiskImage -mountpoint $(MOUNTPOINT) $(BUILD_DIR)/a.img
 	UMOUNTIMG:=hdiutil detach $(MOUNTPOINT)
 endif
 ifeq ($(OS),Linux)

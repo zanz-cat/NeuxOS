@@ -16,6 +16,5 @@ CONST_BS_BootSig            equ      29h
 CONST_BS_VolID              equ      0
 
 CONST_SectorOfRootDir       equ      19
-
-FAT12_RootEntSize           equ      32
-FAT12_BitsPerClus           equ      12
+CONST_FAT12_RootEntSize     equ      32
+CONST_FAT12_BitsPerClus     equ      12

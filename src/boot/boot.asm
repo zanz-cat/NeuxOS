@@ -44,7 +44,7 @@ LABEL_BEGIN:
 
     ; compute root directory sector numbers
     mov al, [BPB_RootEntCnt]
-    mov bl, FAT12_RootEntSize
+    mov bl, CONST_FAT12_RootEntSize
     mul bl
     mov bx, [BPB_BytesPerSec]
     xor dx, dx
@@ -153,7 +153,7 @@ SearchAndReadLoader:
     pop si
     pop cx
     jz .a2     ; LOADER.BIN FOUND
-    add di, FAT12_RootEntSize
+    add di, CONST_FAT12_RootEntSize
     loop .a1
 
     ; print "loader not found" message
@@ -226,7 +226,7 @@ GetFATEntry:
 
    mov bx, [FATTableBase]
    mov es, bx
-   mov bx, FAT12_BitsPerClus
+   mov bx, CONST_FAT12_BitsPerClus
    mul bx
    mov bx, 8
    div bx

@@ -35,7 +35,6 @@ static void display_banner()
 {
     current_console->color = 0xa;
     putsk(banner);
-    putsk(test);
     current_console->color = DEFAULT_TEXT_COLOR;
 }
 

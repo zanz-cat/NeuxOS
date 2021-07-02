@@ -167,7 +167,7 @@ ReadKernel:
     push es
     ; compute root directory sector count
     mov al, CONST_BPB_RootEntCnt
-    mov bl, FAT12_RootEntSize
+    mov bl, CONST_FAT12_RootEntSize
     mul bl
     mov bx, CONST_BPB_BytesPerSec
     xor dx, dx
@@ -325,7 +325,7 @@ SearchAndReadKernel:
     pop si
     pop cx
     jz .a2     ; FOUND! es:di -> kernel.elf
-    add di, FAT12_RootEntSize
+    add di, CONST_FAT12_RootEntSize
     loop .a1
     ; print "Kernel not found" message
     mov ax, cs
@@ -388,7 +388,7 @@ GetFATEntry:
  
     mov bx, [FATTableBase]
     mov es, bx
-    mov bx, FAT12_BitsPerClus
+    mov bx, CONST_FAT12_BitsPerClus
     mul bx
     mov bx, 8
     div bx
