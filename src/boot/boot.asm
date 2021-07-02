@@ -30,8 +30,8 @@ TopOfStack            equ     0ffffh
 
 
 ; 1. Read Root Directory information to 
-;    [BaseOfLoader:OffsetOfLoader] from floppy.
-; 2. Search and read LOADER.BIN to [BaseOfLoader:OffsetOfLoader] 
+;    [LoaderBase:LoaderOffset] from floppy.
+; 2. Search and read LOADER.BIN to [LoaderBase:LoaderOffset] 
 ;    from floppy, will overwrite the Root Directory information.
 ; 3. Jump to the LOADER
 LABEL_BEGIN:
@@ -44,7 +44,7 @@ LABEL_BEGIN:
 
     ; compute root directory sector numbers
     mov al, [BPB_RootEntCnt]
-    mov bl, 32
+    mov bl, FAT12_RootEntSize
     mul bl
     mov bx, [BPB_BytesPerSec]
     xor dx, dx
@@ -59,14 +59,14 @@ LABEL_BEGIN:
     mov ax, [BPB_BytesPerSec]
     mov bx, [BPB_FATSz16]
     mul bx 
-    mov bx, 16
+    mov bx, 16  ; base address step
     div bx
     cmp dx, 0
     jz .a2
     inc ax
 .a2:
-    mov word [BaseOfFATTable], BaseOfLoader
-    sub [BaseOfFATTable], ax
+    mov word [FATTableBase], LoaderBase
+    sub [FATTableBase], ax
 
     ; reset floppy driver
     xor ah, ah
@@ -74,15 +74,15 @@ LABEL_BEGIN:
     int 13h
 
     ; read root directory
-    mov ax, BaseOfLoader
+    mov ax, LoaderBase
     mov es, ax
-    mov bx, OffsetOfLoader
+    mov bx, LoaderOffset
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
     call ReadSector
 
     ; read FAT table
-    mov ax, [BaseOfFATTable]
+    mov ax, [FATTableBase]
     mov es, ax
     xor bx, bx
     mov ax, 1
@@ -97,8 +97,7 @@ LABEL_BEGIN:
     mov cx, OKMsgLen
     call DispStr
 
-    jmp BaseOfLoader:OffsetOfLoader
-
+    jmp LoaderBase:LoaderOffset
 
 ; function: read secotr
 ; ax sector, start from 0
@@ -107,18 +106,16 @@ LABEL_BEGIN:
 ReadSector:
     push bp
     mov bp, sp
-    push ax
     sub sp, 3
 
-    mov dl, 18
+    mov dl, CONST_BPB_SecPerTrk
     div dl
     inc ah
     mov [bp-3], ax
     and ax, 0ffh
-    mov dl, 2
+    mov dl, CONST_BPB_NumHeads
     div dl
 
-.GoOnReading:
     mov dl, 0
     mov ch, al
     mov dh, ah
@@ -129,22 +126,21 @@ ReadSector:
     mov cl, [bp-1]
     mov ah, 02h
     int 13h
-    jc    .GoOnReading
-
+    jc .error
     add sp, 3
-    pop ax
-    mov sp, bp
     pop bp
     ret
+.error:
+    jmp $
 
 ; function: search file `LOADER.BIN`, 
 ; and copy it from floppy to memory.
 SearchAndReadLoader:
     cld    
     mov si, LoaderName
-    mov ax, BaseOfLoader
+    mov ax, LoaderBase
     mov es, ax
-    mov di, OffsetOfLoader
+    mov di, LoaderOffset
 
     mov cx, [BPB_RootEntCnt]
 .a1:
@@ -157,7 +153,7 @@ SearchAndReadLoader:
     pop si
     pop cx
     jz .a2     ; LOADER.BIN FOUND
-    add di, 32
+    add di, FAT12_RootEntSize
     loop .a1
 
     ; print "loader not found" message
@@ -165,9 +161,8 @@ SearchAndReadLoader:
     mov cx, LoaderNotFoundMsgLen
     call DispStr
     jmp $
-    
 .a2:
-    mov ax, [es:di+0x1a]
+    mov ax, [es:di+0x1a]    ; FAT12 RootDirEntry.FirstCluster
 
     ; alloc local variable for bytes already read
     push bp
@@ -191,9 +186,9 @@ SearchAndReadLoader:
     add ax, 17
     add ax, [RootDirSectorNum]
     mov cl, 1
-    mov bx, BaseOfLoader
+    mov bx, LoaderBase
     mov es, bx
-    mov bx, OffsetOfLoader
+    mov bx, LoaderOffset
     add bx, [bp-2]
     call ReadSector
 
@@ -206,19 +201,18 @@ SearchAndReadLoader:
 
     pop ax
     call GetFATEntry
-    cmp bx, 0xff7
+    cmp bx, 0xff7   ; bad sector
     jz .a3
-    cmp bx, 0xff8
+    cmp bx, 0xff8   ; file end
     jnb .a4
     mov ax, bx
-    add word [bp-2], 512
+    add word [bp-2], CONST_BPB_BytesPerSec
     jmp .readSector
 .a3:
     mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
     jmp $
-
 .a4:
     add  sp, 2
     pop bp
@@ -230,9 +224,9 @@ GetFATEntry:
    push si
    push ax
 
-   mov bx, [BaseOfFATTable]
+   mov bx, [FATTableBase]
    mov es, bx
-   mov bx, 12
+   mov bx, FAT12_BitsPerClus
    mul bx
    mov bx, 8
    div bx
@@ -290,7 +284,7 @@ OKMsg                 db    'ok'
 OKMsgLen              equ   $ - OKMsg
 
 RootDirSectorNum      dw   0
-BaseOfFATTable        dw   0
+FATTableBase        dw   0
 
 times 510 - ($-$$) db 0
 dw 0xaa55

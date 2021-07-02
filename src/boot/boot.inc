@@ -1,4 +1,4 @@
-BaseOfLoader          equ     09000h
-OffsetOfLoader        equ     0100h
+LoaderBase          equ     07000h
+LoaderOffset        equ     0100h
 
-%define paddr(o)   (BaseOfLoader << 4) + o
+%define paddr(o)   (LoaderBase << 4) + o

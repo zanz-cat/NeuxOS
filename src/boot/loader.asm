@@ -48,14 +48,14 @@ SelectorVideo           equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 ADDR_MSG_GAP_LEN        equ 12
 LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
-BaseOfARDSBuffer        equ 07000h
-KernelFilePhyAddr       equ paddr(BaseOfKernelFile, OffsetOfKernelFile)
-RootDirSectorNum        dw 0
-BaseOfFATTable          dw 0 
+KernelFilePhyAddr       equ paddr(KernelFileBase, KernelFileOffset)
+RootDirSectorCount        dw 0
+FATTableBase          dw 0 
 ARDSNum                 dw 0
 CursorPosition          dw 0
 KernelEntryPointAddr    dd 0
 MemSizeMB               dd 0
+NumForDisp              dd 0
 
 ; Strings
 LOADING_MESSAGE             db  'start to load kernel'
@@ -72,6 +72,9 @@ NotFoundMsgLen              equ $ - NotFoundMsg
 
 BadSectorMsg                db 'bad sector!'
 BadSectorMsgLen             equ $ - BadSectorMsg
+
+ReadFloppyErrMsg            db 'read floppy error: '
+ReadFloppyErrMsgLen         equ $ - ReadFloppyErrMsg
 
 KernelMsg                   db 'kernel...'
 KernelMsgLen                equ $ - KernelMsg
@@ -104,9 +107,9 @@ NOBITSInitMsg               db ' NOBITS(s) initialized'
 NOBITSInitMsgLen            equ $ - NOBITSInitMsg
 
 
-; 1. Search and read kernel file to [BaseOfKernelFile:OffsetOfKernelFile]
+; 1. Search and read kernel file to [KernelFileBase:KernelFileOffset]
 ;    during this step, will read Root Directory information from floppy 
-;    to [BaseOfKernelFile:OffsetOfKernelFile], However the information will
+;    to [KernelFileBase:KernelFileOffset], However the information will
 ;    be overwrite by kernel file after used.
 ; 2. enter protect mode
 ; 3. setup paging and enable paging
@@ -162,9 +165,9 @@ LABEL_START:
 
 ReadKernel:
     push es
-    ; compute root directory sector numbers
+    ; compute root directory sector count
     mov al, CONST_BPB_RootEntCnt
-    mov bl, 32
+    mov bl, FAT12_RootEntSize
     mul bl
     mov bx, CONST_BPB_BytesPerSec
     xor dx, dx
@@ -173,20 +176,20 @@ ReadKernel:
     jz .a1
     inc ax
 .a1:
-    mov [RootDirSectorNum], ax
+    mov [RootDirSectorCount], ax
 
-    ; compute FAT table base address
+    ; compute FAT table *base* address
     mov ax, CONST_BPB_BytesPerSec
     mov bx, CONST_BPB_FATSz16
     mul bx 
-    mov bx, 16
+    mov bx, 16  ; base address step
     div bx
     cmp dx, 0
     jz .a2
     inc ax
 .a2:
-    mov word [BaseOfFATTable], BaseOfKernelFile
-    sub [BaseOfFATTable], ax
+    mov word [FATTableBase], BaseOfARDSBuffer
+    sub [FATTableBase], ax
 
     ; reset floppy driver
     xor ah, ah
@@ -194,15 +197,15 @@ ReadKernel:
     int 13h
 
     ; read root directory
-    mov ax, BaseOfKernelFile
+    mov ax, KernelFileBase
     mov es, ax
-    mov bx, OffsetOfKernelFile
+    mov bx, KernelFileOffset
     mov ax, CONST_SectorOfRootDir
-    mov cl, [RootDirSectorNum]
+    mov cx, [RootDirSectorCount]
     call ReadSector
 
     ; read FAT table
-    mov ax, [BaseOfFATTable]
+    mov ax, [FATTableBase]
     mov es, ax
     xor bx, bx
     mov ax, 1
@@ -217,49 +220,99 @@ ReadKernel:
 
 ; function: read secotr
 ; ax sector, start from 0
-; cl numbers of sectors to read
+; cx numbers of sectors to read
 ; es:bx result buffer address
 ReadSector:
     push bp
     mov bp, sp
-    push ax
-    sub sp, 3
 
-    mov dl, 18
+    sub sp, 1 ; [bp - 1] sector for int 13h
+    sub sp, 4 ; dest address
+    sub sp, CONST_BPB_BytesPerSec   ; buffer for int 13h to avoid across 64k boundary
+    mov dword [bp - 5], 0
+    mov [bp - 5], es
+    shl dword [bp - 5], 4
+    and ebx, 0xffff
+    add dword [bp - 5], ebx
+.read:
+    push ax
+    push cx
+    ; ax is logic sector
+    mov dl, CONST_BPB_SecPerTrk
     div dl
     inc ah
-    mov [bp-3], ax
+    mov [bp - 1], ah
+
     and ax, 0ffh
-    mov dl, 2
+    mov dl, CONST_BPB_NumHeads
     div dl
-
-.GoOnReading:
-    mov dl, 0
-    mov ch, al
-    mov dh, ah
-    mov ax, [bp-3]
-    shr ax, 8
-    mov [bp-1], al
-    mov al, cl
-    mov cl, [bp-1]
-    mov ah, 02h
+    mov ch, al  ; cylinder
+    mov dh, ah  ; head
+    mov cl, [bp - 1] ; sector
+    mov dl, CONST_BS_DrvNum
+    mov al, 1   ; sector count to read
+    mov ah, 02h ; function number
+    mov bx, ss
+    mov es, bx
+    lea bx, [bp - 5 - CONST_BPB_BytesPerSec]
     int 13h
-    jc .GoOnReading
-
-    add sp, 3
+    jc .error
+    ; move data from buffer to dest
+    push ds
+    mov ax, ss
+    mov ds, ax
+    lea si, [bp - 5 - CONST_BPB_BytesPerSec]
+    xor ebx, ebx
+    mov ebx, [bp - 5]
+    mov di, bx
+    and di, 0xf
+    shr ebx, 4
+    mov es, bx
+    mov cx, CONST_BPB_BytesPerSec
+    rep movsb
+    pop ds
+    ;
+    add dword [bp - 5], CONST_BPB_BytesPerSec
+    pop cx
     pop ax
-    mov sp, bp
-    pop bp
+    inc ax
+    loop .read
+    ; clean and return
+    add sp, CONST_BPB_BytesPerSec
+    add sp, 4
+    add sp, 1
+    pop bp    
     ret
+.error:
+    mov dword [NumForDisp], 0
+    mov byte [NumForDisp], ah
+
+    call DispEnter
+    push bp
+    mov ax, ds
+    mov es, ax
+    mov bp, ReadFloppyErrMsg
+    mov cx, ReadFloppyErrMsgLen
+    call DispStr
+    pop bp
+
+    ; get cursor position
+    mov ah, 03h
+    mov bh, 0
+    int 10h
+    mov [CursorPosition], dx 
+
+    call DispNum
+    jmp $
 
 ; function: search kernel file, 
 ; and copy it from floppy to memory.
 SearchAndReadKernel:
     cld
     mov si, KernelName
-    mov ax, BaseOfKernelFile
+    mov ax, KernelFileBase
     mov es, ax
-    mov di, OffsetOfKernelFile
+    mov di, KernelFileOffset
 
     mov cx, CONST_BPB_RootEntCnt
 .a1:
@@ -271,10 +324,9 @@ SearchAndReadKernel:
     pop di
     pop si
     pop cx
-    jz .a2     ; FOUND
-    add di, 32
+    jz .a2     ; FOUND! es:di -> kernel.elf
+    add di, FAT12_RootEntSize
     loop .a1
-
     ; print "Kernel not found" message
     mov ax, cs
     mov es, ax
@@ -282,67 +334,50 @@ SearchAndReadKernel:
     mov cx, NotFoundMsgLen
     call DispStr
     jmp $
-    
 .a2:
-    ; alloc screen space for display the number read
+    ; get cursor position
     mov ah, 03h
     mov bh, 0
     int 10h
-    add dl, 6
-    mov ah, 02h
-    int 10h
+    mov [CursorPosition], dx
 
-    ; alloc local variable for bytes already read
-    push bp
-    mov bp, sp
-    sub sp, 2
-    mov word [bp-2], 0
-
-    mov ax, [es:di+0x1a]
+    mov ax, [es:di+0x1a] ; FAT12 RootDirEntry.FirstCluster
 .readSector:
     ; ax is logical sector number
     push ax
-    ; AbsCls = LogicCls - 2 + 19 + RootDirSectorNum
-    add ax, 17
-    add ax, [RootDirSectorNum]
-    mov cl, 1
-    mov bx, BaseOfKernelFile
-    mov es, bx
-    mov bx, OffsetOfKernelFile
-    add bx, [bp-2]
-    call ReadSector
 
-    ; backspace x 6
-    push ax
-    mov ah, 03h
-    mov bh, 0
-    int 10h
-    sub dl, 6
-    mov ah, 02h
-    int 10h
-    ; display the number read
+    ; AbsSec = LogicSec - 2 + 19 + RootDirSectorCount
+    add ax, 17
+    add ax, [RootDirSectorCount]
+    mov edx, KernelFileBase
+    shl edx, 4
+    add edx, KernelFileOffset
+    add edx, [NumForDisp]
+    mov bx, dx
+    and bx, 0xf
+    shr edx, 4
+    mov es, dx
+    mov cx, 1
+    call ReadSector
+    add dword [NumForDisp], CONST_BPB_BytesPerSec
+    ; display the count read
     mov ax, [bp-2]
-    call DisplayReadNum
-    pop ax
+    call DispNum
 
     pop ax
     call GetFATEntry
-    cmp bx, 0xff7
+    cmp bx, 0xff7   ; bad sector
     jz .a3
-    cmp bx, 0xff8
+    cmp bx, 0xff8   ; end sector
     jnb .a4
     mov ax, bx
-    add word [bp-2], 512
     jmp .readSector
 .a3:
     mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
     jmp $
-
 .a4:
-    add  sp, 2
-    pop bp
     ret
 
 ; input: ax logical sector number
@@ -351,9 +386,9 @@ GetFATEntry:
     push si
     push ax
  
-    mov bx, [BaseOfFATTable]
+    mov bx, [FATTableBase]
     mov es, bx
-    mov bx, 12
+    mov bx, FAT12_BitsPerClus
     mul bx
     mov bx, 8
     div bx
@@ -399,87 +434,90 @@ ReadMemInfo:
     pop ebp
     ret
 
+; Display string at position dh:dl(x:y)
+; es:bp string address
+; cx string length
+DispStrAt:
+    push ax
+    push bx
+
+    mov ah, 13h
+    mov al, 01h
+    mov bh, 0h
+    mov bl, 07h
+    int 10h
+
+    pop bx
+    pop ax
+    ret
+
 ; Display string at cursor position
-; es:bp String address offset
-; cx String length
+; es:bp string address
+; cx string length
 DispStr:
-   push ax
-   push bx
-   push cx
-   push dx
-   push cx
+    push ax
+    push bx
+    push cx
+    push dx
 
-   mov ah, 03h
-   mov bh, 0
-   int 10h
+    push cx
+    ; get cursor position
+    mov ah, 03h
+    mov bh, 0
+    int 10h
 
-   mov ah, 13h
-   mov al, 01h
-   mov bh, 0h
-   mov bl, 07h
-   pop cx
-   int 10h
+    pop cx
+    call DispStrAt
 
-   pop dx
-   pop cx
-   pop bx
-   pop ax
-   ret
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
 
-; display the number read in bytes
-DisplayReadNum:
+; Display the number at CursorPosition
+DispNum:
     push bp
     mov bp, sp
+    sub sp, 2
+    mov word [bp - 2], 0
     push ax
-    sub sp, 8   ; 65535 + nextaddr
-    mov word [bp-8], 0
-    mov word [bp-6], 0
-    mov word [bp-4], 0
-    mov byte [bp-3], 'B'
-    lea si, [bp-4]
-    mov [bp-10], si
-.next:
-    ; high byte
-    mov ax, [bp-2]
-    shr ax, 8
-    mov bl, 10
-    div bl
-    push ax
-    ; low byte
-    mov ax, [bp-2]
-    and ax, 0ffh
-    mov bx, [bp-12]
-    and bx, 0ff00h
-    add ax, bx
-    mov bl, 10
-    div bl
-    ; result
-    add ah, '0'
-    mov si, [bp-10]
-    mov [ss:si], ah
-    and ax, 0ffh
-    pop bx
-    shl bx, 8
-    add ax, bx
-    mov [bp-2], ax
-    dec word [bp-10]
-    cmp ax, 0
-    jne .next
-    ; display
-    push bp
-    push es
+    push bx
     push cx
-    mov cx, 6
+    push dx
+    push es
+
+    mov ax, [NumForDisp]
+    mov dx, [NumForDisp + 2]
+.a1:
+    mov cx, 10
+    call divdw
+    add cx, '0'
+    dec sp
+    mov byte [esp], cl
+    inc word [bp - 2]
+
+    cmp ax, 0
+    jne .a1
+    cmp dx, 0
+    jne .a1
+
+    push bp
+    mov cx, [bp - 2]
     mov ax, ss
     mov es, ax
-    lea bp, [bp-8]
-    call DispStr
+    lea ebp, [esp + 2]
+    mov dx, [CursorPosition]
+    call DispStrAt
     pop bp
-    pop es
-    pop cx
 
-    add sp, 8
+    add sp, [bp - 2]
+    pop es
+    pop dx
+    pop cx
+    pop bx
     pop ax
+    add sp, 2
     pop bp
     ret
 
@@ -521,6 +559,25 @@ CleanScreen:
    ;mov cx, 2607h ; https://blog.csdn.net/qq_40818798/article/details/83933827
    ;int 10h
    ;ret
+
+; 名称：divdw
+; 功能：进行不会产生溢出的除法运算，被除数为dword型，除数为word型号，结果为dword型号
+; 参数：(ax)=dword型数据的低16位
+;      (dx)=dword型数据的高16位
+;      (cx)=除数
+; 返回：(dx)=结果的高16位，(ax)=结果的低16位
+;      (cx)=余数
+divdw:    ; 子程序定义开始
+    push ax            ; 低16位先保存
+    mov ax, dx         ; ax值为高16为
+    mov dx, 0          ; dx置零
+    div cx             ; H/N
+    mov bx, ax         ; ax,bx的值(int)H/N，dx的值为(rem)H/N
+    pop ax             ; 处理低16位
+    div cx             ; 高16位:dx的值为(rem)H/N，低16位:ax
+    mov cx, dx
+    mov dx, bx
+    ret
 
 ;----------------------------------------------------------------------------
 ; 函数名: KillMotor

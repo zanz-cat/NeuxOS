@@ -29,10 +29,13 @@ static const char *banner =
     "  //  | / / //       //   / /   \\//  //   / /       ) )   \n"
     " //   |/ / ((____   ((___( (    //\\ ((___/ / ((___ / /    v0.02\n\n";
 
+char test[10240] = "test";
+
 static void display_banner() 
 {
     current_console->color = 0xa;
     putsk(banner);
+    putsk(test);
     current_console->color = DEFAULT_TEXT_COLOR;
 }
 
