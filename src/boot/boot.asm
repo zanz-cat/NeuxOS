@@ -29,16 +29,15 @@ BS_FileSysType        db      'FAT12   '
 TopOfStack            equ     0ffffh
 
 
-; 1. Read Root Directory information to 
-;    [LoaderBase:LoaderOffset] from floppy.
-; 2. Search and read LOADER.BIN to [LoaderBase:LoaderOffset] 
-;    from floppy, will overwrite the Root Directory information.
-; 3. Jump to the LOADER
+; 1. read root directory information to 
+;    [LoaderBase:LoaderOffset] from floppy temporarily.
+; 2. search and read LOADER.BIN to [LoaderBase:LoaderOffset] from floppy, 
+;    will override root directory information which is useless.
+; 3. jump to the LOADER
 LABEL_BEGIN:
     mov ax, cs
     mov ds, ax
     mov ss, ax
-
     ; init stack
     mov sp, TopOfStack
 
@@ -59,7 +58,7 @@ LABEL_BEGIN:
     mov ax, [BPB_BytesPerSec]
     mov bx, [BPB_FATSz16]
     mul bx 
-    mov bx, 16  ; base address step
+    mov bx, 16  ; 16 is the step of base address
     div bx
     cmp dx, 0
     jz .a2

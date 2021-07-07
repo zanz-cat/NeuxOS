@@ -1,7 +1,7 @@
-KernelFileBase        equ 08000h
-KernelFileOffset      equ 0100h
+KernelFileBase          equ 08000h
+KernelFileOffset        equ 0100h
 
-BaseOfARDSBuffer        equ 06000h
+ARDSBufferBase          equ 06000h
 
 PageDirBasePhyAddr      equ 100000h
 PageTableBasePhyAddr    equ 101000h

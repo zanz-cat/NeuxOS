@@ -164,7 +164,6 @@ bounds_check:
     push 5
     jmp exception
 inval_opcode:
-    xchg bx, bx
     push 0ffffffffh
     push 6
     jmp exception
@@ -190,7 +189,6 @@ stack_exception:
     push 12
     jmp exception
 general_protection:
-    xchg bx, bx
     push 13
     jmp exception
 page_fault:

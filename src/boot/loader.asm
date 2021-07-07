@@ -49,8 +49,8 @@ ADDR_MSG_GAP_LEN        equ 12
 LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
 KernelFilePhyAddr       equ paddr(KernelFileBase, KernelFileOffset)
-RootDirSectorCount        dw 0
-FATTableBase          dw 0 
+RootDirSectorCount      dw 0
+FATTableBase            dw 0 
 ARDSNum                 dw 0
 CursorPosition          dw 0
 KernelEntryPointAddr    dd 0
@@ -58,8 +58,8 @@ MemSizeMB               dd 0
 NumForDisp              dd 0
 
 ; Strings
-LOADING_MESSAGE             db  'start to load kernel'
-LOADING_MESSAGE_LEN         equ $ - LOADING_MESSAGE
+LoadKernelMsg               db  'load kernel...'
+LoadKernelMsgLen            equ $ - LoadKernelMsg
 
 OKMsg                       db    'ok'
 OKMsgLen                    equ   $ - OKMsg
@@ -76,7 +76,7 @@ BadSectorMsgLen             equ $ - BadSectorMsg
 ReadFloppyErrMsg            db 'read floppy error: '
 ReadFloppyErrMsgLen         equ $ - ReadFloppyErrMsg
 
-KernelMsg                   db 'kernel...'
+KernelMsg                   db 'load kernel...'
 KernelMsgLen                equ $ - KernelMsg
 
 MemInfoMsg                  db 'memory information'
@@ -108,7 +108,7 @@ NOBITSInitMsgLen            equ $ - NOBITSInitMsg
 
 
 ; 1. Search and read kernel file to [KernelFileBase:KernelFileOffset]
-;    during this step, will read Root Directory information from floppy 
+;    during this step, will read root directory information from floppy 
 ;    to [KernelFileBase:KernelFileOffset], However the information will
 ;    be overwrite by kernel file after used.
 ; 2. enter protect mode
@@ -126,15 +126,11 @@ LABEL_START:
     mov sp, TopOfStack
 
     call DispEnter
-    mov bp, LOADING_MESSAGE
-    mov cx, LOADING_MESSAGE_LEN
+    mov bp, LoadKernelMsg
+    mov cx, LoadKernelMsgLen
     call DispStr
-    call DispEnter
 
     ; read kernel
-    mov bp, KernelMsg
-    mov cx, KernelMsgLen
-    call DispStr
     call ReadKernel
     call DispEnter
 
@@ -188,7 +184,7 @@ ReadKernel:
     jz .a2
     inc ax
 .a2:
-    mov word [FATTableBase], BaseOfARDSBuffer
+    mov word [FATTableBase], ARDSBufferBase
     sub [FATTableBase], ax
 
     ; reset floppy driver
@@ -406,6 +402,16 @@ GetFATEntry:
     pop si
     ret
 
+; Read ARDS(Address Range Descriptor Structure)
+; struct ARDS {
+;   uint32_t baseAddrLow;
+;   uint32_t baseAddrHigh;
+;   uint32_t lengthLow;
+;   uint32_t lengthHigh;
+;   uint32_t type;   
+; }
+;   
+;
 ReadMemInfo:
     push ebp
     mov ebp, esp
@@ -415,16 +421,16 @@ ReadMemInfo:
 
     mov ebx, 0
 .continue:
-    mov ax, BaseOfARDSBuffer
+    mov ax, ARDSBufferBase
     mov es, ax
     mov di, [ebp-2]
     mov ax, 0e820h
     mov ecx, 20
-    mov edx, 0534d4150h
+    mov edx, 0534d4150h ; 'SMAP'
     int 15h
     jc .continue    ; cf = 1, 出错重试
     ; success
-    add word [ebp-2], 20
+    add word [ebp-2], 20    ; sizeof(struct ARDS) == 20
     inc word [ARDSNum]
     ; check if the last one
     cmp ebx, 0
@@ -611,7 +617,7 @@ LABEL_PM_START:
     call GetCursor
 
     ; display memory info
-    ; call DisplayARDS
+    call DisplayARDS
 
     ; setup paging
     callPrintStr SetupPagingMsg
@@ -791,7 +797,7 @@ GetTotalMemSize:
     sub ax, cx
     mov bl, 20
     mul bl
-    mov esi, paddr(BaseOfARDSBuffer, 0)
+    mov esi, paddr(ARDSBufferBase, 0)
     add esi, eax
 
     ; only available memory
@@ -840,7 +846,7 @@ DisplayARDS:
     sub ax, cx
     mov bl, 20
     mul bl
-    mov esi, BaseOfARDSBuffer << 4
+    mov esi, ARDSBufferBase << 4
     add esi, eax
 
     callPrintChar '|'
@@ -863,12 +869,26 @@ DisplayARDS:
     callPrintChar ' ', LENGTH_MSG_GAP_LEN + MemBlockLengthMsgLen - 18
 
     callPrintChar '|'
-    callPrintChar '0'
-    callPrintChar 'x'
     mov al, [esi+16]
     and al, 0fh
-    call Digital2Char
-    callPrintChar
+    cmp al, 1   ; available
+    je .available
+    cmp al, 2   ; reserved
+    je .reserved
+    callPrintChar ' '   ; undefined
+    callPrintChar '*'
+    callPrintChar ' '
+    jmp .typefin
+.available:
+    callPrintChar 'A'
+    callPrintChar 'V'
+    callPrintChar 'L'
+    jmp .typefin
+.reserved:
+    callPrintChar 'R'
+    callPrintChar 'E'
+    callPrintChar 'S'
+.typefin:
     callPrintChar ' ', 1 ; FIXME
     callPrintChar '|'
     call Println
