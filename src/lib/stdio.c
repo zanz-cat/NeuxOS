@@ -1,7 +1,7 @@
-#include "sched.h"
-#include "unistd.h"
-#include "common.h"
-#include "stdio.h"
+#include <kernel/sched.h>
+#include <lib/unistd.h>
+#include <lib/common.h>
+#include <lib/stdio.h>
 
 int vprint(struct console *console, const char *fmt, __builtin_va_list args) 
 {

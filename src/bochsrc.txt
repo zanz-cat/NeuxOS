@@ -12,10 +12,10 @@ vgaromimage: file=../bios/VGABIOS-elpin-2.40
 vga: update_freq=60, realtime=0
 
 # what disk images will be used
-floppya: 1_44=../build/a.img, status=inserted
+# floppya: 1_44=../build/a.img, status=inserted
 
 # choose the boot disk.
-boot: a
+# boot: disk
 
 # where do we send log messages?
 # log: bochsout.txt
@@ -27,3 +27,4 @@ mouse: enabled=0
 #keyboard: ~/bochs-2.6.9/gui/keymaps/x11-pc-us.map
 
 magic_break: enabled=1
+

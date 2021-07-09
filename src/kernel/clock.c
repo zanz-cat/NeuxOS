@@ -1,9 +1,9 @@
-#include "type.h"
-#include "i8259a.h"
-#include "sched.h"
-#include "const.h"
-#include "log.h"
-#include "interrupt.h"
+#include <type.h>
+#include <lib/log.h>
+#include <kernel/i8259a.h>
+#include <kernel/sched.h>
+#include <kernel/const.h>
+#include <kernel/interrupt.h>
 
 static int ticks = 0;
 

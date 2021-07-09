@@ -1,5 +1,4 @@
-%include "include/const.inc"
-%include "include/common.inc"
+%include "common.S"
 
 extern current
 extern syscall_handler_table

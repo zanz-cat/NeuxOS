@@ -1,7 +1,7 @@
-#include "type.h"
-#include "const.h"
-#include "protect.h"
-#include "unistd.h"
+#include <type.h>
+#include <kernel/const.h>
+#include <kernel/protect.h>
+#include <lib/unistd.h>
 
 u32 get_ticks() 
 {

@@ -1,7 +1,7 @@
-#include "tty.h"
-#include "keyboard.h"
-#include "print.h"
-#include "string.h"
+#include <lib/print.h>
+#include <lib/string.h>
+#include <kernel/keyboard.h>
+#include <kernel/tty.h>
 
 struct console console_table[NR_CONSOLES];
 struct tty  tty_table[NR_CONSOLES];

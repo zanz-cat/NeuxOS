@@ -1,7 +1,7 @@
-#include "type.h"
-#include "protect.h"
-#include "string.h"
-#include "log.h"
+#include <type.h>
+#include <kernel/protect.h>
+#include <lib/string.h>
+#include <lib/log.h>
 
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128

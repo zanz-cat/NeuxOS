@@ -1,5 +1,5 @@
-#include "log.h"
-#include "print.h"
+#include <lib/print.h>
+#include <lib/log.h>
 
 static enum log_level sys_level = INFO;
 

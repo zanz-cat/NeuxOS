@@ -1,5 +1,4 @@
-%include "include/const.inc"
-%include "include/common.inc"
+%include "common.S"
 
 %macro hwint 1
     ; save state

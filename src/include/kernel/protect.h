@@ -3,10 +3,10 @@
                             protect.h
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#ifndef	__PROTECT_H__
-#define	__PROTECT_H__
+#ifndef	PROTECT_H
+#define	PROTECT_H
 
-#include "type.h"
+#include <type.h>
 
 /* 存储段描述符/系统段描述符 */
 struct descriptor		/* 共 8 个字节 */

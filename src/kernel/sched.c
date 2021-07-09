@@ -1,10 +1,10 @@
-#include "const.h"
-#include "protect.h"
-#include "proc.h"
-#include "gdt.h"
-#include "log.h"
-#include "string.h"
-#include "sched.h"
+#include <lib/log.h>
+#include <lib/string.h>
+#include <kernel/const.h>
+#include <kernel/protect.h>
+#include <kernel/proc.h>
+#include <kernel/gdt.h>
+#include <kernel/sched.h>
 
 #define MAX_PROC_NUM            10
 #define INITIAL_EFLAGS          0x200 | 0x3000

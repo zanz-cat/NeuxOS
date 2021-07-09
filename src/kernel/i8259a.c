@@ -1,5 +1,5 @@
-#include "const.h"
-#include "protect.h"
+#include <kernel/const.h>
+#include <kernel/protect.h>
 
 void init_8259A() 
 {

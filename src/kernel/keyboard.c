@@ -1,9 +1,9 @@
-#include "keyboard.h"
-#include "const.h"
-#include "interrupt.h"
-#include "log.h"
-#include "keymap.h"
-#include "sched.h"
+#include <lib/log.h>
+#include <kernel/keyboard.h>
+#include <kernel/const.h>
+#include <kernel/interrupt.h>
+#include <kernel/keymap.h>
+#include <kernel/sched.h>
 
 static struct keyboard_input_buffer buf_in;
 static int shift_l;

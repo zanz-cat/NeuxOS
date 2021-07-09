@@ -1,14 +1,14 @@
-#include "const.h"
-#include "string.h"
-#include "type.h"
-#include "print.h"
-#include "protect.h"
-#include "sched.h"
-#include "log.h"
-#include "gdt.h"
-#include "clock.h"
-#include "keyboard.h"
-#include "tty.h"
+#include <type.h>
+#include <lib/log.h>
+#include <lib/string.h>
+#include <lib/print.h>
+#include <kernel/const.h>
+#include <kernel/protect.h>
+#include <kernel/sched.h>
+#include <kernel/gdt.h>
+#include <kernel/clock.h>
+#include <kernel/keyboard.h>
+#include <kernel/tty.h>
 
 extern void app1();
 extern void app2();

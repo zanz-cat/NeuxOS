@@ -1,7 +1,7 @@
-#include "print.h"
-#include "string.h"
-#include "common.h"
-#include "sched.h"
+#include <kernel/sched.h>
+#include <lib/string.h>
+#include <lib/common.h>
+#include <lib/print.h>
 
 static void recycle_screen_buf(struct console *c)
 {

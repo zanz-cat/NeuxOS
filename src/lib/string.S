@@ -1,4 +1,4 @@
-%include "include/common.inc"
+%define arg(i) [ebp+4*(i+2)]
 
 global memcpy
 global memset

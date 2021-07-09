@@ -1,6 +1,6 @@
-#include "clock.h"
-#include "proc.h"
-#include "print.h"
+#include <lib/print.h>
+#include <kernel/clock.h>
+#include <kernel/proc.h>
 
 typedef void* syscall_handler;
 

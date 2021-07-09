@@ -1,9 +1,9 @@
-#include "interrupt.h"
-#include "const.h"
-#include "print.h"
-#include "i8259a.h"
-#include "sched.h"
-#include "log.h"
+#include <kernel/const.h>
+#include <kernel/i8259a.h>
+#include <kernel/sched.h>
+#include <lib/print.h>
+#include <lib/log.h>
+#include <kernel/interrupt.h>
 
 void divide_error();
 void single_step_exception();

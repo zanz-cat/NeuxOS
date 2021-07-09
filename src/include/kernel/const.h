@@ -1,5 +1,5 @@
-#ifndef __CONST_H__
-#define __CONST_H__
+#ifndef CONST_H
+#define CONST_H
 
 /* GDT 和 IDT 中描述符的个数 */
 #define GDT_SIZE    128

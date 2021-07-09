@@ -27,3 +27,21 @@ INT_M_CTLMASK           equ         0x21
 INT_S_CTL               equ         0xa0
 INT_S_CTLMASK           equ         0xa1
 INT_EOI                 equ         0x20
+
+%define arg(i) [ebp+4*(i+2)]
+
+%macro SAVE_STATE 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+%endmacro
+
+%macro RESTORE_STATE 0
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+%endmacro

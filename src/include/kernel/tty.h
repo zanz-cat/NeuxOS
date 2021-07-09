@@ -1,6 +1,6 @@
-#ifndef __TTY_H__
-#define __TTY_H__
-#include "type.h"
+#ifndef TTY_H
+#define TTY_H
+#include <type.h>
 
 #define NR_CONSOLES     3
 #define CRT_BUF_SIZE    5*1024

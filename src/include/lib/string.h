@@ -1,8 +1,7 @@
-#ifndef __STRING_H__
-#define __STRING_H__
+#ifndef STRING_H
+#define STRING_H
 
-#include "const.h"
-#include "type.h"
+#include <type.h>
 
 void* memcpy(void *dst, void *src, u32 size);
 void *memset(void *s, int ch, u32 size);

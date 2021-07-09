@@ -1,5 +1,4 @@
-%include "include/common.inc"
-%include "include/const.inc"
+%include "common.S"
 
 global _start
 global out_byte

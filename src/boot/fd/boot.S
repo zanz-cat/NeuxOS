@@ -1,9 +1,8 @@
 org 07c00h
 
-%include "boot/fat12hdr.inc"
-%include "boot/boot.inc"
+%include "const.S"
 
-jmp short LABEL_BEGIN
+jmp LABEL_BEGIN
 nop
 
 BS_OEMName            db      'Lee Link'

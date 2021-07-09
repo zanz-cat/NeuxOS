@@ -1,6 +1,6 @@
-#include "stdio.h"
-#include "print.h"
-#include "unistd.h"
+#include <lib/stdio.h>
+#include <lib/print.h>
+#include <lib/unistd.h>
 
 void app1() 
 {
