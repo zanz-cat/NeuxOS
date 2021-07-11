@@ -17,23 +17,13 @@ ifeq ($(OS),Darwin)
 	LD:=x86_64-elf-ld
 endif
 
-ifeq ($(OS), Windows_NT)
-	SUDO:=
-	MOUNTPOINT:=A:
-	MOUNTIMG:=imdisk.exe -a -m $(MOUNTPOINT) -o hd -f $(BOOT).img
-	UMOUNTIMG:=imdisk.exe -d -m $(MOUNTPOINT)
-endif
 ifeq ($(OS),Darwin)
 	SUDO:=
-	MOUNTPOINT:=img
-	MOUNTIMG:=hdiutil attach -mountpoint $(MOUNTPOINT) $(BOOT).img
-	UMOUNTIMG:=hdiutil detach $(MOUNTPOINT)
+	MOUNTPOINT:=$(SRCDIR)/img
 endif
 ifeq ($(OS),Linux)
 	SUDO:=sudo
-	MOUNTPOINT:=img
-	MOUNTIMG:=$(SUDO) mount -o loop $(BOOT).img $(MOUNTPOINT)
-	UMOUNTIMG:=$(SUDO) umount $(MOUNTPOINT)
+	MOUNTPOINT:=$(SRCDIR)/img
 endif
 
 $(shell test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT))
@@ -56,21 +46,74 @@ $(CLEAN_SUBDIRS):
 img: $(SUBDIRS)
 	rm -f $(BOOT).img
 ifeq ($(BOOT),fd)
+	# Linux and OSX
 	bximage -q -mode=create -$(BOOT)=1.44M $(BOOT).img
 	dd if=boot/$(BOOT)/boot.bin of=$(BOOT).img bs=512 count=1 conv=notrunc
-else
-	bximage -q -mode=create -$(BOOT)=128M $(BOOT).img
-endif
-	$(MOUNTIMG)
+	$(SUDO) mount -o loop $(BOOT).img $(MOUNTPOINT)
 	$(SUDO) cp boot/$(BOOT)/loader.bin $(MOUNTPOINT)/LOADER.BIN
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF
-	$(UMOUNTIMG)
+	$(SUDO) umount $(MOUNTPOINT)
+else
+	# harddisk
+	bximage -q -mode=create -$(BOOT)=128M $(BOOT).img
+ifeq ($(OS),Linux)
+	dev=`$(SUDO) losetup -f --show $(BOOT).img`; \
+	$(SUDO) fdisk $$dev < hd-fdisk-cmd.txt; \
+	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$3}'`; \
+	offset=`expr $$offset \* 512`; \
+	limit=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$5}'`; \
+	limit=`expr $$limit \* 512`; \
+	$(SUDO) losetup -d $$dev; \
+	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit $(BOOT).img`; \
+	$(SUDO) mkfs.ext2 $$dev; \
+	$(SUDO) mount $$dev $(MOUNTPOINT); \
+	$(SUDO) cp boot/$(BOOT)/loader.bin $(MOUNTPOINT)/LOADER.BIN; \
+	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF; \
+	$(SUDO) umount $(MOUNTPOINT); \
+	$(SUDO) losetup -d $$dev;
+else
+	echo "D"
+endif
+endif
 
-mount: $(SUBDIRS) img
-	$(MOUNTIMG)
+mount:
+ifeq ($(BOOT),fd)
+ifeq ($(OS),Linux)
+	$(SUDO) mount -o loop $(BOOT).img $(MOUNTPOINT)
+else
+	hdiutil attach -mountpoint $(MOUNTPOINT) $(BOOT).img
+endif
+else
+ifeq ($(OS),Linux)
+	# mount hd on Linux
+	offset=`$(SUDO) fdisk -l $(BOOT).img | tail -1 | awk '{print $$3}'`; \
+	offset=`expr $$offset \* 512`; \
+	limit=`$(SUDO) fdisk -l $(BOOT).img | tail -1 | awk '{print $$5}'`; \
+	limit=`expr $$limit \* 512`; \
+	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit $(BOOT).img`; \
+	$(SUDO) mount $$dev $(MOUNTPOINT);
+else
+	# mount hd on OSX
+	echo "D"
+endif
+endif
 
 umount:
-	$(UMOUNTIMG)
+ifeq ($(BOOT),fd)
+ifeq ($(OS),Linux)
+	$(SUDO) umount $(MOUNTPOINT)
+else
+	hdiutil detach $(MOUNTPOINT)
+endif
+else
+ifeq ($(OS),Linux)
+	$(SUDO) umount $(MOUNTPOINT)
+	dev=`$(SUDO) losetup -l -O name -n -j $(BOOT).img`; \
+	$(SUDO) losetup -d $$dev;
+else
+    echo "D"
+endif
+endif
 
 run: img bochsrc
 	bochs -q || true
