@@ -11,20 +11,8 @@ ASMFLAGS:=-Werror
 BOOT?=hd
 SUBDIRS:=app boot lib kernel
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
-
-ifeq ($(OS),Darwin)
-	CC:=x86_64-elf-gcc
-	LD:=x86_64-elf-ld
-endif
-
-ifeq ($(OS),Darwin)
-	SUDO:=
-	MOUNTPOINT:=$(SRCDIR)/img
-endif
-ifeq ($(OS),Linux)
-	SUDO:=sudo
-	MOUNTPOINT:=$(SRCDIR)/img
-endif
+SUDO:=sudo
+MOUNTPOINT:=$(SRCDIR)/img
 
 $(shell test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT))
 
@@ -46,7 +34,6 @@ $(CLEAN_SUBDIRS):
 img: $(SUBDIRS)
 	rm -f $(BOOT).img
 ifeq ($(BOOT),fd)
-	# Linux and OSX
 	bximage -q -mode=create -$(BOOT)=1.44M $(BOOT).img
 	dd if=boot/$(BOOT)/boot.bin of=$(BOOT).img bs=512 count=1 conv=notrunc
 	$(SUDO) mount -o loop $(BOOT).img $(MOUNTPOINT)
@@ -56,7 +43,6 @@ ifeq ($(BOOT),fd)
 else
 	# harddisk
 	bximage -q -mode=create -$(BOOT)=128M $(BOOT).img
-ifeq ($(OS),Linux)
 	dev=`$(SUDO) losetup -f --show $(BOOT).img`; \
 	$(SUDO) fdisk $$dev < hd-fdisk-cmd.txt; \
 	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$3}'`; \
@@ -71,20 +57,12 @@ ifeq ($(OS),Linux)
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF; \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
-else
-	echo "D"
-endif
 endif
 
 mount:
 ifeq ($(BOOT),fd)
-ifeq ($(OS),Linux)
 	$(SUDO) mount -o loop $(BOOT).img $(MOUNTPOINT)
 else
-	hdiutil attach -mountpoint $(MOUNTPOINT) $(BOOT).img
-endif
-else
-ifeq ($(OS),Linux)
 	# mount hd on Linux
 	offset=`$(SUDO) fdisk -l $(BOOT).img | tail -1 | awk '{print $$3}'`; \
 	offset=`expr $$offset \* 512`; \
@@ -92,27 +70,13 @@ ifeq ($(OS),Linux)
 	limit=`expr $$limit \* 512`; \
 	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit $(BOOT).img`; \
 	$(SUDO) mount $$dev $(MOUNTPOINT);
-else
-	# mount hd on OSX
-	echo "D"
-endif
 endif
 
 umount:
-ifeq ($(BOOT),fd)
-ifeq ($(OS),Linux)
 	$(SUDO) umount $(MOUNTPOINT)
-else
-	hdiutil detach $(MOUNTPOINT)
-endif
-else
-ifeq ($(OS),Linux)
-	$(SUDO) umount $(MOUNTPOINT)
+ifeq ($(BOOT),hd)
 	dev=`$(SUDO) losetup -l -O name -n -j $(BOOT).img`; \
 	$(SUDO) losetup -d $$dev;
-else
-    echo "D"
-endif
 endif
 
 run: img bochsrc
