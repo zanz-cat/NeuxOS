@@ -15,6 +15,7 @@ $(ASMOBJS): %_asm.o:%.S
 
 kernel.elf: $(wildcard $(SRCDIR)/lib/*.o) $(OBJS) $(ASMOBJS) ../app/*.o
 	$(LD) -m elf_i386 -Ttext 0x30700 -o $@ $^
+	objcopy --remove-section=.note.gnu.property $@
 
 clean:
 	rm -f *.o kernel.elf

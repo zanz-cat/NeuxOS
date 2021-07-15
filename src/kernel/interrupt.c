@@ -82,16 +82,19 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
     int color = current_console->color;
     current_console->color = 0x74; /* 灰底红字 */
-    printk("\nException! --> \n");
-    printk("%s\n", int_err_msg[vec_no]);
-    printk("EFLAGS: 0x%x\n", eflags);
-    printk("CS: 0x%x\n", cs);
-    printk("EIP: 0x%x\n", eip);
+    fprintk(current_console, 
+            "\nKernel crashed!\n"
+            "%s\n"
+            "EFLAGS: 0x%x\n"
+            "CS: 0x%x\n"
+            "EIP: 0x%x\n", 
+            int_err_msg[vec_no], eflags, cs, eip);
 
-    if(err_code != 0xffffffff)
-        printk("Error code: 0x%x\n", err_code);
-
+    if(err_code != 0xffffffff) {
+        fprintk(current_console, "Error code: 0x%x\n", err_code);
+    }
     current_console->color = color;
+    asm("hlt");
 }
 
 void serial2_handler() 

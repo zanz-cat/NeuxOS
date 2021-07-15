@@ -663,14 +663,15 @@ RelocateKernel:
     add esi, eax
     add esi, KernelFilePhyAddr ; esi is the absolute address of certain program header in memory
 
+    cmp dword [esi], 0x1 ; p_type == PT_LOAD
+    jne .contseg
     mov ecx, [esi+16] ; program size
     mov edi, [esi+8] ; p_vaddr in memory
     mov esi, [esi+4] ; p_offset in file
     add esi, KernelFilePhyAddr ; absolute address in memmory
-    ; mov ax, ds
-    ; mov es, ax    
     rep movsb
     inc word [ebp-2]
+.contseg:
     pop ecx
     loop .next
 
@@ -694,7 +695,7 @@ RelocateKernel:
     mov esi, [KernelFilePhyAddr+32] ; section header table offset
     add esi, eax
     add esi, KernelFilePhyAddr
-    cmp dword [esi+4], 8 ; NOBITS type
+    cmp dword [esi+4], 8 ; sh_type == SHT_NOBITS
     jne .skip
     ; clear NOBITS type
     mov ecx, [esi+20]
