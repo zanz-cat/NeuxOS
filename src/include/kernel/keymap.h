@@ -1,8 +1,8 @@
 #ifndef __KEYMAP_H__
 #define __KEYMAP_H__
 
-#include "type.h"
-#include "keyboard.h"
+#include <type.h>
+#include <kernel/keyboard.h>
 
 /* Keymap for US MF-2 keyboard. */
 

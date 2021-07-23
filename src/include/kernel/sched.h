@@ -1,7 +1,7 @@
-#ifndef __SCHEDULE_H__
-#define __SCHEDULE_H__
+#ifndef __SCHED_H__
+#define __SCHED_H__
 
-#include "proc.h"
+#include <kernel/protect.h>
 
 extern struct process *current;
 struct process *create_proc(void *text, struct tty *ptty);

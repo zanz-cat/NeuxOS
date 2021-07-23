@@ -56,6 +56,7 @@ DA_DPL3		EQU	  60h	; DPL = 3
 DA_DR		EQU	90h	; 存在的只读数据段类型值
 DA_DRW		EQU	92h	; 存在的可读写数据段属性值
 DA_DRWA		EQU	93h	; 存在的已访问可读写数据段类型值
+DA_DRWE     EQU 96h ; 存在的可读写向下扩展的数据段属性值
 DA_C		EQU	98h	; 存在的只执行代码段属性值
 DA_CR		EQU	9Ah	; 存在的可执行可读代码段属性值
 DA_CCO		EQU	9Ch	; 存在的只执行一致代码段属性值

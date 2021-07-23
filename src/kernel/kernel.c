@@ -42,7 +42,7 @@ static void idle()
 {
     while (1) {
         current_console->color = 0x2;
-        printk("idle: %d\n", kget_ticks());
+        fprintk(current_console, "idle: %d\n", kget_ticks());
         current_console->color = DEFAULT_TEXT_COLOR;
         asm("hlt");
     }
@@ -50,7 +50,7 @@ static void idle()
 
 void init_system() 
 {
-    // set_log_level(DEBUG);
+    set_log_level(DEBUG);
 
     init_console();
     init_tty();

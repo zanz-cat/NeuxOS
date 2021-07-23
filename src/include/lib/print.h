@@ -11,5 +11,6 @@ int fputchark(struct console *console, u32 ch);
 int putsk(const char *str);
 int printk(const char *fmt, ...);
 int fprintk(struct console *console, const char *fmt, ...);
+int vprintk(struct console *console, const char *fmt, __builtin_va_list args);
 
 #endif

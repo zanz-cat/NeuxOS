@@ -19,7 +19,7 @@ static int alloc()
     int i;
     for (i = 0; i < GDT_SIZE && BITMAP_GET(i); i++);
     if (i > GDT_SIZE - 1) {
-        log_error("gdt space not enough\n");
+        log_error("no gdt space left\n");
         return -1;
     }
 
@@ -69,7 +69,7 @@ int install_tss(struct tss *ptss)
 {
     int index = alloc();
     if (index < 0) {
-        log_error("alloc gdt space error\n");
+        log_error("alloc gdt error\n");
         return -1;
     }
     

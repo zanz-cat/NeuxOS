@@ -3,8 +3,8 @@
                             protect.h
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#ifndef	PROTECT_H
-#define	PROTECT_H
+#ifndef	__PROTECT_H__
+#define	__PROTECT_H__
 
 #include <type.h>
 

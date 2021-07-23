@@ -27,7 +27,7 @@ static int log(enum log_level level, const char *fmt, __builtin_va_list args)
     default:
         break;
     }
-	return fprintk(current_console, fmt, args);
+	return vprintk(current_console, fmt, args);
 }
 
 int set_log_level(enum log_level level) 

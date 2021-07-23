@@ -1,8 +1,8 @@
 #ifndef __GDT_H__
 #define __GDT_H__
 
-#include "type.h"
-#include "protect.h"
+#include <type.h>
+#include <kernel/protect.h>
 
 void init_gdt();
 int install_tss(struct tss *ptss);

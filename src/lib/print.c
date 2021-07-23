@@ -66,7 +66,7 @@ int putsk(const char *str)
     return 0;
 }
 
-static int vprintk(struct console *console, const char *fmt, __builtin_va_list args) 
+int vprintk(struct console *console, const char *fmt, __builtin_va_list args) 
 {
     int intarg, len, rem;
     const char *strarg;

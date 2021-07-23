@@ -1,10 +1,10 @@
 #ifndef __PROC_H__
 #define __PROC_H__
 
-#include "type.h"
-#include "proc.h"
-#include "protect.h"
-#include "tty.h"
+#include <type.h>
+#include <kernel/proc.h>
+#include <kernel/protect.h>
+#include <kernel/tty.h>
 
 #define LDT_SIZE    128
 #define STACK0_SIZE  1024

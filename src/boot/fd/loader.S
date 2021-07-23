@@ -154,8 +154,8 @@ LABEL_START:
     or  eax, 1
     mov cr0, eax
 
-    ; jmp to 32bit segment
-    jmp dword   SelectorFlatC:(paddr(LABEL_PM_START))
+    ; jmp to 32bit segment, clean up pipeline and cache in 16bit mode.
+    jmp dword SelectorFlatC:(paddr(LABEL_PM_START))
 
 ReadKernel:
     push es
@@ -924,17 +924,18 @@ PrintDigitalHex:
        
     mov [ebp-4], eax
 
-    mov ecx, 4
+    ; for (i = 4; i > 0; i--) { esi + i - 5 is Nth byte from high }
+    mov ecx, 4 ; eax has 4 bytes
 .print_number:
     mov esi, ebp
-    add si, cx
-    sub si, 5
-    mov byte al, [ss:si]
+    add esi, ecx
+    sub esi, 5
+    mov byte al, [ss:esi]
     shr al, 4
     call Digital2Char
     callPrintChar
 
-    mov byte al, [ss:si]
+    mov byte al, [ss:esi]
     call Digital2Char
     callPrintChar
     loop .print_number
