@@ -2,6 +2,8 @@
 #define __SCHED_H__
 
 #include <kernel/protect.h>
+#include <kernel/tty.h>
+#include <kernel/proc.h>
 
 extern struct process *current;
 struct process *create_proc(void *text, struct tty *ptty);

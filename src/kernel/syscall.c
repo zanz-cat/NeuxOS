@@ -4,12 +4,12 @@
 
 typedef void* syscall_handler;
 
-int sys_get_ticks() 
+static int sys_get_ticks() 
 {
     return kget_ticks();
 }
 
-int sys_write(char *buf, int len, struct process *proc)
+static int sys_write(char *buf, int len, struct process *proc)
 {
     for (int i = 0; i < len; i++) {
         fputchark(proc->tty->console, buf[i]);

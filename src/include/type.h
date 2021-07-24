@@ -1,5 +1,5 @@
-#ifndef TYPE_H
-#define TYPE_H
+#ifndef __TYPE_H__
+#define __TYPE_H__
 
 typedef	unsigned int		u32;
 typedef	unsigned short		u16;

@@ -5,45 +5,15 @@
 #include <lib/log.h>
 #include <kernel/interrupt.h>
 
-void divide_error();
-void single_step_exception();
-void nmi();
-void breakpoint_exception();
-void overflow();
-void bounds_check();
-void inval_opcode();
-void copr_not_available();
-void double_fault();
-void copr_seg_overrun();
-void inval_tss();
-void segment_not_present();
-void stack_exception();
-void general_protection();
-void page_fault();
-void copr_error();
-void syscall();
-
-void hwint00();
-void hwint01();
-void hwint03();
-void hwint04();
-void hwint05();
-void hwint06();
-void hwint07();
-void hwint08();
-void hwint12();
-void hwint13();
-void hwint14();
-
 extern void app1();
 extern void app2();
 extern void kapp1();
 extern void kapp2();
 
-u8 idt_ptr[6];
-struct gate idt[IDT_SIZE];
 void *irq_handler_table[15];
 
+static u8 idt_ptr[6];
+static struct gate idt[IDT_SIZE];
 static char *int_err_msg[] = {
     "#DE Divide Error",
     "#DB RESERVED",
@@ -77,7 +47,6 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
     int_desc->offset_low = (u32)handler & 0xffff;
 }
 
-
 void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) 
 {
     int color = current_console->color;
@@ -97,47 +66,47 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
     asm("hlt");
 }
 
-void serial2_handler() 
+static void serial2_handler() 
 {
     putsk("serial2_handler\n");
 }
 
-void serial1_handler() 
+static void serial1_handler() 
 {
     putsk("serial1_handler\n");
 }
 
-void lpt2_handler() 
+static void lpt2_handler() 
 {
     putsk("lpt2_handler\n");
 }
 
-void floppy_handler() 
+static void floppy_handler() 
 {
     putsk("floppy_handler\n");
 }
 
-void lpt1_handler() 
+static void lpt1_handler() 
 {
     putsk("lpt1_handler\n");
 }
 
-void real_clock_handler() 
+static void real_clock_handler() 
 {
     putsk("real_clock_handler\n");
 }
 
-void mouse_handler() 
+static void mouse_handler() 
 {
     putsk("mouse_handler\n");
 }
 
-void copr_handler() 
+static void copr_handler() 
 {
     putsk("copr_handler\n");
 }
 
-void harddisk_handler() 
+static void harddisk_handler() 
 {
     putsk("harddisk_handler\n");
 }
@@ -200,15 +169,15 @@ void init_interrupt()
     init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
 
     // install hardware int handlers
-    irq_handler_table[3] = serial2_handler;
-    irq_handler_table[4] = serial1_handler;
-    irq_handler_table[5] = lpt2_handler;
-    irq_handler_table[6] = floppy_handler;
-    irq_handler_table[7] = lpt1_handler;
-    irq_handler_table[8] = real_clock_handler;
-    irq_handler_table[12] = mouse_handler;
-    irq_handler_table[13] = copr_handler;
-    irq_handler_table[14] = harddisk_handler;
+    irq_handler_table[IRQ_SERIAL2] = serial2_handler;
+    irq_handler_table[IRQ_SERIAL1] = serial1_handler;
+    irq_handler_table[IRQ_LPT2] = lpt2_handler;
+    irq_handler_table[IRQ_FLOPPY] = floppy_handler;
+    irq_handler_table[IRQ_LPT1] = lpt1_handler;
+    irq_handler_table[IRQ_REAL_CLOCK] = real_clock_handler;
+    irq_handler_table[IRQ_MOUSE] = mouse_handler;
+    irq_handler_table[IRQ_COPR] = copr_handler;
+    irq_handler_table[IRQ_HARDDISK] = harddisk_handler;
 
     // init idt ptr
     u16 *p_idt_limit = (u16*)idt_ptr;

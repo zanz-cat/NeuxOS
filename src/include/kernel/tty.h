@@ -1,5 +1,5 @@
-#ifndef TTY_H
-#define TTY_H
+#ifndef __TTY_H__
+#define __TTY_H__
 #include <type.h>
 
 #define NR_CONSOLES     3

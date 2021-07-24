@@ -6,7 +6,7 @@ global in_byte
 
 extern current
 extern init_gdt
-extern init_system
+extern init_kernel
 
 [SECTION .bss]
 resb    1024
@@ -24,8 +24,8 @@ _start:
     jmp SELECTOR_KERNEL_CS:csinit
 
 csinit:
-    ; init system
-    call init_system
+    ; init kernel
+    call init_kernel
 
     ; enable interrupt
     ; sti   ; not neccessary because iret will enable interrupt

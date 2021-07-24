@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef __LIB_COMMON_H__
+#define __LIB_COMMON_H__
 
 #include "type.h"
 

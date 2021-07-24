@@ -151,15 +151,7 @@ static struct process *_create_proc(void *text, u16 type, struct tty *ptty)
     return proc;
 }
 
-struct process *create_proc(void *text, struct tty *ptty) {
-    return _create_proc(text, PROC_TYPE_USER, ptty);
-}
-
-struct process *create_kproc(void *text, struct tty *ptty) {
-    return _create_proc(text, PROC_TYPE_KERNEL, ptty);
-}
-
-struct process *next_proc() {
+static struct process *next_proc() {
     static int pos = 0;
 
     if (proc_num == 1) {
@@ -170,6 +162,14 @@ struct process *next_proc() {
     }
 
     return &proc_list[pos];
+}
+
+struct process *create_proc(void *text, struct tty *ptty) {
+    return _create_proc(text, PROC_TYPE_USER, ptty);
+}
+
+struct process *create_kproc(void *text, struct tty *ptty) {
+    return _create_proc(text, PROC_TYPE_KERNEL, ptty);
 }
 
 void terminate_proc(struct process *proc) {

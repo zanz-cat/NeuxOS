@@ -29,8 +29,6 @@ static const char *banner =
     "  //  | / / //       //   / /   \\//  //   / /       ) )   \n"
     " //   |/ / ((____   ((___( (    //\\ ((___/ / ((___ / /    v0.02\n\n";
 
-char test[10240] = "test";
-
 static void display_banner() 
 {
     current_console->color = 0xa;
@@ -48,7 +46,7 @@ static void idle()
     }
 }
 
-void init_system() 
+void init_kernel() 
 {
     set_log_level(DEBUG);
 
