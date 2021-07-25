@@ -19,7 +19,7 @@
     %endif
 
     ; save kernel stack info of interrupted routine
-    lea ebx, [hwint_stacks + HWINT_STACK_SIZE*%1]
+    lea ebx, [hwint_stacks - HWINT_STACK_SIZE*%1]
     mov eax, [current]
     cmp eax, 0
     je  .non_proc
