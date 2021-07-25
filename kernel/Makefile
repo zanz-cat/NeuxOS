@@ -1,7 +1,7 @@
 SOURCE:=$(wildcard *.c)
 ASMSOURCE:=kernel.S interrupt.S syscall.S
 OBJS:=$(patsubst %.c, %.o, $(SOURCE))
-ASMOBJS:=$(patsubst %.S, %_asm.o, $(ASMSOURCE))
+ASMOBJS:=$(patsubst %.S, %_S.o, $(ASMSOURCE))
 
 .PHONY: all clean
 
@@ -10,7 +10,7 @@ all: $(ASMOBJS) $(OBJS) kernel.elf
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-$(ASMOBJS): %_asm.o:%.S
+$(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 kernel.elf: $(wildcard $(SRCDIR)/lib/*.o) $(OBJS) $(ASMOBJS) ../app/*.o

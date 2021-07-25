@@ -8,13 +8,13 @@
 megs: 32
 
 # filename of ROM images
-romimage: file=../bios/BIOS-bochs-latest
-vgaromimage: file=../bios/VGABIOS-elpin-2.40
+romimage: file=bios/BIOS-bochs-latest
+vgaromimage: file=bios/VGABIOS-elpin-2.40
 
 vga: update_freq=60, realtime=0
 
 # what disk images will be used
-# floppya: 1_44=../build/a.img, status=inserted
+# floppya: 1_44=a.img, status=inserted
 
 # choose the boot disk.
 # boot: disk

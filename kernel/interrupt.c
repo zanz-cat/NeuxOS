@@ -13,7 +13,7 @@ extern void kapp2();
 void *irq_handler_table[15];
 
 static u8 idt_ptr[6];
-static struct gate idt[IDT_SIZE];
+struct gate idt[IDT_SIZE];
 static char *int_err_msg[] = {
     "#DE Divide Error",
     "#DB RESERVED",
@@ -133,7 +133,7 @@ void disable_irq(int vector)
 void init_interrupt() 
 {    
     log_info("init interrupt controller\n");
-    init_8259A();
+    init_8259a();
     
     log_info("init interrupt descriptor table\n");
     // init system int vector

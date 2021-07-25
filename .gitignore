@@ -8,3 +8,4 @@
 .vscode
 .config
 bochsrc
+._*.md

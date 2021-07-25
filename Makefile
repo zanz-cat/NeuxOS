@@ -1,5 +1,5 @@
 ##################################################
-# Makefile of NeuxOS
+# main Makefile
 ##################################################
 
 OS?=$(shell uname)
@@ -11,7 +11,7 @@ ASMFLAGS:=-Werror
 SUBDIRS:=app boot lib kernel
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 SUDO:=sudo
-MOUNTPOINT:=$(SRCDIR)/img
+MOUNTPOINT:=/tmp/neuxos-img
 
 ifneq ($(MAKECMDGOALS),config)
 ifeq ($(wildcard .config),)
@@ -20,8 +20,6 @@ else
 include .config
 endif
 endif
-
-$(shell test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT))
 
 export SRCDIR CC LD CFLAGS ASMFLAGS
 
@@ -33,13 +31,14 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 
 clean: $(CLEAN_SUBDIRS)
-	rm -f *.img
+	rm -rf bochsrc *.img $(MOUNTPOINT)
 
 $(CLEAN_SUBDIRS):
 	$(MAKE) -C $(patsubst _clean_%,%,$@) clean
 
 img: $(SUBDIRS)
 	rm -f $(CONFIG_BOOT).img
+	test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
 ifeq ($(CONFIG_BOOT),fd)
 	bximage -q -mode=create -$(CONFIG_BOOT)=1.44M $(CONFIG_BOOT).img
 	dd if=boot/$(CONFIG_BOOT)/boot.bin of=$(CONFIG_BOOT).img bs=512 count=1 conv=notrunc
@@ -51,7 +50,7 @@ else
 	# harddisk
 	bximage -q -mode=create -$(CONFIG_BOOT)=$(CONFIG_HD_SIZE) $(CONFIG_BOOT).img
 	dev=`$(SUDO) losetup -f --show $(CONFIG_BOOT).img`; \
-	$(SUDO) fdisk $$dev < hd-fdisk-cmd.txt; \
+	$(SUDO) fdisk $$dev < boot/hd/fdisk-cmd.txt; \
 	secsz=`$(SUDO) fdisk -l $$dev | grep 'Sector size' | awk '{print $$4}'`; \
 	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$3}'`; \
 	offset=`expr $$offset \* $$secsz`; \
@@ -116,6 +115,14 @@ endif
 
 config:
 	@rm -f .config
-	@echo CONFIG_BOOT=$${BOOT:-hd} >> .config
-	@echo CONFIG_HD_SIZE=$${HD_SIZE:-128M} >> .config
+	@echo CONFIG_BOOT=$${BOOT:-hd} >> .config; \
+	if [ "$${BOOT:-hd}" = "hd" ]; then \
+		echo CONFIG_HD_SIZE=$${HD_SIZE:-128M} >> .config; \
+	fi
+	@cat .config
+
+clean-config:
+	rm -f .config
+
+show-config:
 	@cat .config

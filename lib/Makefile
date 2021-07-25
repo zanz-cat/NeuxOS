@@ -1,11 +1,11 @@
 OBJS:=$(patsubst %.c, %.o, $(wildcard *.c))
-ASMOBJS:=$(patsubst %.S, %_asm.o, $(wildcard *.S))
+ASMOBJS:=$(patsubst %.S, %_S.o, $(wildcard *.S))
 
 .PHONY: all clean
 
 all: $(ASMOBJS) $(OBJS)
 
-$(ASMOBJS): %_asm.o:%.S
+$(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 $(OBJS): %.o:%.c
