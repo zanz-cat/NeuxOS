@@ -5,27 +5,27 @@ global out_byte
 global in_byte
 
 extern current
-extern init_gdt
-extern init_kernel
+extern gdt_init
+extern kernel_init
 
 [SECTION .bss]
-resb    1024
+resb    10240
 temp_stacktop: 
 
 [SECTION .text]
 _start:
-    ; init system stack
+    ; init temp kernel stack
     mov esp, temp_stacktop
 
     ; move GDT to kernel
-    call init_gdt
+    call gdt_init
 
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit
 
 csinit:
     ; init kernel
-    call init_kernel
+    call kernel_init
 
     ; enable interrupt
     ; sti   ; not neccessary because iret will enable interrupt

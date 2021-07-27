@@ -25,12 +25,12 @@ u32 msleep(u32 msec)
     return 0;
 }
 
-void write(char *buf, int len)
+int write(char *buf, int len)
 {
     asm("movl %0, %%eax\n\t"
         "movl %1, %%ebx\n\t"
         "movl %2, %%ecx\n\t"
         "int %3"
-        ::"i"(SYSCALL_WRITE), "m"(buf), "m"(len), "i"(INT_VECTOR_SYSCALL)
-        :"%eax");
+        ::"i"(SYSCALL_WRITE), "p"(buf), "m"(len), "i"(INT_VECTOR_SYSCALL)
+        :"%eax", "%ebx", "%ecx");
 }

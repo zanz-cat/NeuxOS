@@ -53,23 +53,18 @@ LABEL_BEGIN:
 .a1:
     mov [RootDirSectorNum], ax
 
-    ; compute FAT table base address
-    mov ax, [BPB_BytesPerSec]
-    mov bx, [BPB_FATSz16]
-    mul bx 
-    mov bx, 16  ; 16 is the step of base address
-    div bx
-    cmp dx, 0
-    jz .a2
-    inc ax
-.a2:
-    mov word [FATTableBase], LoaderBase
-    sub [FATTableBase], ax
-
     ; reset floppy driver
     xor ah, ah
     xor dl, dl
     int 13h
+
+    ; read FAT table
+    mov ax, FATTableBase
+    mov es, ax
+    mov bx, FATTableOffset
+    mov ax, 1
+    mov cx, [BPB_FATSz16]
+    call ReadSector
 
     ; read root directory
     mov ax, LoaderBase
@@ -77,14 +72,6 @@ LABEL_BEGIN:
     mov bx, LoaderOffset
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
-    call ReadSector
-
-    ; read FAT table
-    mov ax, [FATTableBase]
-    mov es, ax
-    xor bx, bx
-    mov ax, 1
-    mov cx, [BPB_FATSz16]
     call ReadSector
 
     ; read loader
@@ -97,8 +84,8 @@ LABEL_BEGIN:
 
     jmp LoaderBase:LoaderOffset
 
-; function: read secotr
-; ax sector, start from 0
+; function: read secotrs
+; ax start sector, start from 0
 ; cl numbers of sectors to read
 ; es:bx result buffer address
 ReadSector:
@@ -222,13 +209,14 @@ GetFATEntry:
    push si
    push ax
 
-   mov bx, [FATTableBase]
+   mov bx, FATTableBase
    mov es, bx
    mov bx, CONST_FAT12_BitsPerClus
    mul bx
    mov bx, 8
    div bx
    mov si, ax
+   add si, FATTableOffset
    mov bx, [es:si]
    cmp dx, 0
    jz .a1
@@ -282,7 +270,6 @@ OKMsg                 db    'ok'
 OKMsgLen              equ   $ - OKMsg
 
 RootDirSectorNum      dw   0
-FATTableBase        dw   0
 
-times 510 - ($-$$) db 0
+times 510 - ($-$$)    db   0
 dw 0xaa55

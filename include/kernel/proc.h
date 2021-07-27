@@ -6,9 +6,9 @@
 #include <kernel/protect.h>
 #include <kernel/tty.h>
 
-#define LDT_SIZE    128
-#define STACK0_SIZE  1024
-#define STACK3_SIZE  1024
+#define LDT_SIZE     128
+#define STACK0_SIZE  10240
+#define STACK3_SIZE  10240
 
 #define PROC_STATE_INIT         0
 #define PROC_STATE_RUNNING      1
@@ -65,7 +65,7 @@ struct process {
     u16 ss0;
     u32 esp0;
     u32 ticks;
-    struct tty* tty;
+    int tty;
     u16 ldt_sel;
     struct descriptor ldt[LDT_SIZE];
     u8  stack0[STACK0_SIZE];

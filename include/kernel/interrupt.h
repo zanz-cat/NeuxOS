@@ -15,7 +15,7 @@
 
 typedef void (*int_handler)();
 
-void init_interrupt();
+void interrupt_init();
 void put_irq_handler(int vector, int_handler h);
 void enable_irq(int vector);
 void disable_irq(int vector);

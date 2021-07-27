@@ -1,19 +1,19 @@
+#include <lib/log.h>
+
 #include <kernel/const.h>
 #include <kernel/i8259a.h>
 #include <kernel/sched.h>
-#include <lib/print.h>
-#include <lib/log.h>
+#include <kernel/printk.h>
 #include <kernel/interrupt.h>
 
-extern void app1();
-extern void app2();
-extern void kapp1();
-extern void kapp2();
+struct idtr {
+    u16 limit;
+    void *base;
+} __attribute__((packed));
 
 void *irq_handler_table[15];
 
-static u8 idt_ptr[6];
-struct gate idt[IDT_SIZE];
+static struct gate idt[IDT_SIZE];
 static char *int_err_msg[] = {
     "#DE Divide Error",
     "#DB RESERVED",
@@ -49,66 +49,68 @@ static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privi
 
 void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) 
 {
-    int color = current_console->color;
-    current_console->color = 0x74; /* 灰底红字 */
-    fprintk(current_console, 
-            "\nKernel crashed!\n"
-            "%s\n"
-            "EFLAGS: 0x%x\n"
-            "CS: 0x%x\n"
-            "EIP: 0x%x\n", 
-            int_err_msg[vec_no], eflags, cs, eip);
+    u8 color, color_temp;
+
+    color_temp = 0x74; /* 灰底红字 */
+    tty_color(tty_current, TTY_OP_GET, &color);
+    tty_color(tty_current, TTY_OP_SET, &color_temp);
+    printk("\nKernel crashed!\n"
+           "%s\n"
+           "EFLAGS: 0x%x\n"
+           "CS: 0x%x\n"
+           "EIP: 0x%x\n", 
+           int_err_msg[vec_no], eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
-        fprintk(current_console, "Error code: 0x%x\n", err_code);
+        printk("Error code: 0x%x\n", err_code);
     }
-    current_console->color = color;
+    tty_color(tty_current, TTY_OP_SET, &color);
     asm("hlt");
 }
 
 static void serial2_handler() 
 {
-    putsk("serial2_handler\n");
+    printk("serial2_handler\n");
 }
 
 static void serial1_handler() 
 {
-    putsk("serial1_handler\n");
+    printk("serial1_handler\n");
 }
 
 static void lpt2_handler() 
 {
-    putsk("lpt2_handler\n");
+    printk("lpt2_handler\n");
 }
 
 static void floppy_handler() 
 {
-    putsk("floppy_handler\n");
+    printk("floppy_handler\n");
 }
 
 static void lpt1_handler() 
 {
-    putsk("lpt1_handler\n");
+    printk("lpt1_handler\n");
 }
 
 static void real_clock_handler() 
 {
-    putsk("real_clock_handler\n");
+    printk("real_clock_handler\n");
 }
 
 static void mouse_handler() 
 {
-    putsk("mouse_handler\n");
+    printk("mouse_handler\n");
 }
 
 static void copr_handler() 
 {
-    putsk("copr_handler\n");
+    printk("copr_handler\n");
 }
 
 static void harddisk_handler() 
 {
-    putsk("harddisk_handler\n");
+    printk("harddisk_handler\n");
 }
 
 void put_irq_handler(int vector, int_handler h) 
@@ -130,13 +132,15 @@ void disable_irq(int vector)
     out_byte(port, mask & (0x1 << vector));
 }
 
-void init_interrupt() 
-{    
+void interrupt_init() 
+{
+    struct idtr idtr;
+
     log_info("init interrupt controller\n");
     init_8259a();
     
     log_info("init interrupt descriptor table\n");
-    // init system int vector
+    // initialize exception interrupt descriptor
     init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_NMI, DA_386IGate, nmi, PRIVILEGE_KRNL);
@@ -155,7 +159,7 @@ void init_interrupt()
     init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_SYSCALL, DA_386IGate, syscall, PRIVILEGE_USER);
 
-    // init hardware int vector
+    // initialize hardware interrupt descriptor
     init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint03, PRIVILEGE_KRNL);
@@ -180,10 +184,8 @@ void init_interrupt()
     irq_handler_table[IRQ_HARDDISK] = harddisk_handler;
 
     // init idt ptr
-    u16 *p_idt_limit = (u16*)idt_ptr;
-    u32 *p_idt_base = (u32*)(idt_ptr+2);
-    *p_idt_limit = IDT_SIZE * sizeof(struct gate) - 1;
-    *p_idt_base = (u32)&idt;
+    idtr.base = &idt;
+    idtr.limit = IDT_SIZE * sizeof(struct gate) - 1;
 
-    asm("lidt %0"::"m"(idt_ptr):);
+    asm("lidt %0"::"m"(idtr):);
 }

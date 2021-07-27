@@ -14,7 +14,7 @@ $(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $<
 
 kernel.elf: $(wildcard $(SRCDIR)/lib/*.o) $(OBJS) $(ASMOBJS) ../app/*.o
-	$(LD) -m elf_i386 -Ttext 0x30700 -o $@ $^
+	$(LD) -m elf_i386 -Ttext 0x20000 -o $@ $^
 	objcopy --remove-section=.note.gnu.property $@
 
 clean:

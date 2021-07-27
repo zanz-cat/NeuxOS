@@ -1,4 +1,4 @@
-org 0x100
+org 0x0
 jmp LABEL_START
 
 %include "const.S"
@@ -48,7 +48,6 @@ LENGTH_MSG_GAP_LEN      equ 13
 TopOfStack              equ 0ffffh
 KernelFilePhyAddr       equ paddr(KernelFileBase, KernelFileOffset)
 RootDirSectorCount      dw 0
-FATTableBase            dw 0 
 ARDSNum                 dw 0
 CursorPosition          dw 0
 KernelEntryPointAddr    dd 0
@@ -172,23 +171,13 @@ ReadKernel:
 .a1:
     mov [RootDirSectorCount], ax
 
-    ; compute FAT table *base* address
-    mov ax, CONST_BPB_BytesPerSec
-    mov bx, CONST_BPB_FATSz16
-    mul bx 
-    mov bx, 16  ; base address step
-    div bx
-    cmp dx, 0
-    jz .a2
-    inc ax
-.a2:
-    mov word [FATTableBase], ARDSBufferBase
-    sub [FATTableBase], ax
-
     ; reset floppy driver
     xor ah, ah
     xor dl, dl
     int 13h
+
+    ; read FAT table
+    ; already read by boot
 
     ; read root directory
     mov ax, KernelFileBase
@@ -197,14 +186,6 @@ ReadKernel:
     mov ax, CONST_SectorOfRootDir
     mov cx, [RootDirSectorCount]
     call ReadSector
-
-    ; read FAT table
-    mov ax, [FATTableBase]
-    mov es, ax
-    xor bx, bx
-    mov ax, 1
-    mov cx, CONST_BPB_FATSz16
-	call ReadSector
 
     ; read Kernel
     call SearchAndReadKernel
@@ -380,13 +361,14 @@ GetFATEntry:
     push si
     push ax
  
-    mov bx, [FATTableBase]
+    mov bx, FATTableBase
     mov es, bx
     mov bx, CONST_FAT12_BitsPerClus
     mul bx
     mov bx, 8
     div bx
     mov si, ax
+    add si, FATTableOffset
     mov bx, [es:si]
     cmp dx, 0
     jz .a1
@@ -606,7 +588,7 @@ LABEL_PM_START:
 
     ; init stack
     mov ss, ax
-    mov esp, TopOfStack    
+    mov esp, TopOfStack
 
     mov ax, SelectorVideo
     mov gs, ax

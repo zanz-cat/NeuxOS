@@ -79,7 +79,7 @@ static void set_leds()
     keyboard_ack();
 }
 
-void keyboard_read(struct tty *tty) 
+void keyboard_read(int tty) 
 {
     u8 scan_code;
     char output[2];
@@ -258,12 +258,12 @@ void keyboard_read(struct tty *tty)
             key |= alt_l ? FLAG_ALT_L : 0;
             key |= alt_r ? FLAG_ALT_R : 0;
 
-            in_process(tty, key);
+            tty_in_process(tty, key);
         }
     }
 }
 
-void init_keyboard() 
+void keyboard_init() 
 {
     log_info("init keyboard\n");
 

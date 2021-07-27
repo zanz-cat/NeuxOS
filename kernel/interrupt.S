@@ -64,6 +64,9 @@
     mov ss, [ebx]
     jmp .next_selected
 .sched_proc:
+    ; schedule process when interrupt occured, except clock interrupt
+    ; TODO: don't schedule process
+    ; TODO: schedule process via task gate
     %if %1 != 0
         call proc_sched
     %endif

@@ -1,8 +1,8 @@
 SELECTOR_KERNEL_CS      equ         1000b
 SELECTOR_KERNEL_DS      equ         10000b
 LDT_SIZE                equ         128
-STACK0_SIZE             equ         1024
-STACK3_SIZE             equ         1024
+STACK0_SIZE             equ         10240
+STACK3_SIZE             equ         10240
 HWINT_STACK_SIZE        equ         1024
 
 OFFSET_PROC_PID         equ         0

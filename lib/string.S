@@ -12,14 +12,12 @@ memcpy:
     push edi
     push esi
     push ecx
-    push es
 
     mov edi, arg(0)   ; destination
     mov esi, arg(1)   ; source
     mov ecx, arg(2)   ; size
     rep movsb
 
-    pop es
     pop ecx
     pop esi
     pop edi

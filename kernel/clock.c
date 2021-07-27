@@ -14,7 +14,7 @@ static void clock_handler()
     current->ticks++;
 }
 
-void init_clock() 
+void clock_init() 
 {
     log_info("init clock\n");
 

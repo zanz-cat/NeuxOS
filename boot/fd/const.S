@@ -19,14 +19,16 @@ CONST_SectorOfRootDir       equ      19
 CONST_FAT12_RootEntSize     equ      32
 CONST_FAT12_BitsPerClus     equ      12
 
+FATTableBase			equ 0000h
+FATTableOffset			equ 7e00h
 
-LoaderBase              equ 07000h
-LoaderOffset            equ 0100h
+LoaderBase              equ 1000h
+LoaderOffset            equ 0000h
 
-KernelFileBase          equ 08000h
+KernelFileBase          equ 8000h
 KernelFileOffset        equ 0100h
 
-ARDSBufferBase          equ 06000h
+ARDSBufferBase          equ 6000h
 
 PageDirBasePhyAddr      equ 100000h
 PageTableBasePhyAddr    equ 101000h

@@ -1,82 +1,91 @@
-#include <lib/print.h>
 #include <lib/string.h>
+#include <lib/log.h>
+#include <lib/stdio.h>
+
 #include <kernel/keyboard.h>
+#include <kernel/io.h>
+#include <kernel/printk.h>
 #include <kernel/tty.h>
 
-struct console console_table[NR_CONSOLES];
-struct tty  tty_table[NR_CONSOLES];
-struct console *current_console = &console_table[0];
+#define NR_TTYS         3
+#define CRT_BUF_SIZE    5*1024
+#define CRT_ADDR_REG    0x3d4
+#define CRT_DATA_REG    0x3d5
+#define CRT_CUR_LOC_H   0xe
+#define CRT_CUR_LOC_L   0xf
+#define CRT_START_H     0xc
+#define CRT_START_L     0xd
+#define NR_CRT_COLUMNS  80
+#define NR_CRT_ROWS     25
+#define CRT_SIZE        (NR_CRT_COLUMNS * NR_CRT_ROWS)
+#define SCROLL_ROWS     15
+#define VIDEO_MEM_BASE 0xb8000
+#define TTY_IN_BYTES    1024
 
-static void tty_do_read(struct tty *tty)
+#define out_mem_addr(out, offset) \
+    ((void*)(VIDEO_MEM_BASE + 2 * ((out)->start + (offset))))
+
+#define screen_detached(out) \
+    ((out)->cursor >= (out)->screen + CRT_SIZE)
+
+struct output {
+    u32 start;
+    u32 limit;
+    u32 screen; // relative to start
+    u32 cursor; // relative to start
+    u8 color;
+};
+
+struct tty {
+    u32 in_buf[TTY_IN_BYTES];
+    u32 *p_inbuf_head;
+    u32 *p_inbuf_tail;
+    int inbuf_count;
+    struct output out;
+};
+
+struct tty ttys[NR_TTYS];
+int tty_current;
+
+static void tty_do_read(int fd)
 {
-    if (is_current_console(tty->console))
-        keyboard_read(tty);
+    if (fd == tty_current) {
+        keyboard_read(fd);
+    }
 }
 
-static void tty_do_write(struct tty *tty)
+static void tty_do_write(int fd)
 {
+    struct tty *tty;
+    char ch;
+
+    if (fd < 0 || fd >= NR_TTYS) {
+        log_error("invalid tty(%d)\n", fd);
+        return;
+    }
+
+    tty = &ttys[fd];
     if (tty->inbuf_count) {
-        char ch = *(tty->p_inbuf_tail++);
+        ch = *(tty->p_inbuf_tail++);
         if (tty->p_inbuf_tail == tty->in_buf + TTY_IN_BYTES) {
             tty->p_inbuf_tail = tty->in_buf;
         }
         tty->inbuf_count--;
-        fputchark(tty->console, ch);
+        tty_putchar(fd, ch);
     }
 }
 
-int is_current_console(struct console *p_con)
+static u16 get_cursor() 
 {
-    return (p_con == current_console);
-}
+    u8 tmp;
 
-void init_console() 
-{
-    for (int i = 0; i < NR_CONSOLES; i++) {
-        console_table[i].start = i * CRT_BUF_SIZE;
-        console_table[i].limit = CRT_BUF_SIZE;
-        console_table[i].screen = 0;
-        console_table[i].color = DEFAULT_TEXT_COLOR;
-        memset(console_table[i].print_buf, 0, sizeof(console_table[i].print_buf));
-        if (i == 0) {
-            console_table[i].cursor = get_cursor();
-        } else {
-            console_table[i].cursor = 0;
-            fprintk(&console_table[i], "NeuxOS liwei-PC tty%d\n", i+1);
-        }
-    }
-}
-
-void init_tty()
-{
-    for (int i = 0; i < NR_CONSOLES; i++) {
-        tty_table[i].inbuf_count = 0;
-        tty_table[i].p_inbuf_head = tty_table[i].in_buf;
-        tty_table[i].p_inbuf_tail = tty_table[i].in_buf;
-        tty_table[i].console = &console_table[i];
-    }
-}
-
-void task_tty() 
-{
-    while (1) {
-        for (int i = 0; i < NR_CONSOLES; i++) {
-            struct tty *tty = &tty_table[i];
-            tty_do_read(tty);
-            tty_do_write(tty);
-        }
-    }
-}
-
-u16 get_cursor() 
-{    
     out_byte(CRT_ADDR_REG, CRT_CUR_LOC_H);
-    u8 tmp = in_byte(CRT_DATA_REG);
+    tmp = in_byte(CRT_DATA_REG);
     out_byte(CRT_ADDR_REG, CRT_CUR_LOC_L);
     return (tmp << 8) | in_byte(CRT_DATA_REG);
 }
 
-void set_cursor(u16 pos) 
+static void set_cursor(u16 pos) 
 {
     out_byte(CRT_ADDR_REG, CRT_CUR_LOC_H);
     out_byte(CRT_DATA_REG, pos >> 8);
@@ -84,67 +93,78 @@ void set_cursor(u16 pos)
     out_byte(CRT_DATA_REG, pos & 0xff);
 }
 
-void scroll_up(struct console *c)
+static void scroll_up(int fd)
 {
-    if (0 == c->screen)
+    struct output *out = &ttys[fd].out;
+
+    if (out->screen == 0) {
         return;
-
-    c->screen -= NR_CRT_COLUMNS;
+    }
+    out->screen -= NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
+    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);       
+    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);       
 }
 
-void scroll_down(struct console *c)
+static void scroll_down(int fd)
 {
-    if (c->cursor < c->screen + CRT_SIZE)
+    struct output *out = &ttys[fd].out;
+
+    if (out->cursor < out->screen + CRT_SIZE) {
         return;
-
-    c->screen += NR_CRT_COLUMNS;
+    }
+    out->screen += NR_CRT_COLUMNS;
     out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
+    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);    
+    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);    
 }
 
-void switch_tty(struct console *c)
+static void switch_tty(int fd)
 {
+    struct output *out = &ttys[fd].out;
     out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) >> 8);
+    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
     out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (c->start + c->screen) & 0xff);
+    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);
 
-    set_cursor(c->start + c->cursor);
-    current_console = c;
+    set_cursor(out->start + out->cursor);
+    tty_current = fd;
 }
 
-void in_process(struct tty *tty, u32 key) 
+void tty_in_process(int fd, u32 key) 
 {
+    if (fd < 0 || fd >= NR_TTYS) {
+        log_error("invalid tty(%d)\n", fd);
+        return;
+    }
+
+    struct tty *tty = &ttys[fd];
     if (key & FLAG_EXT) {
         switch (key) {
         case ENTER:
-            fprintk(tty->console, "\n");
+            tty_putchar(fd, '\n');
             break;
         case BACKSPACE:
-            fprintk(tty->console, "\b");
+            tty_putchar(fd, '\b');
             break;
         case FLAG_SHIFT_L | PAGEUP:
             for (int i = 0; i < SCROLL_ROWS; i++)
-                scroll_up(tty->console);
+                scroll_up(fd);
             break;
         case FLAG_SHIFT_L | PAGEDOWN:
             for (int i = 0; i < SCROLL_ROWS; i++)
-                scroll_down(tty->console);
+                scroll_down(fd);
             break;
         case F1:
-            switch_tty(&console_table[TTY1_INDEX]);
+            switch_tty(TTY0);
             break;
         case F2:
-            switch_tty(&console_table[TTY2_INDEX]);
+            switch_tty(TTY1);
             break;
         case F3:
-            switch_tty(&console_table[TTY3_INDEX]);
+            switch_tty(TTY2);
             break;
         default:
             break;
@@ -161,7 +181,107 @@ void in_process(struct tty *tty, u32 key)
     }
 }
 
-struct tty *get_tty(int index) 
+static void recycle_screen_buf(struct output *out)
 {
-    return &tty_table[index];
+    void *src = out_mem_addr(out, NR_CRT_COLUMNS);
+    void *dst = out_mem_addr(out, 0);
+    memcpy(dst, src, 2*(out->limit - NR_CRT_COLUMNS));
+    for (int i = 0; i < NR_CRT_COLUMNS; i++) {
+        u16 *a = (u16*)out_mem_addr(out, out->limit - NR_CRT_COLUMNS + i);
+        *a = (DEFAULT_TEXT_COLOR << 8);
+    }
+}
+
+int tty_putchar(int fd, char c)
+{
+    if (fd < 0 || fd >= NR_TTYS) {
+        log_error("invalid tty(%d)\n", fd);
+        return -1;
+    }
+
+    u16 *ptr;
+    struct output *out = &ttys[fd].out;
+    u32 cursor = out->cursor;
+    switch (c) {
+        case '\n':
+            cursor += NR_CRT_COLUMNS - cursor % NR_CRT_COLUMNS;
+            break;
+        case '\b':
+            if (cursor % NR_CRT_COLUMNS) {
+                cursor--;
+                ptr = (u16*)out_mem_addr(out, cursor);
+                *ptr = (DEFAULT_TEXT_COLOR << 8);
+            }
+            break;
+        default:
+            ptr = (u16*)out_mem_addr(out, cursor);
+            *ptr = (out->color << 8) | (c & 0xff);
+            cursor++;
+            break;
+    }
+    
+    if (cursor == out->limit) {
+        recycle_screen_buf(out);
+        cursor -= NR_CRT_COLUMNS;
+    }
+    out->cursor = cursor;
+
+    while (fd == tty_current && screen_detached(out)) {
+        scroll_down(fd);
+    }
+
+    if (fd == tty_current) {
+        set_cursor(out->start + out->cursor);
+    }
+
+    return c;
+}
+
+int tty_color(int fd, enum tty_op op, u8 *color)
+{
+    if (fd < 0 || fd >= NR_TTYS) {
+        log_error("invalid tty(%d)\n", fd);
+        return -1;
+    }
+
+    struct output *out = &ttys[fd].out;
+
+    if (op == TTY_OP_GET) {
+        *color = out->color;
+    } else {
+        out->color = *color;
+    }
+    return 0;
+}
+
+void tty_task() 
+{
+    int i;
+
+    while (1) {
+        for (i = 0; i < NR_TTYS; i++) {
+            tty_do_read(i);
+            tty_do_write(i);
+        }
+    }
+}
+
+void tty_init()
+{
+    int i;
+    for (i = 0; i < NR_TTYS; i++) {
+        ttys[i].inbuf_count = 0;
+        ttys[i].p_inbuf_head = ttys[i].in_buf;
+        ttys[i].p_inbuf_tail = ttys[i].in_buf;
+        ttys[i].out.start = i * CRT_BUF_SIZE;
+        ttys[i].out.limit = CRT_BUF_SIZE;
+        ttys[i].out.screen = 0;
+        ttys[i].out.color = DEFAULT_TEXT_COLOR;
+        if (i == 0) {
+            ttys[i].out.cursor = get_cursor();
+        } else {
+            ttys[i].out.cursor = 0;
+            fprintk(i, "NeuxOS liwei-PC tty%d\n", i+1);
+        }
+    }
 }

@@ -4,7 +4,7 @@
 #include <type.h>
 #include <kernel/protect.h>
 
-void init_gdt();
+void gdt_init();
 int install_tss(struct tss *ptss);
 int uninstall_tss(u16 sel);
 int install_ldt(void *ldt, u16 size);

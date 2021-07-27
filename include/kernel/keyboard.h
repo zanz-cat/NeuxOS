@@ -123,7 +123,7 @@ struct keyboard_input_buffer {
         char    data[KEYBOARD_IN_BYTES];       /* 缓冲区 */
 };
 
-void init_keyboard();
-void keyboard_read();
+void keyboard_init();
+void keyboard_read(int tty);
 
 #endif

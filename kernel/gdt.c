@@ -6,8 +6,12 @@
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128
 
-u8 gdt_ptr[6];
-struct descriptor gdt[GDT_SIZE];
+struct gdtr {
+    u16 limit;
+    void *base;
+} __attribute__((packed));
+
+static struct descriptor gdt[GDT_SIZE];
 static u8 bitmap[GDT_SIZE/8];
 
 #define BITMAP_SET(index) bitmap[index/8] |= (1 << (index%8))
@@ -47,24 +51,23 @@ static int uninstall_desc(u16 sel)
     return 0;
 }
 
-void init_gdt() 
+void gdt_init() 
 {
-    asm("sgdt %0":"=m"(gdt_ptr)::);
-    memset(gdt, 0, sizeof(gdt));
-    memcpy(&gdt, (void*)(*((u32*)(&gdt_ptr[2]))), *((u16*)(&gdt_ptr[0]))+1);
-    u16 *p_gdt_limit = (u16*)(&gdt_ptr[0]);
-    u32 *p_gdt_base = (u32*)(&gdt_ptr[2]);
-    *p_gdt_limit = GDT_SIZE * sizeof(struct descriptor) - 1;
-    *p_gdt_base = (u32)&gdt;
-    asm("lgdt %0"::"m"(gdt_ptr):);
+    struct gdtr gdtr;
 
-    memset(bitmap, 0, sizeof(bitmap));
+    asm("sgdt %0":"=m"(gdtr)::);
+    memcpy(&gdt, gdtr.base, gdtr.limit + 1);
+    gdtr.base = &gdt;
+    gdtr.limit = GDT_SIZE * sizeof(struct descriptor) - 1;
+    asm("lgdt %0"::"m"(gdtr):);
+
     BITMAP_SET(0);
     BITMAP_SET(1);
     BITMAP_SET(2);
     BITMAP_SET(3);
 }
 
+// TODO: can i install tss into ldt?
 int install_tss(struct tss *ptss) 
 {
     int index = alloc();

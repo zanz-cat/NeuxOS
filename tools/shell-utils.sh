@@ -1,5 +1,5 @@
 #!/bin/bash
-function sourceline()
+function nx_addr2line()
 {
     addr=$2
     file=$1

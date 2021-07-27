@@ -22,8 +22,8 @@
  * which keeps cpu running while no task to run
  */
 static struct process proc_list[MAX_PROC_NUM];
-static int proc_num = 0;
-struct process *current = NULL;
+static int proc_num;
+struct process *current;
 
 static int init_proc(struct process *proc, void *text) 
 {
@@ -119,7 +119,7 @@ static int init_kproc(struct process *proc, void *text)
     return 0;
 }
 
-static struct process *_create_proc(void *text, u16 type, struct tty *ptty) 
+static struct process *_create_proc(void *text, u16 type, int tty) 
 {
     if (proc_num == MAX_PROC_NUM) {
         log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
@@ -132,7 +132,7 @@ static struct process *_create_proc(void *text, u16 type, struct tty *ptty)
     proc->state = PROC_STATE_INIT;
     proc->type = type;
     proc->pid = proc_num;
-    proc->tty = ptty;
+    proc->tty = tty;
 
     if (PROC_TYPE_KERNEL == type) 
         ret = init_kproc(proc, text);
@@ -164,12 +164,12 @@ static struct process *next_proc() {
     return &proc_list[pos];
 }
 
-struct process *create_proc(void *text, struct tty *ptty) {
-    return _create_proc(text, PROC_TYPE_USER, ptty);
+struct process *create_proc(void *text, int tty) {
+    return _create_proc(text, PROC_TYPE_USER, tty);
 }
 
-struct process *create_kproc(void *text, struct tty *ptty) {
-    return _create_proc(text, PROC_TYPE_KERNEL, ptty);
+struct process *create_kproc(void *text, int tty) {
+    return _create_proc(text, PROC_TYPE_KERNEL, tty);
 }
 
 void terminate_proc(struct process *proc) {

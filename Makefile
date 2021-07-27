@@ -37,8 +37,9 @@ $(CLEAN_SUBDIRS):
 	$(MAKE) -C $(patsubst _clean_%,%,$@) clean
 
 img: $(SUBDIRS)
-	rm -f $(CONFIG_BOOT).img
 	test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
+	$(SUDO) umount $(MOUNTPOINT) 2>/dev/null || exit 0
+	rm -f $(CONFIG_BOOT).img
 ifeq ($(CONFIG_BOOT),fd)
 	bximage -q -mode=create -$(CONFIG_BOOT)=1.44M $(CONFIG_BOOT).img
 	dd if=boot/$(CONFIG_BOOT)/boot.bin of=$(CONFIG_BOOT).img bs=512 count=1 conv=notrunc
