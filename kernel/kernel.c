@@ -74,5 +74,5 @@ void kernel_init()
     create_proc(app1, TTY1);
     create_proc(app2, TTY2);
 
-    log_info("system kernel started, launching procs\n");
+    log_info("kernel started\n");
 }

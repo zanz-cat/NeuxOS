@@ -104,10 +104,8 @@ NOBITSInitMsg               db ' NOBITS(s) initialized'
 NOBITSInitMsgLen            equ $ - NOBITSInitMsg
 
 
-; 1. Search and read kernel file to [KernelFileBase:KernelFileOffset]
-;    during this step, will read root directory information from floppy 
-;    to [KernelFileBase:KernelFileOffset], However the information will
-;    be overwrite by kernel file after used.
+; 1. search and read kernel file to [KernelFileBase:KernelFileOffset]
+;    using the FAT info which read by boot
 ; 2. enter protect mode
 ; 3. setup paging and enable paging
 ; 4. relocate kernel
@@ -175,17 +173,6 @@ ReadKernel:
     xor ah, ah
     xor dl, dl
     int 13h
-
-    ; read FAT table
-    ; already read by boot
-
-    ; read root directory
-    mov ax, KernelFileBase
-    mov es, ax
-    mov bx, KernelFileOffset
-    mov ax, CONST_SectorOfRootDir
-    mov cx, [RootDirSectorCount]
-    call ReadSector
 
     ; read Kernel
     call SearchAndReadKernel
@@ -285,9 +272,13 @@ ReadSector:
 SearchAndReadKernel:
     cld
     mov si, KernelName
-    mov ax, KernelFileBase
+    mov ax, FATBase
     mov es, ax
-    mov di, KernelFileOffset
+    mov ax, CONST_BPB_BytesPerSec
+    mov bx, CONST_BPB_FATSz16
+    mul bx
+    mov di, FATOffset
+    add di, ax
 
     mov cx, CONST_BPB_RootEntCnt
 .a1:
@@ -361,14 +352,14 @@ GetFATEntry:
     push si
     push ax
  
-    mov bx, FATTableBase
+    mov bx, FATBase
     mov es, bx
     mov bx, CONST_FAT12_BitsPerClus
     mul bx
     mov bx, 8
     div bx
     mov si, ax
-    add si, FATTableOffset
+    add si, FATOffset
     mov bx, [es:si]
     cmp dx, 0
     jz .a1

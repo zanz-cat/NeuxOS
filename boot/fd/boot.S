@@ -28,10 +28,9 @@ BS_FileSysType        db      'FAT12   '
 TopOfStack            equ     0ffffh
 
 
-; 1. read root directory information to 
-;    [LoaderBase:LoaderOffset] from floppy temporarily.
-; 2. search and read LOADER.BIN to [LoaderBase:LoaderOffset] from floppy, 
-;    will override root directory information which is useless.
+; 1. read fat table and root directory information to 
+;    [FATBase:FATOffset] from floppy.
+; 2. search and read LOADER.BIN to [LoaderBase:LoaderOffset] from floppy.
 ; 3. jump to the LOADER
 LABEL_BEGIN:
     mov ax, cs
@@ -59,17 +58,18 @@ LABEL_BEGIN:
     int 13h
 
     ; read FAT table
-    mov ax, FATTableBase
+    mov ax, FATBase
     mov es, ax
-    mov bx, FATTableOffset
+    mov bx, FATOffset
     mov ax, 1
     mov cx, [BPB_FATSz16]
     call ReadSector
 
-    ; read root directory
-    mov ax, LoaderBase
-    mov es, ax
-    mov bx, LoaderOffset
+    ; read root directory to [FATBase:FATOffset + sizeof(FATTable)]
+    mov ax, [BPB_BytesPerSec]
+    mul word [BPB_FATSz16]
+    mov bx, FATOffset
+    add bx, ax
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
     call ReadSector
@@ -123,9 +123,12 @@ ReadSector:
 SearchAndReadLoader:
     cld    
     mov si, LoaderName
-    mov ax, LoaderBase
+    mov ax, FATBase
     mov es, ax
-    mov di, LoaderOffset
+    mov ax, [BPB_BytesPerSec]
+    mul word [BPB_FATSz16]
+    mov di, FATOffset
+    add di, ax
 
     mov cx, [BPB_RootEntCnt]
 .a1:
@@ -209,14 +212,14 @@ GetFATEntry:
    push si
    push ax
 
-   mov bx, FATTableBase
+   mov bx, FATBase
    mov es, bx
    mov bx, CONST_FAT12_BitsPerClus
    mul bx
    mov bx, 8
    div bx
    mov si, ax
-   add si, FATTableOffset
+   add si, FATOffset
    mov bx, [es:si]
    cmp dx, 0
    jz .a1
