@@ -1,48 +1,37 @@
-#include <lib/string.h>
-#include <lib/log.h>
-#include <lib/stdio.h>
+#include <string.h>
+#include <stdio.h>
 
-#include <kernel/keyboard.h>
-#include <kernel/io.h>
-#include <kernel/printk.h>
-#include <kernel/tty.h>
+#include <lib/log.h>
+
+#include <drivers/io.h>
+#include <drivers/monitor/monitor.h>
+#include <drivers/keyboard/keyboard.h>
+
+#include "printk.h"
+#include "tty.h"
 
 #define NR_TTYS         3
-#define CRT_BUF_SIZE    5*1024
-#define CRT_ADDR_REG    0x3d4
-#define CRT_DATA_REG    0x3d5
-#define CRT_CUR_LOC_H   0xe
-#define CRT_CUR_LOC_L   0xf
-#define CRT_START_H     0xc
-#define CRT_START_L     0xd
-#define NR_CRT_COLUMNS  80
-#define NR_CRT_ROWS     25
-#define CRT_SIZE        (NR_CRT_COLUMNS * NR_CRT_ROWS)
 #define SCROLL_ROWS     15
-#define VIDEO_MEM_BASE 0xb8000
 #define TTY_IN_BYTES    1024
 
-#define out_mem_addr(out, offset) \
-    ((void*)(VIDEO_MEM_BASE + 2 * ((out)->start + (offset))))
-
-#define screen_detached(out) \
-    ((out)->cursor >= (out)->screen + CRT_SIZE)
-
 struct output {
-    u32 start;
-    u32 limit;
-    u32 screen; // relative to start
-    u32 cursor; // relative to start
-    u8 color;
+    uint32_t start;
+    uint32_t limit;
+    uint32_t screen; // display area, relative to start
+    uint32_t cursor; // relative to start
+    uint8_t color;
 };
 
 struct tty {
-    u32 in_buf[TTY_IN_BYTES];
-    u32 *p_inbuf_head;
-    u32 *p_inbuf_tail;
+    uint32_t in_buf[TTY_IN_BYTES];
+    uint32_t *p_inbuf_head;
+    uint32_t *p_inbuf_tail;
     int inbuf_count;
     struct output out;
 };
+
+#define screen_detached(out) \
+    ((out)->cursor >= (out)->screen + CRT_SIZE)
 
 struct tty ttys[NR_TTYS];
 int tty_current;
@@ -75,24 +64,6 @@ static void tty_do_write(int fd)
     }
 }
 
-static u16 get_cursor() 
-{
-    u8 tmp;
-
-    out_byte(CRT_ADDR_REG, CRT_CUR_LOC_H);
-    tmp = in_byte(CRT_DATA_REG);
-    out_byte(CRT_ADDR_REG, CRT_CUR_LOC_L);
-    return (tmp << 8) | in_byte(CRT_DATA_REG);
-}
-
-static void set_cursor(u16 pos) 
-{
-    out_byte(CRT_ADDR_REG, CRT_CUR_LOC_H);
-    out_byte(CRT_DATA_REG, pos >> 8);
-    out_byte(CRT_ADDR_REG, CRT_CUR_LOC_L);
-    out_byte(CRT_DATA_REG, pos & 0xff);
-}
-
 static void scroll_up(int fd)
 {
     struct output *out = &ttys[fd].out;
@@ -100,11 +71,8 @@ static void scroll_up(int fd)
     if (out->screen == 0) {
         return;
     }
-    out->screen -= NR_CRT_COLUMNS;
-    out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
-    out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);       
+    out->screen -= CRT_NR_COLUMNS;
+    monitor_set_start(out->start + out->screen);
 }
 
 static void scroll_down(int fd)
@@ -114,26 +82,19 @@ static void scroll_down(int fd)
     if (out->cursor < out->screen + CRT_SIZE) {
         return;
     }
-    out->screen += NR_CRT_COLUMNS;
-    out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
-    out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);    
+    out->screen += CRT_NR_COLUMNS;
+    monitor_set_start(out->start + out->screen);
 }
 
 static void switch_tty(int fd)
 {
     struct output *out = &ttys[fd].out;
-    out_byte(CRT_ADDR_REG, CRT_START_H);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) >> 8);
-    out_byte(CRT_ADDR_REG, CRT_START_L);
-    out_byte(CRT_DATA_REG, (out->start + out->screen) & 0xff);
-
-    set_cursor(out->start + out->cursor);
+    monitor_set_start(out->start + out->screen);
+    monitor_set_cursor(out->start + out->cursor);
     tty_current = fd;
 }
 
-void tty_in_process(int fd, u32 key) 
+void tty_in_process(int fd, uint32_t key)
 {
     if (fd < 0 || fd >= NR_TTYS) {
         log_error("invalid tty(%d)\n", fd);
@@ -181,17 +142,6 @@ void tty_in_process(int fd, u32 key)
     }
 }
 
-static void recycle_screen_buf(struct output *out)
-{
-    void *src = out_mem_addr(out, NR_CRT_COLUMNS);
-    void *dst = out_mem_addr(out, 0);
-    memcpy(dst, src, 2*(out->limit - NR_CRT_COLUMNS));
-    for (int i = 0; i < NR_CRT_COLUMNS; i++) {
-        u16 *a = (u16*)out_mem_addr(out, out->limit - NR_CRT_COLUMNS + i);
-        *a = (DEFAULT_TEXT_COLOR << 8);
-    }
-}
-
 int tty_putchar(int fd, char c)
 {
     if (fd < 0 || fd >= NR_TTYS) {
@@ -199,30 +149,27 @@ int tty_putchar(int fd, char c)
         return -1;
     }
 
-    u16 *ptr;
     struct output *out = &ttys[fd].out;
-    u32 cursor = out->cursor;
+    uint32_t cursor = out->cursor;
     switch (c) {
         case '\n':
-            cursor += NR_CRT_COLUMNS - cursor % NR_CRT_COLUMNS;
+            cursor += CRT_NR_COLUMNS - cursor % CRT_NR_COLUMNS;
             break;
         case '\b':
-            if (cursor % NR_CRT_COLUMNS) {
+            if (cursor % CRT_NR_COLUMNS) {
                 cursor--;
-                ptr = (u16*)out_mem_addr(out, cursor);
-                *ptr = (DEFAULT_TEXT_COLOR << 8);
+                monitor_putchar(out->start + cursor, DEFAULT_TEXT_COLOR, '\0');
             }
             break;
         default:
-            ptr = (u16*)out_mem_addr(out, cursor);
-            *ptr = (out->color << 8) | (c & 0xff);
+            monitor_putchar(out->start + cursor, out->color, c);
             cursor++;
             break;
     }
-    
+
     if (cursor == out->limit) {
-        recycle_screen_buf(out);
-        cursor -= NR_CRT_COLUMNS;
+        monitor_shift(out->start, -CRT_NR_COLUMNS, out->limit);
+        cursor -= CRT_NR_COLUMNS;
     }
     out->cursor = cursor;
 
@@ -231,13 +178,13 @@ int tty_putchar(int fd, char c)
     }
 
     if (fd == tty_current) {
-        set_cursor(out->start + out->cursor);
+        monitor_set_cursor(out->start + out->cursor);
     }
 
     return c;
 }
 
-int tty_color(int fd, enum tty_op op, u8 *color)
+int tty_color(int fd, enum tty_op op, uint8_t *color)
 {
     if (fd < 0 || fd >= NR_TTYS) {
         log_error("invalid tty(%d)\n", fd);
@@ -254,7 +201,7 @@ int tty_color(int fd, enum tty_op op, u8 *color)
     return 0;
 }
 
-void tty_task() 
+void tty_task()
 {
     int i;
 
@@ -278,7 +225,7 @@ void tty_init()
         ttys[i].out.screen = 0;
         ttys[i].out.color = DEFAULT_TEXT_COLOR;
         if (i == 0) {
-            ttys[i].out.cursor = get_cursor();
+            ttys[i].out.cursor = monitor_get_cursor();
         } else {
             ttys[i].out.cursor = 0;
             fprintk(i, "NeuxOS liwei-PC tty%d\n", i+1);

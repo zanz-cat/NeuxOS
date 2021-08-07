@@ -1,5 +1,4 @@
-SOURCE:=$(wildcard *.c)
-OBJS:=$(patsubst %.c, %.o, $(SOURCE))
+include ../common.mk
 
 .PHONY: all clean
 
@@ -9,4 +8,4 @@ $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f *.o
+	rm -f $(OBJS)

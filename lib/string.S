@@ -4,7 +4,7 @@ global memcpy
 global memset
 
 [SECTION .text]
-; void* memcpy(void *dst, void *src, u32 size);
+; void* memcpy(void *dst, void *src, uint32_t size);
 memcpy:
     push ebp
     mov ebp, esp
@@ -21,15 +21,15 @@ memcpy:
     pop ecx
     pop esi
     pop edi
-    
+
     pop ebp
     ret
 
-; void *memset(void *s, int ch, u32 size);
+; void *memset(void *s, int ch, uint32_t size);
 memset:
     push ebp
     mov ebp, esp
-    
+
     push eax
     push edi
     push ecx

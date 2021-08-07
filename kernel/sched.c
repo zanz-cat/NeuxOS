@@ -1,10 +1,12 @@
+#include <string.h>
+
 #include <lib/log.h>
-#include <lib/string.h>
-#include <kernel/const.h>
-#include <kernel/protect.h>
-#include <kernel/proc.h>
-#include <kernel/gdt.h>
-#include <kernel/sched.h>
+
+#include "kernel.h"
+#include "protect.h"
+#include "proc.h"
+#include "gdt.h"
+#include "sched.h"
 
 #define MAX_PROC_NUM            10
 #define INITIAL_EFLAGS          0x200 | 0x3000
@@ -18,31 +20,31 @@
 #define SELECTOR_KERN_TASK_DS   0xc
 #define SELECTOR_KERN_TASK_SS   SELECTOR_KERN_TASK_DS
 
-/* the first process is cpu idle process 
+/* the first process is cpu idle process
  * which keeps cpu running while no task to run
  */
 static struct process proc_list[MAX_PROC_NUM];
 static int proc_num;
 struct process *current;
 
-static int init_proc(struct process *proc, void *text) 
+static int init_proc(struct process *proc, void *text)
 {
     /* construct initial kernel stack */
-    struct user_stackframe* frame = (struct user_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
+    struct user_stackframe* frame = (struct user_stackframe*)(proc_kernel_stack(proc) - sizeof(struct user_stackframe));
     frame->gs = SELECTOR_VIDEO;
     frame->es = SELECTOR_TASK_DS;
     frame->ds = SELECTOR_TASK_DS;
-    frame->eip = (u32)text;
+    frame->eip = (uint32_t)text;
     frame->cs = SELECTOR_TASK_CS;
     frame->eflags = INITIAL_EFLAGS;
     frame->esp3 = proc_user_stack(proc);
     frame->ss3 = SELECTOR_TASK_SS3;
 
     proc->ss0 = SELECTOR_TASK_SS0;
-    proc->esp0 = (u32)frame;
+    proc->esp0 = (uint32_t)frame;
 
     /* init ldt */
-    u16 i = SELECTOR_TASK_CS >> 3;
+    uint16_t i = SELECTOR_TASK_CS >> 3;
     proc->ldt[i].base_low = 0;
     proc->ldt[i].base_mid = 0;
     proc->ldt[i].base_high = 0;
@@ -77,22 +79,22 @@ static int init_proc(struct process *proc, void *text)
     return 0;
 }
 
-static int init_kproc(struct process *proc, void *text) 
+static int init_kproc(struct process *proc, void *text)
 {
     /* construct initial kernel stack */
-    struct kern_stackframe* frame = (struct kern_stackframe*)(proc_kernel_stack(proc) - sizeof(*frame));
+    struct kern_stackframe* frame = (struct kern_stackframe*)(proc_kernel_stack(proc) - sizeof(struct kern_stackframe));
     frame->gs = SELECTOR_VIDEO;
     frame->es = SELECTOR_KERN_TASK_DS;
     frame->ds = SELECTOR_KERN_TASK_DS;
-    frame->eip = (u32)text;
+    frame->eip = (uint32_t)text;
     frame->cs = SELECTOR_KERN_TASK_CS;
     frame->eflags = INITIAL_EFLAGS;
 
-    proc->ss0 = SELECTOR_KERN_TASK_DS; // FIXME
-    proc->esp0 = (u32)frame;
+    proc->ss0 = SELECTOR_KERN_TASK_SS;
+    proc->esp0 = (uint32_t)frame;
 
     /* init ldt */
-    u16 i = SELECTOR_KERN_TASK_CS >> 3;
+    uint16_t i = SELECTOR_KERN_TASK_CS >> 3;
     proc->ldt[i].base_low = 0;
     proc->ldt[i].base_mid = 0;
     proc->ldt[i].base_high = 0;
@@ -119,7 +121,7 @@ static int init_kproc(struct process *proc, void *text)
     return 0;
 }
 
-static struct process *_create_proc(void *text, u16 type, int tty) 
+static struct process *_create_proc(void *text, uint16_t type, int tty)
 {
     if (proc_num == MAX_PROC_NUM) {
         log_error("max proc number(%d) exceed!\n", MAX_PROC_NUM);
@@ -128,13 +130,13 @@ static struct process *_create_proc(void *text, u16 type, int tty)
 
     int ret;
     struct process *proc = &proc_list[proc_num];
-    memset(proc, 0, sizeof(*proc));
+    memset(proc, 0, sizeof(struct process));
     proc->state = PROC_STATE_INIT;
     proc->type = type;
     proc->pid = proc_num;
     proc->tty = tty;
 
-    if (PROC_TYPE_KERNEL == type) 
+    if (PROC_TYPE_KERNEL == type)
         ret = init_kproc(proc, text);
     else
         ret = init_proc(proc, text);
@@ -145,7 +147,7 @@ static struct process *_create_proc(void *text, u16 type, int tty)
     }
     proc_num++;
     proc->state = PROC_STATE_RUNNING;
-    log_debug("proc created, pid: %d, ldt sel: 0x%x(%d)\n", 
+    log_debug("proc created, pid: %d, ldt sel: 0x%x(%d)\n",
         proc->pid, proc->ldt_sel, proc->ldt_sel >> 3);
 
     return proc;
@@ -193,7 +195,7 @@ void proc_sched() {
                 log_debug("destroy proc: %d\n", proc->pid);
                 proc_num--;
                 uninstall_ldt(proc->ldt_sel);
-                memset(proc, 0, sizeof(*proc));
+                memset(proc, 0, sizeof(struct process));
                 break;
             default:
                 log_error("unknown state, pid: %d, state: %d\n", proc->pid, proc->state);

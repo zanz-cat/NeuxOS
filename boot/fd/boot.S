@@ -1,8 +1,9 @@
 org 07c00h
 
-%include "const.S"
+%include "boot/const.S"
+%include "fd.S"
 
-jmp LABEL_BEGIN
+jmp LABEL_START
 nop
 
 BS_OEMName            db      'Lee Link'
@@ -25,19 +26,19 @@ BS_VolID              dd      CONST_BS_VolID
 BS_VolLab             db      'LEELINKOS01'
 BS_FileSysType        db      'FAT12   '
 
-TopOfStack            equ     0ffffh
+TOP_OF_STACK            equ     0ffffh
 
 
 ; 1. read fat table and root directory information to 
-;    [FATBase:FATOffset] from floppy.
-; 2. search and read LOADER.BIN to [LoaderBase:LoaderOffset] from floppy.
+;    [FAT_BASE:FAT_OFFSET] from floppy.
+; 2. search and read LOADER.BIN to [LOADER_BASE:LOADER_OFFSET] from floppy.
 ; 3. jump to the LOADER
-LABEL_BEGIN:
+LABEL_START:
     mov ax, cs
     mov ds, ax
     mov ss, ax
     ; init stack
-    mov sp, TopOfStack
+    mov sp, TOP_OF_STACK
 
     ; compute root directory sector numbers
     mov al, [BPB_RootEntCnt]
@@ -58,17 +59,17 @@ LABEL_BEGIN:
     int 13h
 
     ; read FAT table
-    mov ax, FATBase
+    mov ax, FAT_BASE
     mov es, ax
-    mov bx, FATOffset
+    mov bx, FAT_OFFSET
     mov ax, 1
     mov cx, [BPB_FATSz16]
     call ReadSector
 
-    ; read root directory to [FATBase:FATOffset + sizeof(FATTable)]
+    ; read root directory to [FAT_BASE:FAT_OFFSET + sizeof(FATTable)]
     mov ax, [BPB_BytesPerSec]
     mul word [BPB_FATSz16]
-    mov bx, FATOffset
+    mov bx, FAT_OFFSET
     add bx, ax
     mov ax, CONST_SectorOfRootDir
     mov cl, [RootDirSectorNum]
@@ -82,7 +83,7 @@ LABEL_BEGIN:
     mov cx, OKMsgLen
     call DispStr
 
-    jmp LoaderBase:LoaderOffset
+    jmp LOADER_BASE:LOADER_OFFSET
 
 ; function: read secotrs
 ; ax start sector, start from 0
@@ -116,18 +117,18 @@ ReadSector:
     pop bp
     ret
 .error:
-    jmp $
+    hlt
 
 ; function: search file `LOADER.BIN`, 
 ; and copy it from floppy to memory.
 SearchAndReadLoader:
     cld    
     mov si, LoaderName
-    mov ax, FATBase
+    mov ax, FAT_BASE
     mov es, ax
     mov ax, [BPB_BytesPerSec]
     mul word [BPB_FATSz16]
-    mov di, FATOffset
+    mov di, FAT_OFFSET
     add di, ax
 
     mov cx, [BPB_RootEntCnt]
@@ -148,7 +149,7 @@ SearchAndReadLoader:
     mov bp, LoaderNotFoundMsg
     mov cx, LoaderNotFoundMsgLen
     call DispStr
-    jmp $
+    hlt
 .a2:
     mov ax, [es:di+0x1a]    ; FAT12 RootDirEntry.FirstCluster
 
@@ -174,9 +175,9 @@ SearchAndReadLoader:
     add ax, 17
     add ax, [RootDirSectorNum]
     mov cl, 1
-    mov bx, LoaderBase
+    mov bx, LOADER_BASE
     mov es, bx
-    mov bx, LoaderOffset
+    mov bx, LOADER_OFFSET
     add bx, [bp-2]
     call ReadSector
 
@@ -200,7 +201,7 @@ SearchAndReadLoader:
     mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
-    jmp $
+    hlt
 .a4:
     add  sp, 2
     pop bp
@@ -212,14 +213,14 @@ GetFATEntry:
    push si
    push ax
 
-   mov bx, FATBase
+   mov bx, FAT_BASE
    mov es, bx
    mov bx, CONST_FAT12_BitsPerClus
    mul bx
    mov bx, 8
    div bx
    mov si, ax
-   add si, FATOffset
+   add si, FAT_OFFSET
    mov bx, [es:si]
    cmp dx, 0
    jz .a1
@@ -255,15 +256,15 @@ DispStr:
 
    ret
 
-BootMsg               db    'booting'
+BootMsg               db    'Booting'
 BootMsgLen            equ   $ - BootMsg
 
 DotStr                db    '.'
 
-LoaderNotFoundMsg     db    'loader not found!'
+LoaderNotFoundMsg     db    'Loader not found!'
 LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 
-BadSectorMsg          db    'bad sector'
+BadSectorMsg          db    'Bad sector'
 BadSectorMsgLen       equ   $ - BadSectorMsg
 
 LoaderName            db    'LOADER  BIN'

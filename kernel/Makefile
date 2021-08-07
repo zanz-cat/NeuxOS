@@ -1,7 +1,11 @@
-SOURCE:=$(wildcard *.c)
-ASMSOURCE:=kernel.S interrupt.S syscall.S
-OBJS:=$(patsubst %.c, %.o, $(SOURCE))
-ASMOBJS:=$(patsubst %.S, %_S.o, $(ASMSOURCE))
+include ../common.mk
+include ../.config
+
+ifeq ($(CONFIG_BOOT),fd)
+KERNEL_ADDR=0x20000 # 128KB
+else
+KERNEL_ADDR=0x100000 # 1MB
+endif
 
 .PHONY: all clean
 
@@ -13,9 +17,9 @@ $(OBJS): %.o:%.c
 $(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $<
 
-kernel.elf: $(wildcard $(SRCDIR)/lib/*.o) $(OBJS) $(ASMOBJS) ../app/*.o
-	$(LD) -m elf_i386 -Ttext 0x20000 -o $@ $^
-	objcopy --remove-section=.note.gnu.property $@
+kernel.elf: $(OBJS) $(ASMOBJS) $(LIBOBJS) $(DRIVEROBJS) ../app/app.o
+	$(LD) $(LDFLAGS) -Ttext $(KERNEL_ADDR) -o $@ $^
+	objcopy --remove-section=.note.gnu.property $@ 2>/dev/null
 
 clean:
-	rm -f *.o kernel.elf
+	rm -f $(ASMOBJS) $(OBJS) kernel.elf

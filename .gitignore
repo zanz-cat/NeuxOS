@@ -7,5 +7,8 @@
 *.elf
 .vscode
 .config
+config.h
+config.S
 bochsrc
 ._*.md
+image

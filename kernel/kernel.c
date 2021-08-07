@@ -1,17 +1,17 @@
-#include <type.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <lib/log.h>
-#include <lib/string.h>
+#include <drivers/keyboard/keyboard.h>
 
-#include <kernel/const.h>
-#include <kernel/protect.h>
-#include <kernel/sched.h>
-#include <kernel/gdt.h>
-#include <kernel/clock.h>
-#include <kernel/keyboard.h>
-#include <kernel/printk.h>
-#include <kernel/tty.h>
-#include <kernel/interrupt.h>
+#include "protect.h"
+#include "sched.h"
+#include "gdt.h"
+#include "clock.h"
+#include "printk.h"
+#include "tty.h"
+#include "interrupt.h"
+#include "kernel.h"
 
 extern void app1();
 extern void app2();
@@ -23,34 +23,36 @@ struct tss tss;
  * https://www.bootschool.net/ascii
  * font: 5lineoblique
  **/
-static const char *banner = 
+static const char *banner =
   "\n     /|    / /                          //   ) ) //   ) ) \n"
     "    //|   / /  ___                     //   / / ((        \n"
     "   // |  / / //___) ) //   / / \\\\ //  //   / /    \\\\      \n"
     "  //  | / / //       //   / /   \\//  //   / /       ) )   \n"
-    " //   |/ / ((____   ((___( (    //\\ ((___/ / ((___ / /    v0.02\n\n";
+    " //   |/ / ((____   ((___( (    //\\ ((___/ / ((___ / /    v0.03\n\n";
 
-static void display_banner() 
+static void display_banner()
 {
-    u8 color = 0xa;
+    uint8_t color = 0xa;
+    uint8_t origin;
+    tty_color(tty_current, TTY_OP_GET, &origin);
     tty_color(tty_current, TTY_OP_SET, &color);
     printk(banner);
-    color = DEFAULT_TEXT_COLOR;
-    tty_color(tty_current, TTY_OP_SET, &color);
+    tty_color(tty_current, TTY_OP_SET, &origin);
 }
 
-static void kernel_idle() 
+static void kernel_idle()
 {
     while (1) {
-        u8 color = 0x2;
+        uint8_t color = 0x2;
+        uint8_t origin;
+        tty_color(tty_current, TTY_OP_GET, &origin);
         tty_color(tty_current, TTY_OP_SET, &color);
-        printk("kernel_idle: %d\n", kget_ticks());
-        color = DEFAULT_TEXT_COLOR;
-        tty_color(tty_current, TTY_OP_SET, &color);
+        printk("kernel_idle: %u\n", kget_jeffies());
+        tty_color(tty_current, TTY_OP_SET, &origin);
     }
 }
 
-void kernel_init() 
+void kernel_init()
 {
     set_log_level(DEBUG);
 

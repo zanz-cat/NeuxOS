@@ -1,36 +1,38 @@
-#include <lib/stdio.h>
+#include <stdio.h>
 
-#include <kernel/tty.h>
-#include <kernel/printk.h>
+#include "tty.h"
+#include "printk.h"
+
+#define PRINTFK_BUF_SIZE 1024
 
 int printk(const char *fmt, ...)
 {
     int n;
-    __builtin_va_list va_arg;
+    va_list ap;
 
-    __builtin_va_start(va_arg, fmt);
-    n = vprintk(fmt, va_arg);
-    __builtin_va_end(va_arg);
+    va_start(ap, fmt);
+    n = vprintk(fmt, ap);
+    va_end(ap);
     return n;
 }
 
 int fprintk(int fd, const char *fmt, ...)
 {
     int n;
-    __builtin_va_list va_arg;
+    va_list ap;
 
-    __builtin_va_start(va_arg, fmt);
-    n = vfprintk(fd, fmt, va_arg);
-    __builtin_va_end(va_arg);
+    va_start(ap, fmt);
+    n = vfprintk(fd, fmt, ap);
+    va_end(ap);
     return n;
 }
 
-int vfprintk(int fd, const char *fmt, __builtin_va_list va_arg)
+int vfprintk(int fd, const char *fmt, va_list ap)
 {
     int i, n;
-    char buf[PRINTF_BUF_SIZE];
+    char buf[PRINTFK_BUF_SIZE];
 
-    n = vsprintf(buf, fmt, va_arg);
+    n = vsprintf(buf, fmt, ap);
     if (n < 0) {
         return n;
     }
@@ -43,12 +45,12 @@ int vfprintk(int fd, const char *fmt, __builtin_va_list va_arg)
     return i;
 }
 
-int vprintk(const char *fmt, __builtin_va_list va_arg)
+int vprintk(const char *fmt, va_list ap)
 {
     int i, n;
-    char buf[PRINTF_BUF_SIZE];
+    char buf[PRINTFK_BUF_SIZE];
 
-    n = vsprintf(buf, fmt, va_arg);
+    n = vsprintf(buf, fmt, ap);
     if (n < 0) {
         return n;
     }

@@ -1,9 +1,9 @@
 org 0x0
 jmp LABEL_START
 
-%include "const.S"
-
-%define paddr(b, o) (b << 4) + o
+%include "fd.S"
+%include "boot/const.S"
+%include "boot/utils.S"
 
 %macro callPrintStr 1
     push ecx
@@ -45,8 +45,8 @@ SelectorVideo           equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
 ADDR_MSG_GAP_LEN        equ 12
 LENGTH_MSG_GAP_LEN      equ 13
-TopOfStack              equ 0ffffh
-KernelFilePhyAddr       equ paddr(KernelFileBase, KernelFileOffset)
+TOP_OF_STACK            equ 0ffffh
+KERNEL_FILE_ADDR        equ paddr(KERNEL_FILE_BASE, KERNEL_FILE_OFFSET)
 RootDirSectorCount      dw 0
 ARDSNum                 dw 0
 CursorPosition          dw 0
@@ -55,7 +55,7 @@ MemSizeMB               dd 0
 NumForDisp              dd 0
 
 ; Strings
-LoadKernelMsg               db  'load kernel...'
+LoadKernelMsg               db  'Load kernel...'
 LoadKernelMsgLen            equ $ - LoadKernelMsg
 
 OKMsg                       db    'ok'
@@ -67,19 +67,19 @@ KernelNameLen               equ $ - KernelName
 NotFoundMsg                 db ' not found!'
 NotFoundMsgLen              equ $ - NotFoundMsg
 
-BadSectorMsg                db 'bad sector!'
+BadSectorMsg                db 'Bad sector!'
 BadSectorMsgLen             equ $ - BadSectorMsg
 
-ReadFloppyErrMsg            db 'read floppy error: '
+ReadFloppyErrMsg            db 'Read floppy error: '
 ReadFloppyErrMsgLen         equ $ - ReadFloppyErrMsg
 
-KernelMsg                   db 'load kernel...'
+KernelMsg                   db 'Load kernel...'
 KernelMsgLen                equ $ - KernelMsg
 
 MemInfoMsg                  db 'memory information'
 MemInfoMsgLen               equ $ - MemInfoMsg
 
-StartKernelMsg              db 'start kernel up'
+StartKernelMsg              db 'Start kernel up'
 StartKernelMsgLen           equ $ - StartKernelMsg
 
 MemBlockAddrMsg             db 'address'
@@ -91,20 +91,20 @@ MemBlockLengthMsgLen        equ $ - MemBlockLengthMsg
 MemBlockTypeMsg             db 'type'
 MemBlockTypeMsgLen          equ $ - MemBlockTypeMsg
 
-InvalidKernelFileMsg        db 'invalid kernel file!'
+InvalidKernelFileMsg        db 'Invalid kernel file!'
 InvalidKernelFileMsgLen     equ $ - InvalidKernelFileMsg
 
-SetupPagingMsg              db 'setup paging...'
+SetupPagingMsg              db 'Setup paging...'
 SetupPagingMsgLen           equ $ - SetupPagingMsg
 
-ProgramCopiedMsg            db ' program(s) copied'
+ProgramCopiedMsg            db ' program(s) loaded'
 ProgramCopiedMsgLen         equ $ - ProgramCopiedMsg
 
 NOBITSInitMsg               db ' NOBITS(s) initialized'
 NOBITSInitMsgLen            equ $ - NOBITSInitMsg
 
 
-; 1. search and read kernel file to [KernelFileBase:KernelFileOffset]
+; 1. search and read kernel file to [KERNEL_FILE_BASE:KERNEL_FILE_OFFSET]
 ;    using the FAT info which read by boot
 ; 2. enter protect mode
 ; 3. setup paging and enable paging
@@ -118,7 +118,7 @@ LABEL_START:
     mov es, ax
 
     ; init stack
-    mov sp, TopOfStack
+    mov sp, TOP_OF_STACK
 
     call DispEnter
     mov bp, LoadKernelMsg
@@ -265,19 +265,19 @@ ReadSector:
     mov [CursorPosition], dx 
 
     call DispNum
-    jmp $
+    hlt
 
 ; function: search kernel file, 
 ; and copy it from floppy to memory.
 SearchAndReadKernel:
     cld
     mov si, KernelName
-    mov ax, FATBase
+    mov ax, FAT_BASE
     mov es, ax
     mov ax, CONST_BPB_BytesPerSec
     mov bx, CONST_BPB_FATSz16
     mul bx
-    mov di, FATOffset
+    mov di, FAT_OFFSET
     add di, ax
 
     mov cx, CONST_BPB_RootEntCnt
@@ -299,7 +299,7 @@ SearchAndReadKernel:
     mov bp, NotFoundMsg
     mov cx, NotFoundMsgLen
     call DispStr
-    jmp $
+    hlt
 .a2:
     ; get cursor position
     mov ah, 03h
@@ -315,9 +315,9 @@ SearchAndReadKernel:
     ; AbsSec = LogicSec - 2 + 19 + RootDirSectorCount
     add ax, 17
     add ax, [RootDirSectorCount]
-    mov edx, KernelFileBase
+    mov edx, KERNEL_FILE_BASE
     shl edx, 4
-    add edx, KernelFileOffset
+    add edx, KERNEL_FILE_OFFSET
     add edx, [NumForDisp]
     mov bx, dx
     and bx, 0xf
@@ -342,7 +342,7 @@ SearchAndReadKernel:
     mov bp, BadSectorMsg
     mov cx, BadSectorMsgLen
     call DispStr
-    jmp $
+    hlt
 .a4:
     ret
 
@@ -352,14 +352,14 @@ GetFATEntry:
     push si
     push ax
  
-    mov bx, FATBase
+    mov bx, FAT_BASE
     mov es, bx
     mov bx, CONST_FAT12_BitsPerClus
     mul bx
     mov bx, 8
     div bx
     mov si, ax
-    add si, FATOffset
+    add si, FAT_OFFSET
     mov bx, [es:si]
     cmp dx, 0
     jz .a1
@@ -392,9 +392,10 @@ ReadMemInfo:
 
     mov ebx, 0
 .continue:
-    mov ax, ARDSBufferBase
+    mov ax, ARDS_BASE
     mov es, ax
-    mov di, [ebp-2]
+    mov di, ARDS_OFFSET
+    add di, [ebp-2]
     mov ax, 0e820h
     mov ecx, 20
     mov edx, 0534d4150h ; 'SMAP'
@@ -537,25 +538,6 @@ CleanScreen:
    ;int 10h
    ;ret
 
-; 名称：divdw
-; 功能：进行不会产生溢出的除法运算，被除数为dword型，除数为word型号，结果为dword型号
-; 参数：(ax)=dword型数据的低16位
-;      (dx)=dword型数据的高16位
-;      (cx)=除数
-; 返回：(dx)=结果的高16位，(ax)=结果的低16位
-;      (cx)=余数
-divdw:    ; 子程序定义开始
-    push ax            ; 低16位先保存
-    mov ax, dx         ; ax值为高16为
-    mov dx, 0          ; dx置零
-    div cx             ; H/N
-    mov bx, ax         ; ax,bx的值(int)H/N，dx的值为(rem)H/N
-    pop ax             ; 处理低16位
-    div cx             ; 高16位:dx的值为(rem)H/N，低16位:ax
-    mov cx, dx
-    mov dx, bx
-    ret
-
 ;----------------------------------------------------------------------------
 ; 函数名: KillMotor
 ;----------------------------------------------------------------------------
@@ -579,7 +561,7 @@ LABEL_PM_START:
 
     ; init stack
     mov ss, ax
-    mov esp, TopOfStack
+    mov esp, TOP_OF_STACK
 
     mov ax, SelectorVideo
     mov gs, ax
@@ -595,7 +577,7 @@ LABEL_PM_START:
     call SetupPaging
 
     ; enable paging
-    mov eax, PageDirBasePhyAddr
+    mov eax, PAGE_DIR_ADDR
     mov cr3, eax
     mov eax, cr0
     or  eax, 80000000h
@@ -614,34 +596,34 @@ RelocateKernel:
     mov ebp, esp
     sub esp, 2
 
-    cmp dword [KernelFilePhyAddr], 0x464c457f ; 0x7f+'ELF'
+    cmp dword [KERNEL_FILE_ADDR], 0x464c457f ; 0x7f+'ELF'
     je  .continue
     callPrintStrln InvalidKernelFileMsg
-    jmp $
+    hlt
 
     ; handle program headers
 .continue:    
     xor ecx, ecx
     mov word [ebp-2], 0
-    mov cx, [KernelFilePhyAddr+44] ; program header number
+    mov cx, [KERNEL_FILE_ADDR+44] ; program header number
 .next:
     push ecx
-    mov ax, [KernelFilePhyAddr+44]
+    mov ax, [KERNEL_FILE_ADDR+44]
     sub ax, cx
-    mul word [KernelFilePhyAddr+42] ; program header entity size
+    mul word [KERNEL_FILE_ADDR+42] ; program header entity size
     and eax, 0ffh
     shl edx, 16
     add eax, edx
-    mov esi, [KernelFilePhyAddr+28] ; program header table offset
+    mov esi, [KERNEL_FILE_ADDR+28] ; program header table offset
     add esi, eax
-    add esi, KernelFilePhyAddr ; esi is the absolute address of certain program header in memory
+    add esi, KERNEL_FILE_ADDR ; esi is the absolute address of certain program header in memory
 
     cmp dword [esi], 0x1 ; p_type == PT_LOAD
     jne .contseg
     mov ecx, [esi+16] ; program size
     mov edi, [esi+8] ; p_vaddr in memory
     mov esi, [esi+4] ; p_offset in file
-    add esi, KernelFilePhyAddr ; absolute address in memmory
+    add esi, KERNEL_FILE_ADDR ; absolute address in memmory
     rep movsb
     inc word [ebp-2]
 .contseg:
@@ -656,18 +638,18 @@ RelocateKernel:
     ; handle section: initialize .bss section
     xor ecx, ecx
     mov word [ebp-2], 0
-    mov cx, [KernelFilePhyAddr+48] ; section header number
+    mov cx, [KERNEL_FILE_ADDR+48] ; section header number
 .nextb:
     push ecx
-    mov ax, [KernelFilePhyAddr+48]
+    mov ax, [KERNEL_FILE_ADDR+48]
     sub ax, cx
-    mul word [KernelFilePhyAddr+46] ; section header entity size
+    mul word [KERNEL_FILE_ADDR+46] ; section header entity size
     and eax, 0ffh
     shl edx, 16
     add eax, edx
-    mov esi, [KernelFilePhyAddr+32] ; section header table offset
+    mov esi, [KERNEL_FILE_ADDR+32] ; section header table offset
     add esi, eax
-    add esi, KernelFilePhyAddr
+    add esi, KERNEL_FILE_ADDR
     cmp dword [esi+4], 8 ; sh_type == SHT_NOBITS
     jne .skip
     ; clear NOBITS type
@@ -686,7 +668,7 @@ RelocateKernel:
     callPrintStrln NOBITSInitMsg
 
     ; entry point
-    mov eax, [KernelFilePhyAddr+24]
+    mov eax, [KERNEL_FILE_ADDR+24]
     mov [paddr(KernelEntryPointAddr)], eax
 
     add esp, 2
@@ -716,15 +698,15 @@ SetupPaging:
     ; 初始化页目录
     xor eax, eax
     mov ax, [ebp-4]
-    shl eax, 12     ; AddrOfPageTable = i << 12 + PageTableBasePhyAddr
-    add eax, PageTableBasePhyAddr
+    shl eax, 12     ; AddrOfPageTable = i << 12 + PAGE_TABLE_ADDR
+    add eax, PAGE_TABLE_ADDR
     mov ebx, eax
     or  ebx, PG_P | PG_USU | PG_RWW
 
     xor eax, eax
     mov ax, [ebp-4]
     shl eax, 2  ; mul 4    
-    add eax, PageDirBasePhyAddr
+    add eax, PAGE_DIR_ADDR
 
     mov [eax], ebx
 
@@ -769,7 +751,7 @@ GetTotalMemSize:
     sub ax, cx
     mov bl, 20
     mul bl
-    mov esi, paddr(ARDSBufferBase, 0)
+    mov esi, paddr(ARDS_BASE, ARDS_OFFSET)
     add esi, eax
 
     ; only available memory
@@ -818,7 +800,8 @@ DisplayARDS:
     sub ax, cx
     mov bl, 20
     mul bl
-    mov esi, ARDSBufferBase << 4
+    mov esi, ARDS_BASE << 4
+    add esi, ARDS_OFFSET
     add esi, eax
 
     callPrintChar '|'

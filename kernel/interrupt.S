@@ -1,4 +1,8 @@
-%include "common.S"
+%include "const.S"
+
+extern enable_irq
+extern disable_irq
+extern out_byte
 
 %macro hwint 1
     ; save state
@@ -8,15 +12,9 @@
     mov es, ax
 
     ; close current interrupt
-    %if %1 < 8
-        in al, INT_M_CTLMASK
-        or al, (1 << %1)
-        out INT_M_CTLMASK, al
-    %else
-        in al, INT_S_CTLMASK
-        or al, (1 << (%1 % 8))
-        out INT_S_CTLMASK, al
-    %endif
+    push eax
+    call disable_irq
+    add esp, 4
 
     ; save kernel stack info of interrupted routine
     lea ebx, [hwint_stacks - HWINT_STACK_SIZE*%1]
@@ -82,20 +80,14 @@
 .next_selected:
 
     ; open current interrupt
-    %if %1 < 8
-        in al, INT_M_CTLMASK
-        and al, ~(1 << %1)
-        out INT_M_CTLMASK, al
-    %else
-        in al, INT_S_CTLMASK
-        and al, ~(1 << (%1 % 8))
-        out INT_S_CTLMASK, al
-    %endif
+    push eax
+    call enable_irq
+    add esp, 4
 
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
-    
+
     ; restore state
     RESTORE_STATE
     iret
@@ -207,34 +199,34 @@ exception:
 
 hwint00:
     hwint 0
-    
+
 hwint01:
     hwint 1
 
 hwint03:
     hwint 3
-    
+
 hwint04:
     hwint 4
-    
+
 hwint05:
     hwint 5
-    
+
 hwint06:
     hwint 6
-    
+
 hwint07:
     hwint 7
-    
+
 hwint08:
     hwint 8
-    
+
 hwint12:
     hwint 12
-    
+
 hwint13:
     hwint 13
-    
+
 hwint14:
     hwint 14
 

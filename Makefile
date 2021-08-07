@@ -2,16 +2,11 @@
 # main Makefile
 ##################################################
 
-OS?=$(shell uname)
-CC:=gcc
-LD:=ld
-SRCDIR:=$(patsubst %/, %, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-CFLAGS:=-m32 -g -Werror -O0 -I$(SRCDIR)/include -fno-builtin -nostdinc -fno-leading-underscore
-ASMFLAGS:=-Werror
-SUBDIRS:=app boot lib kernel
+include common.mk
+SUBDIRS:=lib drivers app boot kernel
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
+MOUNTPOINT:=$(ROOTDIR)/image
 SUDO:=sudo
-MOUNTPOINT:=/tmp/neuxos-img
 
 ifneq ($(MAKECMDGOALS),config)
 ifeq ($(wildcard .config),)
@@ -21,9 +16,7 @@ include .config
 endif
 endif
 
-export SRCDIR CC LD CFLAGS ASMFLAGS
-
-.PHONY: all clean $(SUBDIRS) $(CLEAN_SUBDIRS) img mount umount run debug jrun jdebug gdb bochsrc config
+.PHONY: all clean $(SUBDIRS) $(CLEAN_SUBDIRS) image mount umount run debug gdb bochsrc config clean-config
 
 all: $(SUBDIRS)
 
@@ -36,71 +29,77 @@ clean: $(CLEAN_SUBDIRS)
 $(CLEAN_SUBDIRS):
 	$(MAKE) -C $(patsubst _clean_%,%,$@) clean
 
-img: $(SUBDIRS)
-	test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
-	$(SUDO) umount $(MOUNTPOINT) 2>/dev/null || exit 0
+image: $(SUBDIRS)
+	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
+	@$(SUDO) umount $(MOUNTPOINT) 2>/dev/null || exit 0
 	rm -f $(CONFIG_BOOT).img
 ifeq ($(CONFIG_BOOT),fd)
-	bximage -q -mode=create -$(CONFIG_BOOT)=1.44M $(CONFIG_BOOT).img
-	dd if=boot/$(CONFIG_BOOT)/boot.bin of=$(CONFIG_BOOT).img bs=512 count=1 conv=notrunc
-	$(SUDO) mount -o loop $(CONFIG_BOOT).img $(MOUNTPOINT)
-	$(SUDO) cp boot/$(CONFIG_BOOT)/loader.bin $(MOUNTPOINT)/LOADER.BIN
+	bximage -q -mode=create -fd=1.44M fd.img
+	dd if=boot/fd/boot.bin of=fd.img bs=512 count=1 conv=notrunc
+	$(SUDO) mount -o loop fd.img $(MOUNTPOINT)
+	$(SUDO) cp boot/fd/loader.bin $(MOUNTPOINT)/LOADER.BIN
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF
 	$(SUDO) umount $(MOUNTPOINT)
 else
-	# harddisk
-	bximage -q -mode=create -$(CONFIG_BOOT)=$(CONFIG_HD_SIZE) $(CONFIG_BOOT).img
-	dev=`$(SUDO) losetup -f --show $(CONFIG_BOOT).img`; \
-	$(SUDO) fdisk $$dev < boot/hd/fdisk-cmd.txt; \
+	@# harddisk
+	@bximage -q -mode=create -hd=$(CONFIG_HD_SZ) hd.img
+	@echo "=> Partition"; \
+	dev=`$(SUDO) losetup -f --show hd.img`; \
+	echo -e "n\np\n\n\n\na\nw\n" | $(SUDO) fdisk -H $(CONFIG_HD_HEADS) -S $(CONFIG_HD_SPT) $$dev; \
+	echo "=> Write MBR"; \
+	$(SUDO) dd if=boot/hd/mbr.bin of=$$dev conv=notrunc; \
 	secsz=`$(SUDO) fdisk -l $$dev | grep 'Sector size' | awk '{print $$4}'`; \
 	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$3}'`; \
 	offset=`expr $$offset \* $$secsz`; \
 	limit=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$5}'`; \
 	limit=`expr $$limit \* $$secsz`; \
 	$(SUDO) losetup -d $$dev; \
-	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit $(CONFIG_BOOT).img`; \
-	$(SUDO) mkfs.ext2 $$dev; \
+	echo "=> Format"; \
+	for i in `seq 10`; \
+	do \
+		dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit hd.img` && break || sleep 0.5; \
+	done; \
+	$(SUDO) mkfs.ext2 -b $(CONFIG_EXT2_BS) $$dev; \
+	echo "=> Write OBR"; \
+	$(SUDO) dd if=boot/hd/boot.bin of=$$dev conv=notrunc; \
 	$(SUDO) mount $$dev $(MOUNTPOINT); \
-	$(SUDO) cp boot/$(CONFIG_BOOT)/loader.bin $(MOUNTPOINT)/LOADER.BIN; \
+	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/LOADER.BIN; \
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF; \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
 endif
 
-mount:
+mount: $(CONFIG_BOOT).img
+	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
+	@$(SUDO) mount | grep $(MOUNTPOINT) > /dev/null && echo "image already mounted" && exit 1 \
+	|| echo "mount image to $(MOUNTPOINT)"
 ifeq ($(CONFIG_BOOT),fd)
-	$(SUDO) mount -o loop $(CONFIG_BOOT).img $(MOUNTPOINT)
+	$(SUDO) mount -o loop fd.img $(MOUNTPOINT)
 else
-	# mount hd on Linux
-	secsz=`$(SUDO) fdisk -l $(CONFIG_BOOT).img | grep 'Sector size' | awk '{print $$4}'`; \
-	offset=`$(SUDO) fdisk -l $(CONFIG_BOOT).img | tail -1 | awk '{print $$3}'`; \
+	@# mount hd on Linux
+	@secsz=`$(SUDO) fdisk -l hd.img | grep 'Sector size' | awk '{print $$4}'`; \
+	offset=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$3}'`; \
 	offset=`expr $$offset \* $$secsz`; \
-	limit=`$(SUDO) fdisk -l $(CONFIG_BOOT).img | tail -1 | awk '{print $$5}'`; \
+	limit=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$5}'`; \
 	limit=`expr $$limit \* $$secsz`; \
-	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit $(CONFIG_BOOT).img`; \
+	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit hd.img`; \
 	$(SUDO) mount $$dev $(MOUNTPOINT);
 endif
 
 umount:
 	$(SUDO) umount $(MOUNTPOINT)
 ifeq ($(CONFIG_BOOT),hd)
-	dev=`$(SUDO) losetup -l -O name -n -j $(CONFIG_BOOT).img`; \
+	dev=`$(SUDO) losetup -l -O name -n -j hd.img`; \
 	$(SUDO) losetup -d $$dev;
 endif
 
-run: img bochsrc
+run: $(CONFIG_BOOT).img bochsrc
 	bochs -q || true
 
-debug: img bochsrc
+debug: $(CONFIG_BOOT).img bochsrc
 	bochsdbg -q
 
-jrun: img bochsrc
-	bochs -q || true
-
-jdebug: img bochsrc
-	bochsdbg -q
-
-gdb: img bochsrc
+gdb: $(CONFIG_BOOT).img bochsrc
 	@echo "gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0" >> bochsrc
 	bochsgdb -q || true
 
@@ -118,12 +117,16 @@ config:
 	@rm -f .config
 	@echo CONFIG_BOOT=$${BOOT:-hd} >> .config; \
 	if [ "$${BOOT:-hd}" = "hd" ]; then \
-		echo CONFIG_HD_SIZE=$${HD_SIZE:-128M} >> .config; \
+		echo CONFIG_HD_SZ=$${HD_SZ:-128M} >> .config; \
+		echo CONFIG_HD_SECT_SZ=$${HD_SECT_SZ:-512} >> .config; \
+		echo CONFIG_HD_HEADS=$${HD_HEADS:-16} >> .config; \
+		echo CONFIG_HD_SPT=$${HD_SPT:-63} >> .config; \
+		echo CONFIG_EXT2_BS=$${EXT2_BS:-1024} >> .config; \
 	fi
 	@cat .config
+	@# non-digital wrapped by ""
+	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$/) print "#define "$$1" "$$2; else print "#define "$$1" \""$$2"\""}' > config.h
+	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$/) print $$1" equ "$$2; else print $$1" equ \""$$2"\""}' > config.S
 
 clean-config:
-	rm -f .config
-
-show-config:
-	@cat .config
+	rm -f .config config.h config.S

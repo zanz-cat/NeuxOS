@@ -1,24 +1,26 @@
-#include <type.h>
-#include <kernel/protect.h>
-#include <lib/string.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <lib/log.h>
+
+#include "protect.h"
 
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128
 
 struct gdtr {
-    u16 limit;
+    uint16_t limit;
     void *base;
 } __attribute__((packed));
 
 static struct descriptor gdt[GDT_SIZE];
-static u8 bitmap[GDT_SIZE/8];
+static uint8_t bitmap[GDT_SIZE/8];
 
 #define BITMAP_SET(index) bitmap[index/8] |= (1 << (index%8))
 #define BITMAP_CLR(index) bitmap[index/8] &= (~(1 << (index%8)))
 #define BITMAP_GET(index) (bitmap[index/8] & (1 << (index%8)))
 
-static int alloc() 
+static int alloc()
 {
     int i;
     for (i = 0; i < GDT_SIZE && BITMAP_GET(i); i++);
@@ -31,7 +33,7 @@ static int alloc()
     return i;
 }
 
-static void free(int index) 
+static void free(int index)
 {
     if (index > GDT_SIZE - 1)
         return;
@@ -39,19 +41,19 @@ static void free(int index)
     BITMAP_CLR(index);
 }
 
-static int uninstall_desc(u16 sel) 
+static int uninstall_desc(uint16_t sel)
 {
     int index = sel >> 3;
     if (index > GDT_SIZE - 1)
         return -1;
 
-    memset(&gdt[index], 0, sizeof(gdt[index]));
+    memset(&gdt[index], 0, sizeof(struct descriptor));
     free(index);
 
     return 0;
 }
 
-void gdt_init() 
+void gdt_init()
 {
     struct gdtr gdtr;
 
@@ -68,20 +70,20 @@ void gdt_init()
 }
 
 // TODO: can i install tss into ldt?
-int install_tss(struct tss *ptss) 
+int install_tss(struct tss *ptss)
 {
     int index = alloc();
     if (index < 0) {
         log_error("alloc gdt error\n");
         return -1;
     }
-    
-    struct descriptor *pdesc = &gdt[index];
-    pdesc->base_low = (u32)ptss & 0xffff;
-    pdesc->base_mid = ((u32)ptss >> 16) & 0xf;
-    pdesc->base_high = (u32)ptss >> 24;
 
-    u32 limit = sizeof(*ptss) - 1;
+    struct descriptor *pdesc = &gdt[index];
+    pdesc->base_low = (uint32_t)ptss & 0xffff;
+    pdesc->base_mid = ((uint32_t)ptss >> 16) & 0xff;
+    pdesc->base_high = (uint32_t)ptss >> 24;
+
+    uint32_t limit = sizeof(struct tss) - 1;
     pdesc->limit_low = limit & 0xffff;
     pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
     pdesc->attr1 = DA_386TSS | DA_DPL0;
@@ -89,23 +91,23 @@ int install_tss(struct tss *ptss)
     return index << 3;
 }
 
-int uninstall_tss(u16 sel) 
+int uninstall_tss(uint16_t sel)
 {
     return uninstall_desc(sel);
 }
 
-int install_ldt(void *ldt, u16 size) 
+int install_ldt(void *ldt, uint16_t size)
 {
     int index = alloc();
     if (index > GDT_SIZE - 1)
         return -1;
 
     struct descriptor *pdesc = &gdt[index];
-    pdesc->base_low = (u32)ldt & 0xffff;
-    pdesc->base_mid = ((u32)ldt >> 16) & 0xf;
-    pdesc->base_high = (u32)ldt >> 24;
+    pdesc->base_low = (uint32_t)ldt & 0xffff;
+    pdesc->base_mid = ((uint32_t)ldt >> 16) & 0xff;
+    pdesc->base_high = (uint32_t)ldt >> 24;
 
-    u32 limit = sizeof(struct descriptor) * size - 1;
+    uint32_t limit = sizeof(struct descriptor) * size - 1;
     pdesc->limit_low = limit & 0xffff;
     pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
     pdesc->attr1 = DA_LDT | DA_DPL0;
@@ -113,7 +115,7 @@ int install_ldt(void *ldt, u16 size)
     return index << 3;
 }
 
-int uninstall_ldt(u16 sel) 
+int uninstall_ldt(uint16_t sel)
 {
     return uninstall_desc(sel);
 }

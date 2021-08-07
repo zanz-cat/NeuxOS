@@ -1,20 +1,22 @@
-#include <type.h>
+#include <stdint.h>
+
 #include <lib/log.h>
-#include <kernel/i8259a.h>
-#include <kernel/sched.h>
-#include <kernel/const.h>
-#include <kernel/interrupt.h>
+#include <drivers/i8259a/i8259a.h>
 
-static int ticks = 0;
+#include "sched.h"
+#include "kernel.h"
+#include "interrupt.h"
 
-static void clock_handler() 
+static uint32_t jeffies = 0;
+
+static void clock_handler()
 {
-    ticks++;
+    jeffies++;
     proc_sched();
     current->ticks++;
 }
 
-void clock_init() 
+void clock_init()
 {
     log_info("init clock\n");
 
@@ -22,14 +24,14 @@ void clock_init()
 
     /* 设置时钟频率 */
     out_byte(TIMER_MODE, RATE_GENERATOR);
-    out_byte(TIMER0, (u8)(TIMER_FREQ/HZ));
-    out_byte(TIMER0, (u8)((TIMER_FREQ/HZ) >> 8));
+    out_byte(TIMER0, (uint8_t)(TIMER_FREQ/HZ));
+    out_byte(TIMER0, (uint8_t)((TIMER_FREQ/HZ) >> 8));
 
     /* 开启时钟中断 */
     enable_irq(IRQ_CLOCK);
 }
 
-int kget_ticks() 
+uint32_t kget_jeffies()
 {
-    return ticks;
+    return jeffies;
 }

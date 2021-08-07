@@ -1,9 +1,9 @@
-#include <lib/stdio.h>
-#include <lib/unistd.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <kernel/printk.h>
 
-void app1() 
+void app1()
 {
     static int count = 0;
     int ret;
@@ -16,7 +16,7 @@ void app1()
     }
 }
 
-void app2() 
+void app2()
 {
     static int count = 0;
     while (1) {
@@ -25,15 +25,15 @@ void app2()
     }
 }
 
-void kapp1() 
+void kapp1()
 {
-    static int count = 0;   
+    static int count = 0;
     while (1) {
         printk("kapp1: %d\n", count++);
     }
 }
 
-void kapp2() 
+void kapp2()
 {
     static int count = 0;
     while (1) {

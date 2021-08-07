@@ -1,8 +1,9 @@
-#include <lib/stdio.h>
+#include <stdio.h>
+
 #include <kernel/tty.h>
 #include <kernel/printk.h>
 
-#include <lib/log.h>
+#include "log.h"
 
 static enum log_level sys_level = INFO;
 static const char* log_level_name[] = {
@@ -13,7 +14,7 @@ static const char* log_level_name[] = {
     [FATAL] = "FATAL",
 };
 
-static int log(enum log_level level, const char *fmt, __builtin_va_list args) 
+static int _log(enum log_level level, const char *fmt, va_list args)
 {
     int ret;
 
@@ -31,52 +32,52 @@ static int log(enum log_level level, const char *fmt, __builtin_va_list args)
     return vprintk(fmt, args);
 }
 
-int set_log_level(enum log_level level) 
+int set_log_level(enum log_level level)
 {
     sys_level = level;
     return 0;
 }
 
-int log_debug(const char *fmt, ...) 
+int log_debug(const char *fmt, ...)
 {
-	__builtin_va_list args;
-	__builtin_va_start(args, fmt);
-	int ret = log(DEBUG, fmt, args);
-	__builtin_va_end(args);
+	va_list args;
+	va_start(args, fmt);
+	int ret = _log(DEBUG, fmt, args);
+	va_end(args);
     return ret;
 }
 
-int log_info(const char *fmt, ...) 
+int log_info(const char *fmt, ...)
 {
-	__builtin_va_list args;
-	__builtin_va_start(args, fmt);
-	int ret = log(INFO, fmt, args);
-	__builtin_va_end(args);
+	va_list args;
+	va_start(args, fmt);
+	int ret = _log(INFO, fmt, args);
+	va_end(args);
     return ret;
 }
 
-int log_error(const char *fmt, ...) 
+int log_error(const char *fmt, ...)
 {
-	__builtin_va_list args;
-	__builtin_va_start(args, fmt);
-	int ret = log(ERROR, fmt, args);
-	__builtin_va_end(args);
+	va_list args;
+	va_start(args, fmt);
+	int ret = _log(ERROR, fmt, args);
+	va_end(args);
     return ret;
 }
 
-int log_fatal(const char *fmt, ...) 
+int log_fatal(const char *fmt, ...)
 {
     int ret;
-    u8 color, color_fatal;
-	__builtin_va_list args;
+    uint8_t color, color_fatal;
+	va_list args;
 
     color_fatal = 0x4;
     tty_color(tty_current, TTY_OP_GET, &color);
-    tty_color(tty_current, TTY_OP_SET, &color_fatal); 
+    tty_color(tty_current, TTY_OP_SET, &color_fatal);
 
-	__builtin_va_start(args, fmt);
-	ret = log(FATAL, fmt, args);
-	__builtin_va_end(args);
+	va_start(args, fmt);
+	ret = _log(FATAL, fmt, args);
+	va_end(args);
 
     tty_color(tty_current, TTY_OP_SET, &color);
     return ret;

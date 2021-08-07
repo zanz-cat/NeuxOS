@@ -1,15 +1,16 @@
-OBJS:=$(patsubst %.c, %.o, $(wildcard *.c))
-ASMOBJS:=$(patsubst %.S, %_S.o, $(wildcard *.S))
+include ../common.mk
 
 .PHONY: all clean
 
-all: $(ASMOBJS) $(OBJS)
+CFLAGS += -I$(ROOTDIR)/include
 
-$(ASMOBJS): %_S.o:%.S
-	nasm $(ASMFLAGS) -f elf -o $@ $<
+all: $(ASMOBJS) $(OBJS)
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+$(ASMOBJS): %_S.o:%.S
+	nasm $(ASMFLAGS) -f elf -o $@ $<
+
 clean:
-	rm -f *.o
+	rm -f $(ASMOBJS) $(OBJS)

@@ -1,9 +1,13 @@
-#include <type.h>
-#include <kernel/const.h>
-#include <kernel/protect.h>
-#include <lib/unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 
-u32 get_ticks() 
+#include <syscall.h>
+
+#include <unistd.h>
+
+#define HZ              100
+
+static uint32_t get_ticks()
 {
     asm("movl %0, %%eax\n\t"
         "int %1"
@@ -11,26 +15,26 @@ u32 get_ticks()
         :"%eax");
 }
 
-u32 sleep(u32 sec) 
+unsigned int sleep(unsigned int seconds)
 {
     int t = get_ticks();
-    while ((get_ticks() - t)/HZ < sec);
+    while ((get_ticks() - t)/HZ < seconds);
     return 0;
 }
 
-u32 msleep(u32 msec) 
+int usleep(useconds_t useconds)
 {
     int t = get_ticks();
-    while ((get_ticks() - t)*1000/HZ < msec);
+    while ((get_ticks() - t)*1000000/HZ < useconds);
     return 0;
 }
 
-int write(char *buf, int len)
+ssize_t write(int fd, const void *buf, size_t n)
 {
     asm("movl %0, %%eax\n\t"
         "movl %1, %%ebx\n\t"
         "movl %2, %%ecx\n\t"
         "int %3"
-        ::"i"(SYSCALL_WRITE), "p"(buf), "m"(len), "i"(INT_VECTOR_SYSCALL)
+        ::"i"(SYSCALL_WRITE), "p"(buf), "m"(n), "i"(INT_VECTOR_SYSCALL)
         :"%eax", "%ebx", "%ecx");
 }

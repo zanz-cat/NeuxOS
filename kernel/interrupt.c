@@ -1,13 +1,14 @@
 #include <lib/log.h>
+#include <drivers/i8259a/i8259a.h>
+#include <include/syscall.h>
 
-#include <kernel/const.h>
-#include <kernel/i8259a.h>
-#include <kernel/sched.h>
-#include <kernel/printk.h>
-#include <kernel/interrupt.h>
+#include "kernel.h"
+#include "sched.h"
+#include "printk.h"
+#include "interrupt.h"
 
 struct idtr {
-    u16 limit;
+    uint16_t limit;
     void *base;
 } __attribute__((packed));
 
@@ -37,19 +38,19 @@ static char *int_err_msg[] = {
     "#XF SIMD Floating-Point Exception"
 };
 
-static void init_int_desc(u8 vector, u8 desc_type, int_handler handler, u8 privilege) 
+static void init_int_desc(uint8_t vector, uint8_t desc_type, int_handler handler, uint8_t privilege)
 {
     struct gate *int_desc = idt + vector;
     int_desc->selector = SELECTOR_KERNEL_CS;
     int_desc->dcount = 0;
     int_desc->attr = desc_type | (privilege << 5);
-    int_desc->offset_high = ((u32)handler >> 16) & 0xffff;
-    int_desc->offset_low = (u32)handler & 0xffff;
+    int_desc->offset_high = ((uint32_t)handler >> 16) & 0xffff;
+    int_desc->offset_low = (uint32_t)handler & 0xffff;
 }
 
-void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags) 
+void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
-    u8 color, color_temp;
+    uint8_t color, color_temp;
 
     color_temp = 0x74; /* 灰底红字 */
     tty_color(tty_current, TTY_OP_GET, &color);
@@ -58,7 +59,7 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
            "%s\n"
            "EFLAGS: 0x%x\n"
            "CS: 0x%x\n"
-           "EIP: 0x%x\n", 
+           "EIP: 0x%x\n",
            int_err_msg[vec_no], eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
@@ -68,77 +69,63 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
     asm("hlt");
 }
 
-static void serial2_handler() 
+static void serial2_handler()
 {
     printk("serial2_handler\n");
 }
 
-static void serial1_handler() 
+static void serial1_handler()
 {
     printk("serial1_handler\n");
 }
 
-static void lpt2_handler() 
+static void lpt2_handler()
 {
     printk("lpt2_handler\n");
 }
 
-static void floppy_handler() 
+static void floppy_handler()
 {
     printk("floppy_handler\n");
 }
 
-static void lpt1_handler() 
+static void lpt1_handler()
 {
     printk("lpt1_handler\n");
 }
 
-static void real_clock_handler() 
+static void real_clock_handler()
 {
     printk("real_clock_handler\n");
 }
 
-static void mouse_handler() 
+static void mouse_handler()
 {
     printk("mouse_handler\n");
 }
 
-static void copr_handler() 
+static void copr_handler()
 {
     printk("copr_handler\n");
 }
 
-static void harddisk_handler() 
+static void harddisk_handler()
 {
     printk("harddisk_handler\n");
 }
 
-void put_irq_handler(int vector, int_handler h) 
+void put_irq_handler(int vector, int_handler h)
 {
     irq_handler_table[vector] = h;
 }
 
-void enable_irq(int vector) 
-{
-    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
-    u8 mask = in_byte(port);
-    out_byte(port, mask & (~(0x1 << vector)));
-}
-
-void disable_irq(int vector) 
-{
-    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
-    u8 mask = in_byte(port);
-    out_byte(port, mask & (0x1 << vector));
-}
-
-void interrupt_init() 
+void interrupt_init()
 {
     struct idtr idtr;
 
     log_info("init interrupt controller\n");
     init_8259a();
-    
+
     log_info("init interrupt descriptor table\n");
     // initialize exception interrupt descriptor
     init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
@@ -157,7 +144,7 @@ void interrupt_init()
     init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
     init_int_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_SYSCALL, DA_386IGate, syscall, PRIVILEGE_USER);
+    init_int_desc(INT_VECTOR_SYSCALL, DA_386IGate, my_syscall, PRIVILEGE_USER);
 
     // initialize hardware interrupt descriptor
     init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);

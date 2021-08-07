@@ -1,3 +1,5 @@
+include ../../common.mk
+
 .PHONY: all clean
 
 all: boot.bin loader.bin
