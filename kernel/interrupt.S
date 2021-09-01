@@ -2,7 +2,6 @@
 
 extern enable_irq
 extern disable_irq
-extern out_byte
 
 %macro hwint 1
     ; save state
@@ -12,7 +11,7 @@ extern out_byte
     mov es, ax
 
     ; close current interrupt
-    push eax
+    push %1
     call disable_irq
     add esp, 4
 
@@ -80,7 +79,7 @@ extern out_byte
 .next_selected:
 
     ; open current interrupt
-    push eax
+    push %1
     call enable_irq
     add esp, 4
 
