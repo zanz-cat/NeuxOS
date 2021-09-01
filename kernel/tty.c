@@ -168,7 +168,7 @@ int tty_putchar(int fd, char c)
     }
 
     if (cursor == out->limit) {
-        monitor_shift(out->start, -CRT_NR_COLUMNS, out->limit);
+        monitor_shift(out->start + CRT_NR_COLUMNS, -CRT_NR_COLUMNS, out->limit);
         cursor -= CRT_NR_COLUMNS;
     }
     out->cursor = cursor;

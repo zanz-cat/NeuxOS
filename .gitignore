@@ -3,6 +3,7 @@
 *.com
 *.bin
 *.img
+*.img.lock
 *.o
 *.elf
 .vscode

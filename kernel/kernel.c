@@ -47,7 +47,7 @@ static void kernel_idle()
         uint8_t origin;
         tty_color(tty_current, TTY_OP_GET, &origin);
         tty_color(tty_current, TTY_OP_SET, &color);
-        printk("kernel_idle: %u\n", kget_jeffies());
+        printk("kernel idle, jeffies: %u\n", kget_jeffies());
         tty_color(tty_current, TTY_OP_SET, &origin);
     }
 }

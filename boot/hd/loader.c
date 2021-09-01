@@ -64,7 +64,7 @@ ssize_t write(int fd, const char *buf, size_t nbytes)
             cursor += CRT_NR_COLUMNS - cursor % CRT_NR_COLUMNS;
         } else if (buf[i] == '\b') {
             cursor--;
-            monitor_putchar(cursor, DEFAULT_TEXT_COLOR, ' ');
+            monitor_putchar(cursor, DEFAULT_TEXT_COLOR, '\0');
         } else {
             monitor_putchar(cursor, DEFAULT_TEXT_COLOR, buf[i]);
             cursor++;
