@@ -69,7 +69,7 @@ void gdt_init()
     BITMAP_SET(3);
 }
 
-// TODO: can i install tss into ldt?
+// can i install TSS into LDT? No! P289
 int install_tss(struct tss *ptss)
 {
     int index = alloc();

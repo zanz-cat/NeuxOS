@@ -13,3 +13,4 @@ config.S
 bochsrc
 ._*.md
 image
+.VSCodeCounter

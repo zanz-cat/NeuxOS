@@ -114,11 +114,11 @@ static void print_memory_layout(void)
     printf("\n");
 }
 
-void hd_exec_cmd(uint16_t port, uint8_t data)
+void ata_exec_cmd(uint16_t port, uint8_t data)
 {
     out_byte(port, data);
     if (in_byte(ATA_PORT_CMD_STATUS) & ATA_STATUS_ERR) {
-        printf("exec hd cmd error: %d\n", in_byte(ATA_PORT_ERR_NO));
+        printf("exec harddisk cmd error: %d\n", in_byte(ATA_PORT_ERR_NO));
         error_handler(-EERR);
     }
 }
@@ -129,13 +129,13 @@ static int read_sector(uint32_t sector, uint8_t count, void *buf)
     uint8_t status;
     uint16_t data;
 
-    hd_exec_cmd(ATA_PORT_COUNT, count);
-    hd_exec_cmd(ATA_PORT_SECTOR, sector & 0xff);
-    hd_exec_cmd(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
-    hd_exec_cmd(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
-    hd_exec_cmd(ATA_PORT_DISK_HEAD, (sector >> 24) & 0x0f | 0xe0); // 0xe0 means LBA mode and master disk
+    ata_exec_cmd(ATA_PORT_COUNT, count);
+    ata_exec_cmd(ATA_PORT_SECTOR, sector & 0xff);
+    ata_exec_cmd(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
+    ata_exec_cmd(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
+    ata_exec_cmd(ATA_PORT_DISK_HEAD, (sector >> 24) & 0x0f | 0xe0); // 0xe0 means LBA mode and master disk
     // send request
-    hd_exec_cmd(ATA_PORT_CMD_STATUS, ATA_CMD_READ);
+    ata_exec_cmd(ATA_PORT_CMD_STATUS, ATA_CMD_READ);
     // wait harddisk ready
     for (i = 0; i < WAIT_HD_TIMES; i++) {
         // [BSY - - - DRQ - - ERR] DRQ: data ready
@@ -309,6 +309,7 @@ static int read_kernel_file(void)
         if (i < EXT2_BLOCK_L1_INDEX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, kernel);
             if (ret != 0) {
+                printf("\n");
                 return ERR_READ_KERNEL_BLOCK;
             }
             backspace_num(kernel - kernel_file_start);
@@ -317,6 +318,7 @@ static int read_kernel_file(void)
         } else if (i == EXT2_BLOCK_L1_INDEX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
             if (ret != 0) {
+                printf("\n");
                 return ERR_READ_KERNEL_BLOCK;
             }
             for (j = 0; j < CONFIG_EXT2_BS/sizeof(uint32_t); j++) {
@@ -326,6 +328,7 @@ static int read_kernel_file(void)
                 }
                 ret = ext2_read_block(part, m, 1, kernel);
                 if (ret != 0) {
+                    printf("\n");
                     return ERR_READ_KERNEL_BLOCK;
                 }
                 backspace_num(kernel - kernel_file_start);
@@ -335,6 +338,7 @@ static int read_kernel_file(void)
         } else if (i == EXT2_BLOCK_L2_INDEX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
             if (ret != 0) {
+                printf("\n");
                 return ERR_READ_KERNEL_BLOCK;
             }
             for (j = 0; j < CONFIG_EXT2_BS/sizeof(uint32_t); j++) {
@@ -344,6 +348,7 @@ static int read_kernel_file(void)
                 }
                 ret = ext2_read_block(part, m, 1, bitmap); // reuse bitmap as temp variable
                 if (ret != 0) {
+                    printf("\n");
                     return ERR_READ_KERNEL_BLOCK;
                 }
                 for (k = 0; k < CONFIG_EXT2_BS/sizeof(uint32_t); k++) {
@@ -353,6 +358,7 @@ static int read_kernel_file(void)
                     }
                     ret = ext2_read_block(part, m, 1, kernel);
                     if (ret != 0) {
+                        printf("\n");
                         return ERR_READ_KERNEL_BLOCK;
                     }
                     backspace_num(kernel - kernel_file_start);
@@ -361,10 +367,10 @@ static int read_kernel_file(void)
                 }
             }
         } else if (i == EXT2_BLOCK_L3_INDEX) {
-            printf("too large kernel!");
+            printf("\ntoo large kernel!");
             error_handler(-EERR);
         } else {
-            printf("NEVER REACH!!!");
+            printf("\nNEVER REACH!!!");
             error_handler(-EERR);
         }
     }
