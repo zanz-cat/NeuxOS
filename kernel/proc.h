@@ -38,7 +38,7 @@ struct user_stackframe {
     uint32_t eflags;
     uint32_t esp3;
     uint32_t ss3;
-};
+} __attribute__((packed));
 
 /* kernel process stack frame */
 struct kern_stackframe {
@@ -57,7 +57,7 @@ struct kern_stackframe {
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
-};
+} __attribute__((packed));
 
 struct process {
     uint32_t pid;
@@ -71,7 +71,7 @@ struct process {
     struct descriptor ldt[LDT_SIZE];
     uint8_t  stack0[STACK0_SIZE];
     uint8_t  stack3[STACK3_SIZE];
-};
+} __attribute__((packed));
 
 #define proc_user_stack(p) ((uint32_t)(p) + sizeof(struct process))
 #define proc_kernel_stack(p) ((uint32_t)((p)->stack3))

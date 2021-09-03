@@ -1,8 +1,5 @@
 %include "const.S"
 
-extern enable_irq
-extern disable_irq
-
 %macro hwint 1
     ; save state
     SAVE_STATE
@@ -10,65 +7,29 @@ extern disable_irq
     mov ds, ax
     mov es, ax
 
-    ; save kernel stack info of interrupted routine
-    lea ebx, [hwint_stacks - HWINT_STACK_SIZE*%1]
+%if %1 = 0
     mov eax, [current]
-    cmp eax, 0 ; means a interrupt routine was interrupted
-    je  .non_proc
-    ; save kernel stack info to proc
-    mov [eax + OFFSET_PROC_ESP0], esp
-    mov [eax + OFFSET_PROC_SS0], ss
-    mov dword [current], 0
-    mov dword [int_process], eax ; for restore process
-    ; save dummy stack info to interrupt stack
-    sub ebx, 2
-    mov word [ebx], 0
-    sub ebx, 4
-    mov dword [ebx], 0
-    jmp .kern_stack_saved
-.non_proc:
-    ; save stack info to nested interrupt stack
-    sub ebx, 2
-    mov [ebx], ss
-    sub ebx, 4
-    mov [ebx], esp
-.kern_stack_saved:
-
-    ; switch to interrupt stack --->>> start to use interrupt stack
-    mov ax, SELECTOR_KERNEL_DS
-    mov ss, ax
-    mov esp, ebx
-
-    ; enable interrupt
-    sti
+    mov [eax+OFFSET_PROC_SS0], ss
+    mov [eax+OFFSET_PROC_ESP0], esp    
+%endif
 
     ; call handler
     call [irq_handler_table + 4*%1]
 
-    cmp dword [esp], 0
-    je  .restore_proc ; no interrupt routine is interrupted
-    ; restore outer kernel stack
-    mov ebx, esp
-    mov esp, [ebx]
-    add ebx, 4
-    mov ss, [ebx]
-    jmp .return_to ; return to interrupted interrupt routine
-.restore_proc:
-    %if %1 != 0
-        mov eax, [int_process]
-        mov [current], eax
-    %else
-        mov eax, [current]
-    %endif
-    ; load proc ldt
+%if %1 = 0
+    mov eax, [current]
+    ; load process LDT
     lldt word [eax+OFFSET_PROC_LDT_SEL]
-    ; setup tr.esp0
-    lea ebx, [eax + OFFSET_PROC_STACK0]
+    ; setup tss.stack0
+    lea ebx, [eax+OFFSET_PROC_STACK0]
     mov [tss+OFFSET_TSS_ESP0], ebx
-    ; restore proc kernel stack  <<<--- finish to use interrupt stack
+    mov ebx, [eax+OFFSET_PROC_SS0]
+    mov [tss+OFFSET_TSS_SS0], ebx
+    ; restore process kernel stack
     mov ss, [eax+OFFSET_PROC_SS0]
     mov esp, [eax+OFFSET_PROC_ESP0]
-.return_to:
+%endif
+
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
@@ -82,7 +43,6 @@ extern tss
 extern current
 extern irq_handler_table
 extern exception_handler
-extern proc_sched
 
 global divide_error
 global single_step_exception
@@ -112,11 +72,6 @@ global hwint08
 global hwint12
 global hwint13
 global hwint14
-
-[SECTION .bss]
-resb    HWINT_STACK_SIZE * 16
-hwint_stacks:
-int_process: resb 4
 
 [SECTION .text]
 divide_error:
@@ -215,4 +170,3 @@ hwint13:
 
 hwint14:
     hwint 14
-
