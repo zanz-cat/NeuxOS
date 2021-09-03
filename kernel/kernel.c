@@ -49,6 +49,7 @@ static void kernel_idle()
         tty_color(tty_current, TTY_OP_SET, &color);
         printk("kernel idle, jeffies: %u\n", kget_jeffies());
         tty_color(tty_current, TTY_OP_SET, &origin);
+        asm("hlt");
     }
 }
 

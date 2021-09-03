@@ -10,20 +10,16 @@ extern disable_irq
     mov ds, ax
     mov es, ax
 
-    ; close current interrupt
-    push %1
-    call disable_irq
-    add esp, 4
-
     ; save kernel stack info of interrupted routine
     lea ebx, [hwint_stacks - HWINT_STACK_SIZE*%1]
     mov eax, [current]
-    cmp eax, 0
+    cmp eax, 0 ; means a interrupt routine was interrupted
     je  .non_proc
     ; save kernel stack info to proc
     mov [eax + OFFSET_PROC_ESP0], esp
     mov [eax + OFFSET_PROC_SS0], ss
     mov dword [current], 0
+    mov dword [int_process], eax ; for restore process
     ; save dummy stack info to interrupt stack
     sub ebx, 2
     mov word [ebx], 0
@@ -38,7 +34,7 @@ extern disable_irq
     mov [ebx], esp
 .kern_stack_saved:
 
-    ; switch to interrupt stack
+    ; switch to interrupt stack --->>> start to use interrupt stack
     mov ax, SELECTOR_KERNEL_DS
     mov ss, ax
     mov esp, ebx
@@ -49,40 +45,30 @@ extern disable_irq
     ; call handler
     call [irq_handler_table + 4*%1]
 
-    ; disable interrupt
-    cli
-
     cmp dword [esp], 0
-    je  .sched_proc
+    je  .restore_proc ; no interrupt routine is interrupted
     ; restore outer kernel stack
     mov ebx, esp
     mov esp, [ebx]
     add ebx, 4
     mov ss, [ebx]
-    jmp .next_selected
-.sched_proc:
-    ; schedule process when interrupt occured, except clock interrupt
-    ; TODO: don't schedule process
-    ; TODO: schedule process via task gate
+    jmp .return_to ; return to interrupted interrupt routine
+.restore_proc:
     %if %1 != 0
-        call proc_sched
+        mov eax, [int_process]
+        mov [current], eax
+    %else
+        mov eax, [current]
     %endif
-    mov eax, [current]
     ; load proc ldt
     lldt word [eax+OFFSET_PROC_LDT_SEL]
     ; setup tr.esp0
     lea ebx, [eax + OFFSET_PROC_STACK0]
     mov [tss+OFFSET_TSS_ESP0], ebx
-    ; restore proc kernel stack
+    ; restore proc kernel stack  <<<--- finish to use interrupt stack
     mov ss, [eax+OFFSET_PROC_SS0]
     mov esp, [eax+OFFSET_PROC_ESP0]
-.next_selected:
-
-    ; open current interrupt
-    push %1
-    call enable_irq
-    add esp, 4
-
+.return_to:
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
@@ -130,11 +116,12 @@ global hwint14
 [SECTION .bss]
 resb    HWINT_STACK_SIZE * 16
 hwint_stacks:
+int_process: resb 4
 
 [SECTION .text]
 divide_error:
-    push 0ffffffffh
-    push 0
+    push 0ffffffffh ; err_code
+    push 0  ; vector_no
     jmp exception
 single_step_exception:
     push 0ffffffffh
