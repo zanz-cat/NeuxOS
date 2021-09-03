@@ -16,7 +16,8 @@ include .config
 endif
 endif
 
-.PHONY: all clean $(SUBDIRS) $(CLEAN_SUBDIRS) image mount umount run debug gdb bochsrc config clean-config
+.PHONY: all clean $(SUBDIRS) $(CLEAN_SUBDIRS) image mount umount run \
+		debug gdb bochsrc config clean-config install disk
 
 all: $(SUBDIRS)
 
@@ -29,29 +30,38 @@ clean: $(CLEAN_SUBDIRS)
 $(CLEAN_SUBDIRS):
 	$(MAKE) -C $(patsubst _clean_%,%,$@) clean
 
-image: $(SUBDIRS)
-	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
-	@$(SUDO) umount $(MOUNTPOINT) 2>/dev/null || exit 0
+disk:
 	rm -f $(CONFIG_BOOT).img
 ifeq ($(CONFIG_BOOT),fd)
 	bximage -q -mode=create -fd=1.44M fd.img
+else
+	bximage -q -mode=create -hd=$(CONFIG_HD_SZ) hd.img
+endif
+
+install: $(SUBDIRS) $(CONFIG_BOOT).img
+	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
+	@$(SUDO) umount $(MOUNTPOINT) 2>/dev/null || exit 0
+ifeq ($(CONFIG_BOOT),fd)
+	@echo "=> Write MBR"
 	dd if=boot/fd/boot.bin of=fd.img bs=512 count=1 conv=notrunc
 	$(SUDO) mount -o loop fd.img $(MOUNTPOINT)
+	@echo "=> Install NeuxOS"
 	$(SUDO) cp boot/fd/loader.bin $(MOUNTPOINT)/LOADER.BIN
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF
 	$(SUDO) umount $(MOUNTPOINT)
 else
-	@# harddisk
-	@bximage -q -mode=create -hd=$(CONFIG_HD_SZ) hd.img
 	@echo "=> Partition"; \
 	dev=`$(SUDO) losetup -f --show hd.img`; \
-	echo -e "n\np\n\n\n\na\nw\n" | $(SUDO) fdisk -H $(CONFIG_HD_HEADS) -S $(CONFIG_HD_SPT) $$dev; \
+	echo -e "d\nn\np\n\n\n\na\nw\n" | $(SUDO) fdisk -H $(CONFIG_HD_HEADS) -S $(CONFIG_HD_SPT) $$dev; \
 	echo "=> Write MBR"; \
 	$(SUDO) dd if=boot/hd/mbr.bin of=$$dev conv=notrunc; \
 	secsz=`$(SUDO) fdisk -l $$dev | grep 'Sector size' | awk '{print $$4}'`; \
-	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$3}'`; \
+	echo secsz=$$secsz; \
+	offset=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$(NF-5)}'`; \
+	echo offset=$$offset; \
 	offset=`expr $$offset \* $$secsz`; \
-	limit=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$5}'`; \
+	limit=`$(SUDO) fdisk -l $$dev | tail -1 | awk '{print $$(NF-3)}'`; \
+	echo limit=$$limit; \
 	limit=`expr $$limit \* $$secsz`; \
 	$(SUDO) losetup -d $$dev; \
 	echo "=> Format"; \
@@ -59,15 +69,17 @@ else
 	do \
 		dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit hd.img` && break || sleep 0.5; \
 	done; \
-	$(SUDO) mkfs.ext2 -b $(CONFIG_EXT2_BS) $$dev; \
+	$(SUDO) mkfs.ext2 -F -b $(CONFIG_EXT2_BS) $$dev; \
 	echo "=> Write OBR"; \
 	$(SUDO) dd if=boot/hd/boot.bin of=$$dev conv=notrunc; \
 	$(SUDO) mount $$dev $(MOUNTPOINT); \
+	echo "=> Install NeuxOS"; \
 	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/LOADER.BIN; \
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF; \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
 endif
+	@echo "Done!"
 
 mount: $(CONFIG_BOOT).img
 	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
@@ -78,9 +90,9 @@ ifeq ($(CONFIG_BOOT),fd)
 else
 	@# mount hd on Linux
 	@secsz=`$(SUDO) fdisk -l hd.img | grep 'Sector size' | awk '{print $$4}'`; \
-	offset=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$3}'`; \
+	offset=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$(NF-5)}'`; \
 	offset=`expr $$offset \* $$secsz`; \
-	limit=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$5}'`; \
+	limit=`$(SUDO) fdisk -l hd.img | tail -1 | awk '{print $$(NF-3)}'`; \
 	limit=`expr $$limit \* $$secsz`; \
 	dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit hd.img`; \
 	$(SUDO) mount $$dev $(MOUNTPOINT);
@@ -92,6 +104,8 @@ ifeq ($(CONFIG_BOOT),hd)
 	dev=`$(SUDO) losetup -l -O name -n -j hd.img`; \
 	$(SUDO) losetup -d $$dev;
 endif
+
+image: disk install
 
 run: $(CONFIG_BOOT).img bochsrc
 	bochs -q || true
