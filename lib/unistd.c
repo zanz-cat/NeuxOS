@@ -5,9 +5,9 @@
 
 #include <unistd.h>
 
-#define HZ              100
+#define HZ 60
 
-static uint32_t get_ticks()
+static uint32_t _get_ticks()
 {
     asm("movl %0, %%eax\n\t"
         "int %1"
@@ -15,9 +15,16 @@ static uint32_t get_ticks()
         :"%eax");
 }
 
+static uint32_t get_ticks()
+{
+#include <stdio.h>
+    uint32_t t = _get_ticks();
+    return t;
+}
+
 unsigned int sleep(unsigned int seconds)
 {
-    int t = get_ticks();
+    uint32_t t = get_ticks();
     while ((get_ticks() - t)/HZ < seconds);
     return 0;
 }

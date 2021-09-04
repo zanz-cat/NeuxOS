@@ -1,18 +1,25 @@
 #include <stdint.h>
 
 #include <lib/log.h>
-#include <drivers/i8259a/i8259a.h>
+#include <drivers/io.h>
+#include <drivers/i8259a.h>
 
 #include "sched.h"
-#include "kernel.h"
 #include "interrupt.h"
+
+/* 8253/8254 PIT */
+#define TIMER0 0x40
+#define TIMER_MODE 0x43
+#define RATE_GENERATOR 0x34
+#define TIMER_FREQ 1193182L
+#define HZ 100
 
 static uint32_t jeffies = 0;
 
 static void clock_handler()
 {
     jeffies++;
-    proc_sched();
+    task_sched();
     current->ticks++;
 }
 

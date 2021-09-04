@@ -6,8 +6,8 @@
 #include <elf.h>
 
 #include <drivers/io.h>
-#include <drivers/harddisk/harddisk.h>
-#include <drivers/monitor/monitor.h>
+#include <drivers/harddisk.h>
+#include <drivers/monitor.h>
 
 #include <lib/utils.h>
 #include <fs/ext2/ext2.h>

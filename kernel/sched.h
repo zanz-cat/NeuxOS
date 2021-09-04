@@ -1,14 +1,14 @@
-#ifndef __SCHED_H__
-#define __SCHED_H__
+#ifndef __KERNEL_SCHED_H__
+#define __KERNEL_SCHED_H__
 
-#include "protect.h"
-#include "proc.h"
+#include "x86.h"
+#include "task.h"
 
-extern struct process *current;
-struct process *create_proc(void *text, int tty);
-struct process *create_kproc(void *text, int tty);
-void terminate_proc(struct process *proc);
+extern struct task *current;
+struct task *create_user_task(void *text, int tty);
+struct task *create_kernel_task(void *text, int tty);
+void term_task(struct task *task);
+void task_sched();
 void yield();
-void proc_sched();
 
 #endif

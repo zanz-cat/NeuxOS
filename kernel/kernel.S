@@ -27,17 +27,6 @@ csinit:
     ; init kernel
     call kernel_init
 
-    ; enable interrupt
-    ; sti   ; not neccessary because iret will enable interrupt
-
-    ; load and jmp to idle proc
+    ; load and jmp to idle task
     mov eax, [current]
-    lldt word [eax+OFFSET_PROC_LDT_SEL]
-    mov esp, [eax+OFFSET_PROC_ESP0]
-    mov ss, [eax+OFFSET_PROC_SS0]
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    iret
+    jmp far [eax+OFFSET_TASK_TSS_SEL-4]

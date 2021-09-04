@@ -3,43 +3,28 @@
 %macro hwint 1
     ; save state
     SAVE_STATE
-    mov ax, SELECTOR_KERNEL_DS
-    mov ds, ax
-    mov es, ax
-
-%if %1 = 0
-    mov eax, [current]
-    mov [eax+OFFSET_PROC_SS0], ss
-    mov [eax+OFFSET_PROC_ESP0], esp    
-%endif
 
     ; call handler
     call [irq_handler_table + 4*%1]
-
-%if %1 = 0
-    mov eax, [current]
-    ; load process LDT
-    lldt word [eax+OFFSET_PROC_LDT_SEL]
-    ; setup tss.stack0
-    lea ebx, [eax+OFFSET_PROC_STACK0]
-    mov [tss+OFFSET_TSS_ESP0], ebx
-    mov ebx, [eax+OFFSET_PROC_SS0]
-    mov [tss+OFFSET_TSS_SS0], ebx
-    ; restore process kernel stack
-    mov ss, [eax+OFFSET_PROC_SS0]
-    mov esp, [eax+OFFSET_PROC_ESP0]
-%endif
 
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
 
+%if %1 = 0
+    mov eax, [current]
+    str bx
+    cmp bx, [eax+OFFSET_TASK_TSS_SEL]
+    je .continue
+    jmp far [eax+OFFSET_TASK_TSS_SEL-4]
+%endif
+
+.continue:
     ; restore state
     RESTORE_STATE
     iret
 %endmacro
 
-extern tss
 extern current
 extern irq_handler_table
 extern exception_handler

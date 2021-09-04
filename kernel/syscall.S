@@ -8,17 +8,16 @@ global my_syscall
 [SECTION .text]
 my_syscall:
     SAVE_STATE
-
-    ; handler arguments
+    ; handler's arguments
     push dword [current]
     push ecx
     push ebx
 
+    ; TODO arpl
     call [syscall_handler_table + 4*eax] ; sizeof(void *) == 4
     add esp, 4*3 ; free arguments
 
-    mov esi, [current]
-    mov [esi+OFFSET_PROC_STACK0-6*4], eax ; change eax(from pusha) for return value
+    mov [esp+4*11], eax ; return value
 
     RESTORE_STATE
     iret

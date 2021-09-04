@@ -1,6 +1,7 @@
 #include <kernel/interrupt.h>
-#include <kernel/protect.h>
+#include <kernel/x86.h>
 
+#include "drivers/io.h"
 #include "i8259a.h"
 
 void init_8259a()

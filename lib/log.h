@@ -1,5 +1,5 @@
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __LIB_LOG_H__
+#define __LIB_LOG_H__
 
 enum log_level {
     DEBUG,

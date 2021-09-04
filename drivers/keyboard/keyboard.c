@@ -1,6 +1,6 @@
 #include <lib/log.h>
 #include <drivers/io.h>
-#include <drivers/i8259a/i8259a.h>
+#include <drivers/i8259a.h>
 
 #include <kernel/sched.h>
 #include <kernel/interrupt.h>
@@ -262,7 +262,7 @@ void keyboard_read(int tty)
             key |= alt_l ? FLAG_ALT_L : 0;
             key |= alt_r ? FLAG_ALT_R : 0;
 
-            tty_in_process(tty, key);
+            tty_in_task(tty, key);
         }
     }
 }

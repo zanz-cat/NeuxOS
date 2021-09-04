@@ -1,10 +1,10 @@
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                            protect.h
+                            x86.h
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#ifndef	__PROTECT_H__
-#define	__PROTECT_H__
+#ifndef	__KERNEL_X86_H__
+#define	__KERNEL_X86_H__
 
 #include <stdint.h>
 
@@ -104,7 +104,4 @@ struct tss {
 #define	DA_386IGate		0x8E	/* 386 中断门类型值			*/
 #define	DA_386TGate		0x8F	/* 386 陷阱门类型值			*/
 
-void out_byte(uint16_t port, uint8_t value);
-uint8_t in_byte(uint16_t port);
-
-#endif /* __PROTECT_H__ */
+#endif /* __KERNEL_X86_H__ */

@@ -3,10 +3,10 @@
 
 #include <lib/log.h>
 
-#include "protect.h"
+#include "x86.h"
 
 /* GDT 和 IDT 中描述符的个数 */
-#define	GDT_SIZE	128
+#define	GDT_SIZE	8192
 
 struct gdtr {
     uint16_t limit;
@@ -99,8 +99,9 @@ int uninstall_tss(uint16_t sel)
 int install_ldt(void *ldt, uint16_t size)
 {
     int index = alloc();
-    if (index > GDT_SIZE - 1)
+    if (index > GDT_SIZE - 1) {
         return -1;
+    }
 
     struct descriptor *pdesc = &gdt[index];
     pdesc->base_low = (uint32_t)ldt & 0xffff;

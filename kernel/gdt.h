@@ -1,8 +1,8 @@
-#ifndef __GDT_H__
-#define __GDT_H__
+#ifndef __KERNEL_GDT_H__
+#define __KERNEL_GDT_H__
 
 #include <stdint.h>
-#include "protect.h"
+#include "x86.h"
 
 void gdt_init();
 int install_tss(struct tss *ptss);

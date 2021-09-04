@@ -4,8 +4,8 @@
 #include <lib/log.h>
 
 #include <drivers/io.h>
-#include <drivers/monitor/monitor.h>
-#include <drivers/keyboard/keyboard.h>
+#include <drivers/monitor.h>
+#include <drivers/keyboard.h>
 
 #include "printk.h"
 #include "tty.h"
@@ -94,7 +94,7 @@ static void switch_tty(int fd)
     tty_current = fd;
 }
 
-void tty_in_process(int fd, uint32_t key)
+void tty_in_task(int fd, uint32_t key)
 {
     if (fd < 0 || fd >= NR_TTYS) {
         log_error("invalid tty(%d)\n", fd);

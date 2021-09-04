@@ -1,8 +1,7 @@
 #include <include/syscall.h>
 
-#include "kernel.h"
 #include "clock.h"
-#include "proc.h"
+#include "task.h"
 #include "tty.h"
 
 typedef void* syscall_handler;
@@ -12,11 +11,11 @@ static int sys_get_ticks()
     return kget_jeffies();
 }
 
-static int sys_write(char *buf, int len, struct process *proc)
+static int sys_write(char *buf, int len, struct task *task)
 {
     int i;
     for (i = 0; i < len; i++) {
-        if (tty_putchar(proc->tty, buf[i]) < 0) {
+        if (tty_putchar(task->tty, buf[i]) < 0) {
             break;
         }
     }
