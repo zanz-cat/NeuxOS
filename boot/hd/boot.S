@@ -140,6 +140,12 @@ ScanRootDir:
     cld
     mov di, 0
 .next:
+    mov ax, bx
+    add ax, di
+    mov cx, bx
+    add cx, CONFIG_EXT2_BS
+    cmp ax, cx
+    jnb NotFound 
     cmp dword [bx+di+EXT2_DIR_REC_OF_INO], 0
     je .next_post ; 0 indicate the entry is not used
     cmp word [bx+di+EXT2_DIR_REC_OF_LEN], 0
@@ -356,17 +362,17 @@ DispStr:
 BootMsg db 'booting loader', 0dh, 0ah
 BootMsgLen equ $ - BootMsg
 
-LoaderNotFoundMsg db 'Loader not found!'
+LoaderNotFoundMsg db 'loader not found!'
 LoaderNotFoundMsgLen equ $ - LoaderNotFoundMsg
 
 PartitionTooLarge db 'Error! partition too large'
 PartitionTooLargeLen equ $ - PartitionTooLarge
 
-LoaderTooLargeStr db 'Loader too large!'
+LoaderTooLargeStr db 'loader too large!'
 LoaderTooLargeStrLen equ $ - LoaderTooLargeStr
 
-ReadSectorErr db 'Read sector error!'
+ReadSectorErr db 'read sector error!'
 ReadSectorErrLen equ $ - ReadSectorErr
 
-LoaderName            db    'loader.bin'
-LoaderNameLen         equ   $ - LoaderName
+LoaderName db 'loader.bin'
+LoaderNameLen equ $ - LoaderName

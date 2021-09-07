@@ -582,10 +582,10 @@ LABEL_PM_START:
     mov eax, cr0
     or  eax, 80000000h
     mov cr0, eax
-    callPrintStrln OKMsg    
+    callPrintStrln OKMsg
 
     ; relocate kernel
-    call RelocateKernel    
+    call RelocateKernel
 
     ; jmp to kernel
     callPrintStrln StartKernelMsg
