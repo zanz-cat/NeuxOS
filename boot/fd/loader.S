@@ -61,7 +61,7 @@ LoadKernelMsgLen            equ $ - LoadKernelMsg
 OKMsg                       db    'ok'
 OKMsgLen                    equ   $ - OKMsg
 
-KernelName                  db 'KERNEL  ELF'
+KernelName                  db 'kernel  elf'
 KernelNameLen               equ $ - KernelName
 
 NotFoundMsg                 db ' not found!'

@@ -19,7 +19,7 @@
 
 #define WAIT_HD_TIMES 10000
 #define ARDS_ADDR ((void *)0x60000)
-#define KERNEL_FILE_NAME "KERNEL.ELF"
+#define KERNEL_FILE_NAME "kernel.elf"
 
 #define ERR_READ_MBR 0x100
 #define ERR_NO_BOOTABLE_PART 0x101

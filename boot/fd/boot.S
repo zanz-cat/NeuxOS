@@ -31,7 +31,7 @@ TOP_OF_STACK            equ     0ffffh
 
 ; 1. read fat table and root directory information to 
 ;    [FAT_BASE:FAT_OFFSET] from floppy.
-; 2. search and read LOADER.BIN to [LOADER_BASE:LOADER_OFFSET] from floppy.
+; 2. search and read loader.bin to [LOADER_BASE:LOADER_OFFSET] from floppy.
 ; 3. jump to the LOADER
 LABEL_START:
     mov ax, cs
@@ -119,7 +119,7 @@ ReadSector:
 .error:
     hlt
 
-; function: search file `LOADER.BIN`, 
+; function: search file `loader.bin`, 
 ; and copy it from floppy to memory.
 SearchAndReadLoader:
     cld    
@@ -141,7 +141,7 @@ SearchAndReadLoader:
     pop di
     pop si
     pop cx
-    jz .a2     ; LOADER.BIN FOUND
+    jz .a2     ; loader.bin FOUND
     add di, CONST_FAT12_RootEntSize
     loop .a1
 
@@ -267,7 +267,7 @@ LoaderNotFoundMsgLen  equ   $ - LoaderNotFoundMsg
 BadSectorMsg          db    'Bad sector'
 BadSectorMsgLen       equ   $ - BadSectorMsg
 
-LoaderName            db    'LOADER  BIN'
+LoaderName            db    'loader  bin'
 LoaderNameLen         equ   $ - LoaderName
 
 OKMsg                 db    'ok'

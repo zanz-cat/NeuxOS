@@ -63,8 +63,8 @@ ifeq ($(CONFIG_BOOT),fd)
 	dd if=boot/fd/boot.bin of=fd.img bs=512 count=1 conv=notrunc
 	$(SUDO) mount -o loop fd.img $(MOUNTPOINT)
 	@echo "=> Install NeuxOS"
-	$(SUDO) cp boot/fd/loader.bin $(MOUNTPOINT)/LOADER.BIN
-	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF
+	$(SUDO) cp boot/fd/loader.bin $(MOUNTPOINT)/loader.bin
+	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/kernel.elf
 	$(SUDO) umount $(MOUNTPOINT)
 else
 	@dev=`$(SUDO) losetup -f --show hd.img`; \
@@ -87,8 +87,8 @@ else
 	$(SUDO) dd if=boot/hd/boot.bin of=$$dev conv=notrunc; \
 	$(SUDO) mount $$dev $(MOUNTPOINT); \
 	echo "=> Install NeuxOS"; \
-	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/LOADER.BIN; \
-	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/KERNEL.ELF; \
+	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/loader.bin; \
+	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/kernel.elf; \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
 endif

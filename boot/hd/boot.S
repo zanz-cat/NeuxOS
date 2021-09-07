@@ -158,7 +158,7 @@ ScanRootDir:
     repe cmpsb
     pop di
     pop si
-    jz ReadLoader ; di = LOADER.BIN offset in dir
+    jz ReadLoader ; di = loader.bin offset in dir
 .next_post:
     mov ax, di
     add ax, [bx+di+EXT2_DIR_REC_OF_LEN]
@@ -166,7 +166,7 @@ ScanRootDir:
     jmp .next
 
 ReadLoader:
-    ; [bx+di] store LOADER.BIN dir entry
+    ; [bx+di] store loader.bin dir entry
     mov eax, [bx+di]
     dec eax ; inode no. start from 1, 0 indicate the entry not used.
     toDAX
@@ -181,7 +181,7 @@ ReadLoader:
     call GetBlockAbsLBA
     mov cl, EXT2_SECTS_PER_BLK
     call ReadSector
-    ; bx+di -> LOADER.BIN's inode
+    ; bx+di -> loader.bin's inode
     mov eax, [bx+di+EXT2_I_OF_SIZE]
     toDAX
     mov cx, CONFIG_EXT2_BS
@@ -204,7 +204,7 @@ ReadLoaderData:
     push word 0 ; [bp-8] loop count
     push bx ; [bp-10] memory address following BG descriptors
 
-    lea bx, [bx+di] ; bx -> LOADER.BIN's inode
+    lea bx, [bx+di] ; bx -> loader.bin's inode
     mov ax, LOADER_BASE
     mov es, ax
     mov cx, 12 ; direct pointer
@@ -220,7 +220,7 @@ ReadLoaderData:
     push bx
     mov bx, ds
     mov es, bx
-    mov bx, [bp-10] ; will override LOADER.bin's inode
+    mov bx, [bp-10] ; will override loader.bin's inode
     mov cl, EXT2_SECTS_PER_BLK
     call ReadSector
     pop bx
@@ -368,5 +368,5 @@ LoaderTooLargeStrLen equ $ - LoaderTooLargeStr
 ReadSectorErr db 'Read sector error!'
 ReadSectorErrLen equ $ - ReadSectorErr
 
-LoaderName            db    'LOADER.BIN'
+LoaderName            db    'loader.bin'
 LoaderNameLen         equ   $ - LoaderName
