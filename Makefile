@@ -89,6 +89,7 @@ else
 	echo "=> Install NeuxOS"; \
 	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/loader.bin; \
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/kernel.elf; \
+	$(SUDO) ls -lh $(MOUNTPOINT); \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
 endif
@@ -148,11 +149,18 @@ config:
 		echo CONFIG_HD_HEADS=$${HD_HEADS:-16} >> .config; \
 		echo CONFIG_HD_SPT=$${HD_SPT:-63} >> .config; \
 		echo CONFIG_EXT2_BS=$${EXT2_BS:-1024} >> .config; \
-	fi
+	else \
+		echo ; \
+	fi; \
+	echo CONFIG_MEM_PAGE_SZ=$${MEM_PAGE_SZ:-4096} >> .config; \
+	echo CONFIG_SHARE_DATA_ADDR=$${SHARE_DATA_ADDR:-0x60000} >> .config; \
+	echo CONFIG_MAX_TASK_COUNT=$${MAX_TASK_COUNT:-10} >> .config
 	@cat .config
 	@# non-digital wrapped by ""
-	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$/) print "#define "$$1" "$$2; else print "#define "$$1" \""$$2"\""}' > config.h
-	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$/) print $$1" equ "$$2; else print $$1" equ \""$$2"\""}' > config.S
+	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$|^0x[0-9a-fA-F]+$$/) \
+		print "#define "$$1" "$$2; else print "#define "$$1" \""$$2"\""}' > config.h
+	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$|^0x[0-9a-fA-F]+$$/) \
+		print $$1" equ "$$2; else print $$1" equ \""$$2"\""}' > config.S
 
 clean-config:
 	rm -f .config config.h config.S

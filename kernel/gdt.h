@@ -2,9 +2,10 @@
 #define __KERNEL_GDT_H__
 
 #include <stdint.h>
-#include "x86.h"
 
-void gdt_init();
+#include <arch/x86.h>
+
+void gdt_setup();
 int install_tss(struct tss *ptss);
 int uninstall_tss(uint16_t sel);
 int install_ldt(void *ldt, uint16_t size);

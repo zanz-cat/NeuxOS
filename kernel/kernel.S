@@ -5,8 +5,8 @@ global _start
 extern out_byte
 extern in_byte
 extern current
-extern gdt_init
-extern kernel_init
+extern gdt_setup
+extern kernel_basic_setup
 
 [SECTION .bss]
 resb    10240
@@ -18,15 +18,14 @@ _start:
     mov esp, temp_stacktop
 
     ; move GDT to kernel
-    call gdt_init
+    call gdt_setup
 
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit
-
 csinit:
-    ; init kernel
-    call kernel_init
+    ; setup kernel
+    call kernel_basic_setup
 
-    ; load and jmp to idle task
+    ; load and jmp to kernel_main task
     mov eax, [current]
-    jmp far [eax+OFFSET_TASK_TSS_SEL-4]
+    jmp far [eax]

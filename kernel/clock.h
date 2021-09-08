@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void clock_init();
+void clock_setup();
 uint32_t kget_jeffies();
 
 #endif

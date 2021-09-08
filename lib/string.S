@@ -5,7 +5,7 @@ global memmove
 global memset
 
 [SECTION .text]
-; void* memcpy(void *dst, void *src, uint32_t size);
+; void* memcpy(void *dest, void *src, uint32_t size);
 memcpy:
     push ebp
     mov ebp, esp
@@ -26,7 +26,7 @@ memcpy:
     pop ebp
     ret
 
-; void* memmove(void *dst, void *src, uint32_t size);
+; void* memmove(void *dest, void *src, uint32_t size);
 memmove:
     push ebp
     mov ebp, esp
@@ -38,7 +38,7 @@ memmove:
     mov edi, arg(0)   ; destination
     mov esi, arg(1)   ; source
     mov ecx, arg(2)   ; size
-    cmp esi, edi ; src < dst && src + n > dst => overlap
+    cmp esi, edi ; src < dest && src + n > dest => overlap
     jnb .a1
     add esi, ecx
     cmp edi, esi

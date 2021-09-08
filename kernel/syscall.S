@@ -3,10 +3,10 @@
 extern current
 extern syscall_handler_table
 
-global my_syscall
+global irq_ex_syscall
 
 [SECTION .text]
-my_syscall:
+irq_ex_syscall:
     SAVE_STATE
     ; handler's arguments
     push dword [current]

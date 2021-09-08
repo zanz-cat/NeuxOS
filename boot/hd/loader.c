@@ -5,20 +5,17 @@
 #include <string.h>
 #include <elf.h>
 
+#include <misc/misc.h>
 #include <drivers/io.h>
 #include <drivers/harddisk.h>
 #include <drivers/monitor.h>
 
-#include <lib/utils.h>
+#include <misc/misc.h>
 #include <fs/ext2/ext2.h>
 #include <errcode.h>
 #include <config.h>
 
-#define MEMORY_AVL 1U
-#define MEMORY_RES 2U
-
 #define WAIT_HD_TIMES 10000
-#define ARDS_ADDR ((void *)0x60000)
 #define KERNEL_FILE_NAME "kernel.elf"
 
 #define ERR_READ_MBR 0x100
@@ -34,22 +31,11 @@
 #define ERR_READ_KERNEL_BLOCK 0x110
 #define ERR_NON_ELF 0x111
 
-struct ARDS {
-    uint16_t count;
-    struct {
-        uint32_t base_addr_low;
-        uint32_t base_addr_high;
-        uint32_t len_low;
-        uint32_t len_high;
-        uint32_t type;
-    } data[0];
-} __attribute__((packed));
-
-static void main();
+static void load();
 
 void _start()
 {
-    main();
+    load();
 }
 
 static void *kernel_file_start;
@@ -79,7 +65,7 @@ ssize_t write(int fd, const char *buf, size_t nbytes)
     return 0;
 }
 
-static void error_handler(int errcode)
+static void loader_panic(int errcode)
 {
     asm("hlt");
 }
@@ -87,9 +73,9 @@ static void error_handler(int errcode)
 static const char *memory_type(uint32_t i)
 {
     switch (i) {
-        case MEMORY_AVL:
+        case MEM_TYPE_AVL:
             return "AVL";
-        case MEMORY_RES:
+        case MEM_TYPE_RES:
             return "RES";
         default:
             return "*";
@@ -99,17 +85,17 @@ static const char *memory_type(uint32_t i)
 static void print_memory_layout(void)
 {
     uint16_t i;
-    struct ARDS *ards = ARDS_ADDR;
+
     printf("\nMemory Layout:\n"
            "  %-2s %-18s %-18s %-4s\n", 
            "no", "addr", "length", "type");
-    for (i = 0; i < ards->count; i++) {
+    for (i = 0; i < SHARE_DATA()->ards_cnt; i++) {
         printf("  %-2d 0x%08x%08x 0x%08x%08x %s\n", i + 1,
-               ards->data[i].base_addr_high,
-               ards->data[i].base_addr_low,
-               ards->data[i].len_high,
-               ards->data[i].len_low,
-               memory_type(ards->data[i].type));
+               SHARE_DATA()->ards[i].base_addr_high,
+               SHARE_DATA()->ards[i].base_addr_low,
+               SHARE_DATA()->ards[i].len_high,
+               SHARE_DATA()->ards[i].len_low,
+               memory_type(SHARE_DATA()->ards[i].type));
     }
     printf("\n");
 }
@@ -119,7 +105,7 @@ void ata_exec_cmd(uint16_t port, uint8_t data)
     out_byte(port, data);
     if (in_byte(ATA_PORT_CMD_STATUS) & ATA_STATUS_ERR) {
         printf("exec harddisk cmd error: %d\n", in_byte(ATA_PORT_ERR_NO));
-        error_handler(-EERR);
+        loader_panic(-EERR);
     }
 }
 
@@ -133,7 +119,7 @@ static int read_sector(uint32_t sector, uint8_t count, void *buf)
     ata_exec_cmd(ATA_PORT_SECTOR, sector & 0xff);
     ata_exec_cmd(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
     ata_exec_cmd(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
-    ata_exec_cmd(ATA_PORT_DISK_HEAD, (sector >> 24) & 0x0f | 0xe0); // 0xe0 means LBA mode and master disk
+    ata_exec_cmd(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
     // send request
     ata_exec_cmd(ATA_PORT_CMD_STATUS, ATA_CMD_READ);
     // wait harddisk ready
@@ -173,18 +159,18 @@ static void *kernel_file_addr(size_t filesz)
 {
     int i;
     void *addr;
-    struct ARDS *ards = ARDS_ADDR;
-    for (i = ards->count - 1; i >= 0; i--) {
-        if (ards->data[i].type == MEMORY_AVL && ards->data[i].len_low >= filesz) {
-            addr = (void *)ards->data[i].base_addr_low;
-            addr += ards->data[i].len_low;
+
+    for (i = SHARE_DATA()->ards_cnt - 1; i >= 0; i--) {
+        if (SHARE_DATA()->ards[i].type == MEM_TYPE_AVL && SHARE_DATA()->ards[i].len_low >= filesz) {
+            addr = (void *)SHARE_DATA()->ards[i].base_addr_low;
+            addr += SHARE_DATA()->ards[i].len_low;
             addr -= filesz;
             printf("kernel file address 0x%x\n", addr);
             return addr;
         }
     }
     printf("no space to hold kernel file!\n");
-    error_handler(-EERR);
+    loader_panic(-EERR);
     return NULL;
 }
 
@@ -205,7 +191,6 @@ static int read_kernel_file(void)
     struct ext2_dir_entry kernel_ent;
     struct ext2_dir_entry *dir_ent;
     struct ext2_inode kernel_ino;
-    struct ext2_inode *inode;
     void *kernel;
 
     ret = read_sector(0, 1, &mbr);
@@ -368,10 +353,10 @@ static int read_kernel_file(void)
             }
         } else if (i == EXT2_BLOCK_L3_INDEX) {
             printf("\ntoo large kernel!");
-            error_handler(-EERR);
+            loader_panic(-EERR);
         } else {
             printf("\nNEVER REACH!!!");
-            error_handler(-EERR);
+            loader_panic(-EERR);
         }
     }
     printf("\n");
@@ -386,8 +371,10 @@ static int load_kernel_elf(void **entry)
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
 
+    SHARE_DATA()->kernel_main = 0xffffffff;
+    SHARE_DATA()->kernel_end = 0;
     eh = (Elf32_Ehdr *)kernel_file_start;
-    if (strncmp(eh->e_ident, ELFMAG, SELFMAG) != 0) {
+    if (strncmp((char *)eh->e_ident, ELFMAG, SELFMAG) != 0) {
         return ERR_NON_ELF;
     }
     *entry = (void *)eh->e_entry;
@@ -398,6 +385,13 @@ static int load_kernel_elf(void **entry)
         if (ph->p_type == PT_LOAD && ph->p_filesz > 0) {
             memcpy((void *)ph->p_paddr, kernel_file_start + ph->p_offset, ph->p_filesz);
             count++;
+
+            if (SHARE_DATA()->kernel_main > ph->p_paddr) {
+                SHARE_DATA()->kernel_main = ph->p_paddr;
+            }
+            if (ph->p_paddr + ph->p_memsz > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = ph->p_paddr + ph->p_memsz;
+            }
         }
     }
     printf("%d program(s) loaded\n", count);
@@ -408,12 +402,22 @@ static int load_kernel_elf(void **entry)
         if (sh->sh_type == SHT_NOBITS) {
             memset((void *)sh->sh_addr, 0, sh->sh_size);
             count++;
+
+            if (SHARE_DATA()->kernel_main > sh->sh_addr) {
+                SHARE_DATA()->kernel_main = sh->sh_addr;
+            }
+            if (sh->sh_addr + sh->sh_size > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = sh->sh_addr + sh->sh_size;
+            }
         }
     }
-    printf("%d NOBITS(s) initialized\n", count);
+    printf("%d BSS(s) initialized\n", count); // Block Started by Symbol
 
     // clear kernel file
     memset(kernel_file_start, 0, kernel_size);
+
+    printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_main, SHARE_DATA()->kernel_end);
+
     return 0;
 }
 
@@ -427,24 +431,23 @@ static void *load_kernel(void)
     ret = read_kernel_file();
     if (ret != 0) {
         printf("read kernel file error: 0x%x\n", ret);
-        error_handler(ret);
+        loader_panic(ret);
     }
 
     ret = load_kernel_elf(&entry);
     if (ret != 0) {
         printf("load kernel ELF error: 0x%x\n", ret);
-        error_handler(ret);
+        loader_panic(ret);
     }
-    printf("kernel address 0x%x\n", entry);
     return entry;
 }
 
-static void main()
+static void load()
 {
     void *entry;
 
+    printf("loading kernel...\n");
     print_memory_layout();
     entry = load_kernel();
-    printf("booting kernel...\n");
     asm("jmp *%0"::"p"(entry):);
 }

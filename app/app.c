@@ -20,7 +20,7 @@ void app2()
 {
     static int count = 0;
     while (1) {
-        sleep(4);
+        sleep(30);
         printf("app2: %d\n", count++);
     }
 }

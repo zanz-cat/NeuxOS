@@ -2,10 +2,10 @@
 # Configuration file for Bochs
 ###############################################################
 
-# clock: sync=realtime
+# clock: sync=realtime, rtc_sync=1
 
 # how much memory the emulated machine will have
-megs: 32
+megs: 128
 
 # filename of ROM images
 romimage: file=bios/BIOS-bochs-latest

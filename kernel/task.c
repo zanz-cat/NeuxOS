@@ -1,13 +1,14 @@
 #include <string.h>
 
 #include <lib/log.h>
+#include <arch/x86.h>
 
-#include "x86.h"
 #include "gdt.h"
+#include "mm.h"
 
 #include "task.h"
 
-#define INITIAL_EFLAGS (0x200 | 0x3000) /* IF | IOPL=3 */
+#define INITIAL_EFLAGS (EFLAGS_IF | 0x3000) /* IF | IOPL=3 */
 
 #define SELECTOR_USER_TASK_CS 0x7
 #define SELECTOR_USER_TASK_DS 0xf
@@ -18,10 +19,11 @@
 #define SELECTOR_KERN_TASK_DS 0xc
 #define SELECTOR_KERN_TASK_SS SELECTOR_KERN_TASK_DS
 
-int init_kernel_task(struct task *task, void *text)
+static int init_kernel_task(struct task *task, void *text)
 {
-    int sel;
+    int ret;
     uint16_t index;
+    void *ptr;
 
     /* init ldt */
     index = SELECTOR_KERN_TASK_CS >> 3;
@@ -40,14 +42,11 @@ int init_kernel_task(struct task *task, void *text)
     task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     task->ldt[index].attr1 = DA_DRW | DA_DPL0;
 
-    /* install ldt */
-    sel = install_ldt(task->ldt, LDT_SIZE);
-    if (sel < 0) {
-        log_error("install LDT error, pid: %d, errno: %d\n", task->pid, sel);
+    ptr = mm_malloc(STACK0_SIZE, sizeof(uint32_t));
+    if (ptr == NULL) {
+        log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
     }
-    task->ldt_sel = sel;
-
     /* init TSS */
     task->tss.prev = 0;
     task->tss.esp0 = 0;
@@ -56,15 +55,15 @@ int init_kernel_task(struct task *task, void *text)
     task->tss.ss1 = 0;
     task->tss.esp2 = 0;
     task->tss.ss2 = 0;
-    task->tss.cr3 = 0;
+    task->tss.cr3 = (uint32_t)mm_kernel_page_table();
     task->tss.eip = (uint32_t)text;
     task->tss.eflags = INITIAL_EFLAGS;
     task->tss.eax = 0;
     task->tss.ecx = 0;
     task->tss.edx = 0;
     task->tss.ebx = 0;
-    task->tss.esp = task_kernel_stack(task);
-    task->tss.ebp = task_kernel_stack(task);
+    task->tss.esp = (uint32_t)PTR_ADD(ptr, STACK0_SIZE);
+    task->tss.ebp = (uint32_t)PTR_ADD(ptr, STACK0_SIZE);
     task->tss.esi = 0;
     task->tss.edi = 0;
     task->tss.es = SELECTOR_KERN_TASK_DS;
@@ -73,23 +72,34 @@ int init_kernel_task(struct task *task, void *text)
     task->tss.ds = SELECTOR_KERN_TASK_DS;
     task->tss.fs = 0;
     task->tss.gs = SELECTOR_VIDEO;
-    task->tss.ldt = (uint16_t)sel;
     task->tss.attrs = 0;
     task->tss.io = 0;
 
-    sel = install_tss(&task->tss);
-    if (sel < 0) {
-        log_error("install TSS error, pid: %d, errno: %d\n", task->pid, sel);
+    /* install ldt */
+    ret = install_ldt(task->ldt, LDT_SIZE);
+    if (ret < 0) {
+        log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
+        mm_free(ptr);
         return -1;
     }
-    task->tss_sel = (uint16_t)sel;
+    task->tss.ldt = (uint16_t)ret;
+
+    ret = install_tss(&task->tss);
+    if (ret < 0) {
+        log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
+        uninstall_ldt(task->tss.ldt);
+        mm_free(ptr);
+        return -1;
+    }
+    task->tss_sel = (uint16_t)ret;
     return 0;
 }
 
-int init_user_task(struct task *task, void *text)
+static int init_user_task(struct task *task, void *text)
 {
+    int ret;
     uint16_t index;
-    int sel;
+    void *ptr, *ptr3;
 
     /* init ldt */
     index = SELECTOR_USER_TASK_CS >> 3;
@@ -116,31 +126,34 @@ int init_user_task(struct task *task, void *text)
     task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     task->ldt[index].attr1 = DA_DRW | DA_DPL0;
 
-    /* install ldt */
-    sel = install_ldt(task->ldt, LDT_SIZE);
-    if (sel < 0) {
-        log_error("install LDT error, pid: %d, errno: %d\n", task->pid, sel);
+    ptr = mm_malloc(STACK0_SIZE, sizeof(uint32_t));
+    if (ptr == NULL) {
+        log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
     }
-    task->ldt_sel = sel;
-
+    ptr3 = mm_malloc(STACK3_SIZE, sizeof(uint32_t));
+    if (ptr3 == NULL) {
+        log_error("create stack3 error, pid: %d\n", task->pid);
+        mm_free(ptr);
+        return -1;
+    }
     /* init TSS */
     task->tss.prev = 0;
-    task->tss.esp0 = task_kernel_stack(task);
+    task->tss.esp0 = (uint32_t)PTR_ADD(ptr, STACK0_SIZE);
     task->tss.ss0 = SELECTOR_USER_TASK_SS0;
     task->tss.esp1 = 0;
     task->tss.ss1 = 0;
     task->tss.esp2 = 0;
     task->tss.ss2 = 0;
-    task->tss.cr3 = 0;
+    task->tss.cr3 = (uint32_t)mm_alloc_user_page_table();
     task->tss.eip = (uint32_t)text;
     task->tss.eflags = INITIAL_EFLAGS;
     task->tss.eax = 0;
     task->tss.ecx = 0;
     task->tss.edx = 0;
     task->tss.ebx = 0;
-    task->tss.esp = task_user_stack(task);
-    task->tss.ebp = task_user_stack(task);
+    task->tss.esp = (uint32_t)PTR_ADD(ptr3, STACK3_SIZE);
+    task->tss.ebp = (uint32_t)PTR_ADD(ptr3, STACK3_SIZE);
     task->tss.esi = 0;
     task->tss.edi = 0;
     task->tss.es = SELECTOR_USER_TASK_DS;
@@ -149,16 +162,57 @@ int init_user_task(struct task *task, void *text)
     task->tss.ds = SELECTOR_USER_TASK_DS;
     task->tss.fs = 0;
     task->tss.gs = SELECTOR_VIDEO;
-    task->tss.ldt = (uint16_t)sel;
     task->tss.attrs = 0;
     task->tss.io = 0;
 
-    sel = install_tss(&task->tss);
-    if (sel < 0) {
-        log_error("install TSS error, pid: %d, errno: %d\n", task->pid, sel);
+    /* install ldt */
+    ret = install_ldt(task->ldt, LDT_SIZE);
+    if (ret < 0) {
+        log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
+        mm_free(ptr3);
+        mm_free(ptr);
         return -1;
     }
-    task->tss_sel = (uint16_t)sel;
+    task->tss.ldt = (uint16_t)ret;
+
+    ret = install_tss(&task->tss);
+    if (ret < 0) {
+        log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
+        uninstall_ldt(task->tss.ldt);
+        mm_free(ptr3);
+        mm_free(ptr);
+        return -1;
+    }
+    task->tss_sel = (uint16_t)ret;
 
     return 0;
+}
+
+struct task *create_task(uint32_t pid, void *text, uint16_t type, int tty)
+{
+    int ret;
+    struct task *task;
+
+    task = (struct task *)mm_malloc(sizeof(struct task), 0);
+    if (task == NULL) {
+        log_error("no enough memory\n");
+        return NULL;
+    }
+    memset(task, 0, sizeof(struct task));
+    task->state = TASK_STATE_INIT;
+    task->type = type;
+    task->pid = pid;
+    task->tty = tty;
+
+    if (TASK_TYPE_KERNEL == type) {
+        ret = init_kernel_task(task, text);
+    } else {
+        ret = init_user_task(task, text);
+    }
+    if (ret < 0) {
+        log_error("init task error, pid: %d, errno: %d\n", task->pid, ret);
+        return NULL;
+    }
+    task->state = TASK_STATE_RUNNING;
+    return task;
 }

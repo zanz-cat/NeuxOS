@@ -5,7 +5,7 @@
     SAVE_STATE
 
     ; call handler
-    call [irq_handler_table + 4*%1]
+    call [irq_handlers + 4*%1]
 
     ; send eoi
     mov al, INT_EOI
@@ -16,7 +16,7 @@
     str bx
     cmp bx, [eax+OFFSET_TASK_TSS_SEL]
     je .continue
-    jmp far [eax+OFFSET_TASK_TSS_SEL-4]
+    jmp far [eax]
 %endif
 
 .continue:
@@ -26,132 +26,134 @@
 %endmacro
 
 extern current
-extern irq_handler_table
-extern exception_handler
+extern irq_handlers
+extern irq_ex_handlers
 
-global divide_error
-global single_step_exception
-global nmi
-global breakpoint_exception
-global overflow
-global bounds_check
-global inval_opcode
-global copr_not_available
-global double_fault
-global copr_seg_overrun
-global inval_tss
-global segment_not_present
-global stack_exception
-global general_protection
-global page_fault
-global copr_error
+global irq_ex_divide_error
+global irq_ex_single_step
+global irq_ex_nmi
+global irq_ex_breakpoint
+global irq_ex_overflow
+global irq_ex_bounds_check
+global irq_ex_inval_opcode
+global irq_ex_copr_not_available
+global irq_ex_double_fault
+global irq_ex_copr_seg_overrun
+global irq_ex_inval_tss
+global irq_ex_segment_not_present
+global irq_ex_stack_exception
+global irq_ex_general_protection
+global irq_ex_page_fault
+global irq_ex_copr_error
 
-global hwint00
-global hwint01
-global hwint03
-global hwint04
-global hwint05
-global hwint06
-global hwint07
-global hwint08
-global hwint12
-global hwint13
-global hwint14
+global irq_hwint00
+global irq_hwint01
+global irq_hwint03
+global irq_hwint04
+global irq_hwint05
+global irq_hwint06
+global irq_hwint07
+global irq_hwint08
+global irq_hwint12
+global irq_hwint13
+global irq_hwint14
+
+%macro call_ex_handler 1
+    push %1 ; vector_no
+    call [irq_ex_handlers + 4 * %1]
+    add esp, 4*2
+%endmacro
 
 [SECTION .text]
-divide_error:
+irq_ex_divide_error:
     push 0ffffffffh ; err_code
-    push 0  ; vector_no
-    jmp exception
-single_step_exception:
+    call_ex_handler 0
+    iret
+irq_ex_single_step:
     push 0ffffffffh
-    push 1
-    jmp exception
-nmi:
+    call_ex_handler 1
+    iret
+irq_ex_nmi:
     push 0ffffffffh
-    push 2
-    jmp exception
-breakpoint_exception:
+    call_ex_handler 2
+    iret
+irq_ex_breakpoint:
     push 0ffffffffh
-    push 3
-    jmp exception
-overflow:
+    call_ex_handler 3
+    iret
+irq_ex_overflow:
     push 0ffffffffh
-    push 4
-    jmp exception
-bounds_check:
+    call_ex_handler 4
+    iret
+irq_ex_bounds_check:
     push 0ffffffffh
-    push 5
-    jmp exception
-inval_opcode:
+    call_ex_handler 5
+    iret
+irq_ex_inval_opcode:
     push 0ffffffffh
-    push 6
-    jmp exception
-copr_not_available:
+    call_ex_handler 6
+    iret
+irq_ex_copr_not_available:
     push 0ffffffffh
-    push 7
-    jmp exception
-double_fault:
+    call_ex_handler 7
+    iret
+irq_ex_double_fault:
     push 0ffffffffh
-    push 8
-    jmp exception
-copr_seg_overrun:
+    call_ex_handler 8
+    iret
+irq_ex_copr_seg_overrun:
     push 0ffffffffh
-    push 9
-    jmp exception
-inval_tss:
-    push 10
-    jmp exception
-segment_not_present:
-    push 11
-    jmp exception
-stack_exception:
-    push 12
-    jmp exception
-general_protection:
-    push 13
-    jmp exception
-page_fault:
-    push 14
-    jmp exception
-copr_error:
+    call_ex_handler 9
+    iret
+irq_ex_inval_tss:
+    call_ex_handler 10
+    iret
+irq_ex_segment_not_present:
+    call_ex_handler 11
+    iret
+irq_ex_stack_exception:
+    call_ex_handler 12
+    iret
+irq_ex_general_protection:
+    call_ex_handler 13
+    iret
+irq_ex_page_fault:
+    call_ex_handler 14
+    iret
+irq_ex_copr_error:
     push 0ffffffffh
-    push 16
-    jmp exception
-exception:
-    call exception_handler
-    add esp, 4*2
+    call_ex_handler 16
     iret
 
-hwint00:
+irq_hwint00:
     hwint 0
 
-hwint01:
+irq_hwint01:
     hwint 1
 
-hwint03:
+irq_hwint03:
     hwint 3
 
-hwint04:
+irq_hwint04:
     hwint 4
 
-hwint05:
+irq_hwint05:
     hwint 5
 
-hwint06:
+irq_hwint06:
     hwint 6
 
-hwint07:
+irq_hwint07:
     hwint 7
 
-hwint08:
+irq_hwint08:
     hwint 8
 
-hwint12:
+irq_hwint12:
     hwint 12
 
-hwint13:
+irq_hwint13:
     hwint 13
 
-hwint14:
+irq_hwint14:
     hwint 14

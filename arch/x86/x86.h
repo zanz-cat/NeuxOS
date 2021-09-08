@@ -3,16 +3,16 @@
                             x86.h
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-#ifndef	__KERNEL_X86_H__
-#define	__KERNEL_X86_H__
+#ifndef	__ARCH_X86_H__
+#define	__ARCH_X86_H__
 
 #include <stdint.h>
 
 /* 存储段描述符/系统段描述符 */
 struct descriptor		/* 共 8 个字节 */
 {
-	uint16_t	limit_low;		/* Limit */
-	uint16_t	base_low;		/* Base */
+	uint16_t limit_low;		/* Limit */
+	uint16_t base_low;		/* Base */
 	uint8_t	base_mid;		/* Base */
 	uint8_t	attr1;			/* P(1) DPL(2) DT(1) TYPE(4) */
 	uint8_t	limit_high_attr2;	/* G(1) D(1) 0(1) AVL(1) LimitHigh(4) */
@@ -22,8 +22,8 @@ struct descriptor		/* 共 8 个字节 */
 /* 门描述符 */
 struct gate
 {
-	uint16_t	offset_low;	/* Offset Low */
-	uint16_t	selector;	/* Selector */
+	uint16_t offset_low;	/* Offset Low */
+	uint16_t selector;	/* Selector */
 	uint8_t	dcount;		/* 该字段只在调用门描述符中有效。如果在利用
 				   调用门调用子程序时引起特权级的转换和堆栈
 				   的改变，需要将外层堆栈中的参数复制到内层
@@ -104,4 +104,15 @@ struct tss {
 #define	DA_386IGate		0x8E	/* 386 中断门类型值			*/
 #define	DA_386TGate		0x8F	/* 386 陷阱门类型值			*/
 
-#endif /* __KERNEL_X86_H__ */
+#define MEM_TYPE_AVL 1U
+#define MEM_TYPE_RES 2U
+
+struct ARDS {
+    uint32_t base_addr_low;
+	uint32_t base_addr_high;
+	uint32_t len_low;
+	uint32_t len_high;
+	uint32_t type;
+} __attribute__((packed));
+
+#endif /* __ARCH_X86_H__ */

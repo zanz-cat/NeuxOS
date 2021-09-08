@@ -8,11 +8,13 @@
 #include <drivers/keyboard.h>
 
 #include "printk.h"
+#include "sched.h"
+
 #include "tty.h"
 
-#define NR_TTYS         3
-#define SCROLL_ROWS     15
-#define TTY_IN_BYTES    1024
+#define TTYS_COUNT (TTY_MAX+1)
+#define SCROLL_ROWS 15
+#define TTY_IN_BYTES 1024
 
 struct output {
     uint32_t start;
@@ -33,7 +35,7 @@ struct tty {
 #define screen_detached(out) \
     ((out)->cursor >= (out)->screen + CRT_SIZE)
 
-struct tty ttys[NR_TTYS];
+struct tty ttys[TTYS_COUNT];
 int tty_current;
 
 static void tty_do_read(int fd)
@@ -47,11 +49,6 @@ static void tty_do_write(int fd)
 {
     struct tty *tty;
     char ch;
-
-    if (fd < 0 || fd >= NR_TTYS) {
-        log_error("invalid tty(%d)\n", fd);
-        return;
-    }
 
     tty = &ttys[fd];
     if (tty->inbuf_count) {
@@ -92,16 +89,19 @@ static void switch_tty(int fd)
     monitor_set_start(out->start + out->screen);
     monitor_set_cursor(out->start + out->cursor);
     tty_current = fd;
+    while (screen_detached(out)) {
+        scroll_down(fd);
+    }
 }
 
-void tty_in_task(int fd, uint32_t key)
+void tty_in_proc(int fd, uint32_t key)
 {
-    if (fd < 0 || fd >= NR_TTYS) {
-        log_error("invalid tty(%d)\n", fd);
+    struct tty *tty;
+
+    if (fd < TTY0 || fd > TTY_MAX) {
         return;
     }
-
-    struct tty *tty = &ttys[fd];
+    tty = &ttys[fd];
     if (key & FLAG_EXT) {
         switch (key) {
         case ENTER:
@@ -111,12 +111,14 @@ void tty_in_task(int fd, uint32_t key)
             tty_putchar(fd, '\b');
             break;
         case FLAG_SHIFT_L | PAGEUP:
-            for (int i = 0; i < SCROLL_ROWS; i++)
+            for (int i = 0; i < SCROLL_ROWS; i++) {
                 scroll_up(fd);
+            }
             break;
         case FLAG_SHIFT_L | PAGEDOWN:
-            for (int i = 0; i < SCROLL_ROWS; i++)
+            for (int i = 0; i < SCROLL_ROWS; i++) {
                 scroll_down(fd);
+            }
             break;
         case F1:
             switch_tty(TTY0);
@@ -126,6 +128,9 @@ void tty_in_task(int fd, uint32_t key)
             break;
         case F3:
             switch_tty(TTY2);
+            break;
+        case F9:
+            system_load_report();
             break;
         default:
             break;
@@ -144,9 +149,12 @@ void tty_in_task(int fd, uint32_t key)
 
 int tty_putchar(int fd, char c)
 {
-    if (fd < 0 || fd >= NR_TTYS) {
-        log_error("invalid tty(%d)\n", fd);
-        return -1;
+    if (fd == TTY_NULL) {
+        return c;
+    }
+    if (fd < TTY_NULL || fd > TTY_MAX) {
+        log_error("invalid tty %d\n", fd);
+        return c;
     }
 
     struct output *out = &ttys[fd].out;
@@ -186,8 +194,11 @@ int tty_putchar(int fd, char c)
 
 int tty_color(int fd, enum tty_op op, uint8_t *color)
 {
-    if (fd < 0 || fd >= NR_TTYS) {
-        log_error("invalid tty(%d)\n", fd);
+    if (fd == TTY_NULL) {
+        return 0;
+    }
+    if (fd < TTY_NULL || fd > TTY_MAX) {
+        log_error("invalid tty %d\n", fd);
         return -1;
     }
 
@@ -206,17 +217,17 @@ void tty_task()
     int i;
 
     while (1) {
-        for (i = 0; i < NR_TTYS; i++) {
+        for (i = 0; i < TTYS_COUNT; i++) {
             tty_do_read(i);
             tty_do_write(i);
         }
     }
 }
 
-void tty_init()
+void tty_setup()
 {
     int i;
-    for (i = 0; i < NR_TTYS; i++) {
+    for (i = 0; i < TTYS_COUNT; i++) {
         ttys[i].inbuf_count = 0;
         ttys[i].p_inbuf_head = ttys[i].in_buf;
         ttys[i].p_inbuf_tail = ttys[i].in_buf;

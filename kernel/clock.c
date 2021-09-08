@@ -6,33 +6,42 @@
 
 #include "sched.h"
 #include "interrupt.h"
+#include "printk.h"
+
+#include "clock.h"
 
 /* 8253/8254 PIT */
-#define TIMER0 0x40
-#define TIMER_MODE 0x43
-#define RATE_GENERATOR 0x34
-#define TIMER_FREQ 1193182L
-#define HZ 100
+#define PIT_TIMER0 0x40
+#define PIT_TIMER_MODE 0x43
+#define PIT_TIMER_RATE_GEN 0x34
+#define PIT_FREQ 1193182L
+#define PIT_HZ 1000
 
-static uint32_t jeffies = 0;
+static uint64_t jeffies;
+
+uint64_t rdtsc(void)
+{
+    uint32_t a, d;
+    asm("rdtsc":"=a"(a), "=d"(d)::);
+    return ((uint64_t)d << 32) | a;
+}
 
 static void clock_handler()
 {
     jeffies++;
-    task_sched();
-    current->ticks++;
+    sched_task();
 }
 
-void clock_init()
+void clock_setup()
 {
-    log_info("init clock\n");
+    log_info("setup clock\n");
 
-    put_irq_handler(IRQ_CLOCK, clock_handler);
+    irq_register_handler(IRQ_CLOCK, clock_handler);
 
     /* 设置时钟频率 */
-    out_byte(TIMER_MODE, RATE_GENERATOR);
-    out_byte(TIMER0, (uint8_t)(TIMER_FREQ/HZ));
-    out_byte(TIMER0, (uint8_t)((TIMER_FREQ/HZ) >> 8));
+    out_byte(PIT_TIMER_MODE, PIT_TIMER_RATE_GEN);
+    out_byte(PIT_TIMER0, (uint8_t)(PIT_FREQ/PIT_HZ));
+    out_byte(PIT_TIMER0, (uint8_t)((PIT_FREQ/PIT_HZ) >> 8));
 
     /* 开启时钟中断 */
     enable_irq(IRQ_CLOCK);

@@ -78,9 +78,6 @@ PG_USS      EQU 0   ; U/S 属性位值, 系统级
 PG_USU      EQU 4   ; U/S 属性位值, 用户级
 ;----------------------------------------------------------------------------
 
-ARDS_BASE equ 6000h
-ARDS_OFFSET equ 0000h
-
 LOADER_BASE equ 1000h
 LOADER_OFFSET equ 0000h
 LOADER_ADDR equ 0x10000

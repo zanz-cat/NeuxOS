@@ -2,84 +2,98 @@
 #include <string.h>
 
 #include <lib/log.h>
+#include <lib/list.h>
+#include <config.h>
 
 #include "gdt.h"
 #include "task.h"
+#include "clock.h"
+#include "printk.h"
+#include "kernel.h"
 
 #include "sched.h"
 
-#define MAX_TASK_NUM 10
-
-/* the first is cpu idle task
- * which keeps cpu running while no task to run
- */
-static struct task task_list[MAX_TASK_NUM];
-static int task_count;
+static uint32_t task_id;
+static LIST_HEAD(running_list);
+static struct task *kernel_main_task;
 struct task *current;
 
-static struct task *_create_task(void *text, uint16_t type, int tty)
+struct task *create_user_task(void *text, int tty)
 {
-    if (task_count == MAX_TASK_NUM) {
-        log_error("max task number(%d) exceed!\n", MAX_TASK_NUM);
+    struct task *task = create_task(task_id++, text, TASK_TYPE_USER, tty);
+    if (task == NULL) {
+        log_error("create task error\n");
         return NULL;
     }
-
-    int ret;
-    struct task *task = &task_list[task_count];
-    memset(task, 0, sizeof(struct task));
-    task->state = TASK_STATE_INIT;
-    task->type = type;
-    task->pid = task_count;
-    task->tty = tty;
-
-    if (TASK_TYPE_KERNEL == type) {
-        ret = init_kernel_task(task, text);
-    } else {
-        ret = init_user_task(task, text);
-    }
-    if (ret < 0) {
-        log_error("init task error, pid: %d, errno: %d\n", task->pid, ret);
-        return NULL;
-    }
-    task_count++;
-    task->state = TASK_STATE_RUNNING;
-    log_debug("task created, pid: %d, LDT sel: 0x%x(%d)\n",
-        task->pid, task->ldt_sel, task->ldt_sel >> 3);
-
+    LIST_ADD_TAIL(&running_list, &task->chain);
+    log_debug("u-task created, pid: %d\n", task->pid);
     return task;
 }
 
-struct task *create_user_task(void *text, int tty) {
-    return _create_task(text, TASK_TYPE_USER, tty);
+struct task *create_kernel_task(void *text, int tty)
+{
+    struct task *task = create_task(task_id++, text, TASK_TYPE_KERNEL, tty);
+    if (task == NULL) {
+        log_error("create task error\n");
+        return NULL;
+    }
+    LIST_ADD_TAIL(&running_list, &task->chain);
+    log_debug("k-task created, pid: %d\n", task->pid);
+    return task;
 }
 
-struct task *create_kernel_task(void *text, int tty) {
-    return _create_task(text, TASK_TYPE_KERNEL, tty);
-}
+static struct task *next_task()
+{
+    struct list_node *node;
 
-static struct task *next_task() {
-    static int pos = 0;
-
-    if (task_count == 1) {
-        pos = 0;
-    } else {
-        pos %= (task_count - 1);
-        pos++;
+    if (LIST_COUNT(&running_list) == 0) {
+        return kernel_main_task;
     }
 
-    return &task_list[pos];
+    if (current == kernel_main_task) {
+        node = &running_list;
+    } else {
+        node = &current->chain;
+    }
+    for (node = node->next; node == &running_list; node = node->next);
+    return container_of(node, struct task, chain);
 }
 
-void term_task(struct task *task) {
-    task->state = TASK_STATE_TERM;
+void term_task(uint32_t pid)
+{
+    struct list_node *node;
+    struct task *task;
+
+    LIST_FOREACH(&running_list, node) {
+        task = container_of(node, struct task, chain);
+        if (task->pid == pid) {
+            task->state = TASK_STATE_TERM;
+            break;
+        }
+    }
 }
 
-void yield() {
-    //TODO
+static void do_term_task(struct task *task)
+{
+    LIST_DEL(&task->chain);
+    mm_free_user_paging((struct paging_entry *)task->tss.cr3);
+    uninstall_ldt(task->tss.ldt);
+    uninstall_tss(task->tss_sel);
+    mm_free(task);
 }
 
-void task_sched() {
-    while (task_count) {
+void yield(void) {
+    struct task *onboard = current;
+    sched_task();
+    if (current == onboard) {
+        current = kernel_main_task;
+    }
+    asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
+}
+
+void sched_task(void)
+{
+    while (LIST_COUNT(&running_list) > 0) {
         struct task *task = next_task();
         switch (task->state) {
             case TASK_STATE_INIT:
@@ -89,13 +103,36 @@ void task_sched() {
                 return;
             case TASK_STATE_TERM:
                 log_debug("destroy task: %d\n", task->pid);
-                task_count--;
-                uninstall_ldt(task->ldt_sel);
-                memset(task, 0, sizeof(struct task));
+                do_term_task(task);
                 break;
             default:
-                log_error("unknown state, pid: %d, state: %d\n", task->pid, task->state);
+                kernel_panic("unknown state, pid: %d, state: %d\n", task->pid, task->state);
                 break;
         }
     }
+}
+
+void system_load_report(void)
+{
+    struct list_node *node;
+    struct task *task;
+
+    printk("*** System Load Report ***\n");
+    printk("total %u idle %u\n", kget_jeffies(), kernel_main_task->ticks);
+    LIST_FOREACH(&running_list, node) {
+        task = container_of(node, struct task, chain);
+        printk("%u %u\n", task->pid, task->ticks);
+    }
+}
+
+void sched_setup(void)
+{
+    task_id = 0;
+
+    kernel_main_task = create_task(task_id++, kernel_main, TASK_TYPE_KERNEL, -1);
+    if (kernel_main_task == NULL) {
+        kernel_panic("create kernel_main task error\n");
+    }
+    kernel_main_task->tss.eflags &= ~(EFLAGS_IF);
+    current = kernel_main_task;
 }

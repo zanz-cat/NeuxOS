@@ -125,7 +125,7 @@ struct keyboard_input_buffer {
         char    data[KEYBOARD_IN_BYTES];       /* 缓冲区 */
 };
 
-void keyboard_init();
+void keyboard_setup();
 void keyboard_read(int tty);
 
 #endif

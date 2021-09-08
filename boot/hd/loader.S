@@ -23,9 +23,6 @@ SelectorVideo equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
 TOP_OF_STACK equ 0ffffh
 
-KernelName db 'KERNEL  ELF'
-KernelNameLen equ $ - KernelName
-
 LABEL_START:
     mov ax, cs
     mov ds, ax
@@ -68,13 +65,15 @@ ReadMemInfo:
     push bp
     mov bp, sp
 
+    mov ax, (CONFIG_SHARE_DATA_ADDR >> 4)
+    mov es, ax
+    mov dword [es:(CONFIG_SHARE_DATA_ADDR & 0xffff)+8], 0 ; ARDS count
+
     sub sp, 2
-    mov word [bp-2], ARDS_OFFSET + 2
+    mov word [bp-2], (CONFIG_SHARE_DATA_ADDR & 0xffff)+12 ; ARDS entry address
 
     mov ebx, 0
 .continue:
-    mov ax, ARDS_BASE
-    mov es, ax
     mov di, [bp-2]
     mov ax, 0e820h
     mov ecx, 20 ; sizeof(struct ARDS) == 20
@@ -83,7 +82,7 @@ ReadMemInfo:
     jc .continue    ; cf = 1, 出错重试
     ; success
     add word [bp-2], cx
-    inc word [es:ARDS_OFFSET]
+    inc word [es:(CONFIG_SHARE_DATA_ADDR & 0xffff)+8]
     ; check if the last one
     cmp ebx, 0
     jnz .continue ; not the last one

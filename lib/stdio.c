@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "utils.h"
+#include <misc/misc.h>
 
 #define PRINTF_BUF_SIZE 1024
 
@@ -95,18 +95,60 @@ static int vsprintf_x(uint32_t arg, char *pbuf, bool capital,
             arg /= 16;
         }
         p += len;
-        t = min_len - len - (arg < 0 ? 1 : 0);
+        t = min_len - len;
         for (i = 0; i < t; i++) {
             *p++ = ' ';
         }
     } else {
-        t = min_len - len - (arg < 0 ? 1 : 0);
+        t = min_len - len;
         for (i = 0; i < t; i++) {
             *p++ = zero ? '0' : ' ';
         }
         for (i = len; i > 0; i--) {
             rem = arg % 16;
             *(p+i-1) = rem > 9 ? (rem - 10 + (capital ? 'A' : 'a')) : (rem + '0');
+            arg /= 16;
+        }
+        p += len;
+    }
+    return p - pbuf;
+}
+
+static int vsprintf_p(uint32_t arg, char *pbuf, bool left, bool zero, uint16_t min_len)
+{
+    int i, t, rem;
+    char *p = pbuf;
+    uint16_t len = intlen(arg, 16);
+
+    if (left) {
+        *p++ = '0';
+        *p++ = 'x';
+        for (i = len; i > 0; i--) {
+            rem = arg % 16;
+            *(p+i-1) = rem > 9 ? (rem - 10 + 'a') : (rem + '0');
+            arg /= 16;
+        }
+        p += len;
+        t = min_len - len - 2; // strip '0x' len
+        for (i = 0; i < t; i++) {
+            *p++ = ' ';
+        }
+    } else {
+        if (zero) {
+            *p++ = '0';
+            *p++ = 'x';
+        }
+        t = min_len - len - 2;
+        for (i = 0; i < t; i++) {
+            *p++ = zero ? '0' : ' ';
+        }
+        if (!zero) {
+            *p++ = '0';
+            *p++ = 'x'; 
+        }
+        for (i = len; i > 0; i--) {
+            rem = arg % 16;
+            *(p+i-1) = rem > 9 ? (rem - 10 + 'a') : (rem + '0');
             arg /= 16;
         }
         p += len;
@@ -202,6 +244,10 @@ int vsprintf(char *buf, const char *fmt, va_list ap)
                 break;
             case 's':
                 pbuf += vsprintf_s(va_arg(ap, const char*), pbuf, left, min_len);
+                abort = true;
+                break;
+            case 'p':
+                pbuf += vsprintf_p(va_arg(ap, uint32_t), pbuf, left, zero, min_len);
                 abort = true;
                 break;
             default:

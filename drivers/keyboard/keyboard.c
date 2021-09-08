@@ -66,8 +66,7 @@ static void keyboard_ack()
     uint8_t kb_read;
     do {
         kb_read = in_byte(KB_DATA);
-    } while (kb_read =! KB_ACK);
-
+    } while (kb_read != KB_ACK);
 }
 
 static void set_leds()
@@ -86,7 +85,6 @@ static void set_leds()
 void keyboard_read(int tty)
 {
     uint8_t scan_code;
-    char output[2];
     int is_make;
     uint32_t key = 0;
     uint32_t *keyrow;
@@ -186,9 +184,7 @@ void keyboard_read(int tty)
         }
 
         if (is_make) {
-            int pad = 0;
             if (key >= PAD_SLASH && key <= PAD_9) {
-                pad = 1;
                 switch (key) {
                 case PAD_SLASH:
                     key = '/';
@@ -262,14 +258,14 @@ void keyboard_read(int tty)
             key |= alt_l ? FLAG_ALT_L : 0;
             key |= alt_r ? FLAG_ALT_R : 0;
 
-            tty_in_task(tty, key);
+            tty_in_proc(tty, key);
         }
     }
 }
 
-void keyboard_init()
+void keyboard_setup()
 {
-    log_info("init keyboard\n");
+    log_info("setup keyboard\n");
 
     buf_in.count = 0;
     buf_in.head = buf_in.tail = buf_in.data;
@@ -286,7 +282,7 @@ void keyboard_init()
     scroll_lock = 0;
     set_leds();
 
-    put_irq_handler(IRQ_KEYBOARD, keyboard_handler);
+    irq_register_handler(IRQ_KEYBOARD, keyboard_handler);
 
     /* 开启键盘中断 */
     enable_irq(IRQ_KEYBOARD);

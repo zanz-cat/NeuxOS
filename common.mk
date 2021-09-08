@@ -2,7 +2,8 @@ SHELL:=/bin/bash
 CC:=gcc
 LD:=ld
 ROOTDIR:=$(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-CFLAGS:=-m32 -g -Werror -O0 -fno-builtin -fno-leading-underscore -I$(ROOTDIR) -I$(ROOTDIR)/include
+CFLAGS:=-m32 -g -O0 -Werror -Wall -fno-builtin -fno-leading-underscore 
+CFLAGS+=-I$(ROOTDIR) -I$(ROOTDIR)/include
 ASMFLAGS:=-Werror -I$(ROOTDIR)
 LDFLAGS:=-m elf_i386
 

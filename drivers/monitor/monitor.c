@@ -45,10 +45,10 @@ void monitor_shift(uint32_t from, int n, uint32_t limit)
     uint16_t *p;
     uint32_t to = from + n;
     void *src = VIDEO_MEM_BASE + (from > to ? 0 : limit) + from;
-    void *dst = VIDEO_MEM_BASE + (from > to ? 0 : limit) + to;
+    void *dest = VIDEO_MEM_BASE + (from > to ? 0 : limit) + to;
     size_t len = limit - abs(n);
 
-    memmove(dst, src, 2 * len);
+    memmove(dest, src, 2 * len);
     for (i = 0; i < (limit - len); i++) {
         p = VIDEO_MEM_BASE + (from > to ? to + len : from) + i;
         *p = (DEFAULT_TEXT_COLOR << 8);

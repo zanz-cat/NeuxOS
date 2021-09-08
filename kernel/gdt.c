@@ -3,10 +3,9 @@
 
 #include <lib/log.h>
 
-#include "x86.h"
+#include <arch/x86.h>
 
-/* GDT 和 IDT 中描述符的个数 */
-#define	GDT_SIZE	8192
+#define	GDT_SIZE 8192
 
 struct gdtr {
     uint16_t limit;
@@ -53,7 +52,7 @@ static int uninstall_desc(uint16_t sel)
     return 0;
 }
 
-void gdt_init()
+void gdt_setup()
 {
     struct gdtr gdtr;
 

@@ -1,5 +1,5 @@
+#include <arch/x86.h>
 #include <kernel/interrupt.h>
-#include <kernel/x86.h>
 
 #include "drivers/io.h"
 #include "i8259a.h"
@@ -24,14 +24,14 @@ void init_8259a()
 
 void enable_irq(int vector)
 {
-    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    int port = (vector - INT_VECTOR_IRQ0) < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
     uint8_t mask = in_byte(port);
-    out_byte(port, mask & (~(0x1 << vector)));
+    out_byte(port, mask & (~(0x1 << (vector - INT_VECTOR_IRQ0))));
 }
 
 void disable_irq(int vector)
 {
-    int port = vector < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    int port = (vector - INT_VECTOR_IRQ0) < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
     uint8_t mask = in_byte(port);
-    out_byte(port, mask & (0x1 << vector));
+    out_byte(port, mask & (0x1 << (vector - INT_VECTOR_IRQ0)));
 }

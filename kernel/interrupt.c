@@ -6,21 +6,52 @@
 #include "printk.h"
 #include "interrupt.h"
 
+// define in interrupt.S
+void irq_hwint00();
+void irq_hwint01();
+void irq_hwint03();
+void irq_hwint04();
+void irq_hwint05();
+void irq_hwint06();
+void irq_hwint07();
+void irq_hwint08();
+void irq_hwint12();
+void irq_hwint13();
+void irq_hwint14();
+void irq_ex_divide_error();
+void irq_ex_single_step();
+void irq_ex_nmi();
+void irq_ex_breakpoint();
+void irq_ex_overflow();
+void irq_ex_bounds_check();
+void irq_ex_inval_opcode();
+void irq_ex_copr_not_available();
+void irq_ex_double_fault();
+void irq_ex_copr_seg_overrun();
+void irq_ex_inval_tss();
+void irq_ex_segment_not_present();
+void irq_ex_stack_exception();
+void irq_ex_general_protection();
+void irq_ex_page_fault();
+void irq_ex_copr_error();
+void irq_ex_syscall();
+
 #define IDT_SIZE 256
 /* 权限 */
-#define PRIVILEGE_KRNL  0
-#define PRIVILEGE_TASK  1
-#define PRIVILEGE_USER  3
+#define PRIVILEGE_KRNL 0
+#define PRIVILEGE_TASK 1
+#define PRIVILEGE_USER 3
 
 struct idtr {
     uint16_t limit;
     void *base;
 } __attribute__((packed));
 
-void *irq_handler_table[15];
+irq_handler irq_handlers[IRQ_COUNT];
+irq_ex_handler irq_ex_handlers[IRQ_EX_COUNT];
 
 static struct gate idt[IDT_SIZE];
-static char *int_err_msg[] = {
+static char *exception_msg[] = {
     "#DE Divide Error",
     "#DB RESERVED",
     "—  NMI Interrupt",
@@ -43,9 +74,9 @@ static char *int_err_msg[] = {
     "#XF SIMD Floating-Point Exception"
 };
 
-static void init_int_desc(uint8_t vector, uint8_t desc_type, int_handler handler, uint8_t privilege)
+static void init_int_desc(uint8_t vector, uint8_t desc_type, irq_handler handler, uint8_t privilege)
 {
-    struct gate *int_desc = idt + vector;
+    struct gate *int_desc = &idt[vector];
     int_desc->selector = SELECTOR_KERNEL_CS;
     int_desc->dcount = 0;
     int_desc->attr = desc_type | (privilege << 5);
@@ -53,7 +84,7 @@ static void init_int_desc(uint8_t vector, uint8_t desc_type, int_handler handler
     int_desc->offset_low = (uint32_t)handler & 0xffff;
 }
 
-void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
+static void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
     uint8_t color, color_temp;
 
@@ -65,7 +96,7 @@ void exception_handler(int vec_no, int err_code, int eip, int cs, int eflags)
            "EFLAGS: 0x%x\n"
            "CS: 0x%x\n"
            "EIP: 0x%x\n",
-           int_err_msg[vec_no], eflags, cs, eip);
+           exception_msg[vec_no], eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
         printk("Error code: 0x%x\n", err_code);
@@ -119,61 +150,83 @@ static void harddisk_handler()
     printk("harddisk_handler\n");
 }
 
-void put_irq_handler(int vector, int_handler h)
+void irq_register_handler(int vector, irq_handler h)
 {
-    irq_handler_table[vector] = h;
+    irq_handlers[(vector - INT_VECTOR_IRQ0)] = h;
 }
 
-void interrupt_init()
+void irq_register_ex_handler(int vector, irq_ex_handler h)
+{
+    irq_ex_handlers[vector] = h;
+}
+
+void irq_setup()
 {
     struct idtr idtr;
 
-    log_info("init interrupt controller\n");
+    log_info("setup interrupt controller\n");
     init_8259a();
 
-    log_info("init interrupt descriptor table\n");
+    log_info("setup interrupt descriptor table\n");
     // initialize exception interrupt descriptor
-    init_int_desc(INT_VECTOR_DIVIDE, DA_386IGate, divide_error, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_DEBUG, DA_386IGate, single_step_exception, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_NMI, DA_386IGate, nmi, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_BREAKPOINT, DA_386IGate, breakpoint_exception, PRIVILEGE_USER);
-    init_int_desc(INT_VECTOR_OVERFLOW, DA_386IGate, overflow, PRIVILEGE_USER);
-    init_int_desc(INT_VECTOR_BOUNDS, DA_386IGate, bounds_check, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_INVAL_OP, DA_386IGate, inval_opcode, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COTASK_NOT, DA_386IGate, copr_not_available, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_DOUBLE_FAULT, DA_386IGate, double_fault, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COTASK_SEG, DA_386IGate, copr_seg_overrun, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_INVAL_TSS, DA_386IGate, inval_tss, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_SEG_NOT, DA_386IGate, segment_not_present, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_STACK_FAULT, DA_386IGate, stack_exception, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_COTASK_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_SYSCALL, DA_386IGate, my_syscall, PRIVILEGE_USER);
+    init_int_desc(IRQ_EX_DIVIDE, DA_386IGate, irq_ex_divide_error, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_DEBUG, DA_386IGate, irq_ex_single_step, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_NMI, DA_386IGate, irq_ex_nmi, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_BREAKPOINT, DA_386IGate, irq_ex_breakpoint, PRIVILEGE_USER);
+    init_int_desc(IRQ_EX_OVERFLOW, DA_386IGate, irq_ex_overflow, PRIVILEGE_USER);
+    init_int_desc(IRQ_EX_BOUNDS, DA_386IGate, irq_ex_bounds_check, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_INVAL_OP, DA_386IGate, irq_ex_inval_opcode, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_COTASK_NOT, DA_386IGate, irq_ex_copr_not_available, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_DOUBLE_FAULT, DA_386IGate, irq_ex_double_fault, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_COTASK_SEG, DA_386IGate, irq_ex_copr_seg_overrun, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_INVAL_TSS, DA_386IGate, irq_ex_inval_tss, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_SEG_NOT, DA_386IGate, irq_ex_segment_not_present, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_STACK_FAULT, DA_386IGate, irq_ex_stack_exception, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_PROTECTION, DA_386IGate, irq_ex_general_protection, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_PAGE_FAULT, DA_386IGate, irq_ex_page_fault, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_COTASK_ERR, DA_386IGate, irq_ex_copr_error, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_EX_SYSCALL, DA_386IGate, irq_ex_syscall, PRIVILEGE_USER);
 
     // initialize hardware interrupt descriptor
-    init_int_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint00, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint01, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint03, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 4, DA_386IGate, hwint04, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 5, DA_386IGate, hwint05, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 6, DA_386IGate, hwint06, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ0 + 7, DA_386IGate, hwint07, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 0, DA_386IGate, hwint08, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 4, DA_386IGate, hwint12, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint13, PRIVILEGE_KRNL);
-    init_int_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint14, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_CLOCK, DA_386IGate, irq_hwint00, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_KEYBOARD, DA_386IGate, irq_hwint01, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_SERIAL2, DA_386IGate, irq_hwint03, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_SERIAL1, DA_386IGate, irq_hwint04, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_LPT2, DA_386IGate, irq_hwint05, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_FLOPPY, DA_386IGate, irq_hwint06, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_LPT1, DA_386IGate, irq_hwint07, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_REAL_CLOCK, DA_386IGate, irq_hwint08, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_MOUSE, DA_386IGate, irq_hwint12, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_COPR, DA_386IGate, irq_hwint13, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_HARDDISK, DA_386IGate, irq_hwint14, PRIVILEGE_KRNL);
+
+    // install exception handlers
+    irq_register_ex_handler(IRQ_EX_DIVIDE, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_DEBUG, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_NMI, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_BREAKPOINT, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_OVERFLOW, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_BOUNDS, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_INVAL_OP, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_COTASK_NOT, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_DOUBLE_FAULT, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_COTASK_SEG, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_INVAL_TSS, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_SEG_NOT, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_STACK_FAULT, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_PROTECTION, generic_ex_handler);
+    irq_register_ex_handler(IRQ_EX_COTASK_ERR, generic_ex_handler);
 
     // install hardware int handlers
-    irq_handler_table[IRQ_SERIAL2] = serial2_handler;
-    irq_handler_table[IRQ_SERIAL1] = serial1_handler;
-    irq_handler_table[IRQ_LPT2] = lpt2_handler;
-    irq_handler_table[IRQ_FLOPPY] = floppy_handler;
-    irq_handler_table[IRQ_LPT1] = lpt1_handler;
-    irq_handler_table[IRQ_REAL_CLOCK] = real_clock_handler;
-    irq_handler_table[IRQ_MOUSE] = mouse_handler;
-    irq_handler_table[IRQ_COPR] = copr_handler;
-    irq_handler_table[IRQ_HARDDISK] = harddisk_handler;
+    irq_register_handler(IRQ_SERIAL2, serial2_handler);
+    irq_register_handler(IRQ_SERIAL1, serial1_handler);
+    irq_register_handler(IRQ_LPT2, lpt2_handler);
+    irq_register_handler(IRQ_FLOPPY, floppy_handler);
+    irq_register_handler(IRQ_LPT1, lpt1_handler);
+    irq_register_handler(IRQ_REAL_CLOCK, real_clock_handler);
+    irq_register_handler(IRQ_MOUSE, mouse_handler);
+    irq_register_handler(IRQ_COPR, copr_handler);
+    irq_register_handler(IRQ_HARDDISK, harddisk_handler);
 
     // init idt ptr
     idtr.base = &idt;
