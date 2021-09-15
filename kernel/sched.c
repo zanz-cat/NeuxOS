@@ -1,62 +1,53 @@
 #include <stddef.h>
 #include <string.h>
+#include <malloc.h>
 
-#include <lib/log.h>
 #include <lib/list.h>
 #include <config.h>
 
+#include "mm.h"
+#include "log.h"
 #include "gdt.h"
 #include "task.h"
 #include "clock.h"
 #include "printk.h"
 #include "kernel.h"
+#include "interrupt.h"
 
 #include "sched.h"
 
 static uint32_t task_id;
-static LIST_HEAD(running_list);
-static struct task *kernel_main_task;
+static LIST_HEAD(task_list);
+static LIST_HEAD(running_queue);
+static LIST_HEAD(term_queue);
+static struct task *kernel_idle_task;
+
 struct task *current;
 
-struct task *create_user_task(void *text, int tty)
+struct task *create_user_task(void *text, const char *exe, int tty)
 {
-    struct task *task = create_task(task_id++, text, TASK_TYPE_USER, tty);
+    struct task *task = create_task(task_id++, text, exe, TASK_TYPE_USER, tty);
     if (task == NULL) {
         log_error("create task error\n");
         return NULL;
     }
-    LIST_ADD_TAIL(&running_list, &task->chain);
+    LIST_ADD_TAIL(&task_list, &task->list);
+    LIST_ENQUEUE(&running_queue, &task->running);
     log_debug("u-task created, pid: %d\n", task->pid);
     return task;
 }
 
-struct task *create_kernel_task(void *text, int tty)
+struct task *create_kernel_task(void *text, const char *exe, int tty)
 {
-    struct task *task = create_task(task_id++, text, TASK_TYPE_KERNEL, tty);
+    struct task *task = create_task(task_id++, text, exe, TASK_TYPE_KERNEL, tty);
     if (task == NULL) {
         log_error("create task error\n");
         return NULL;
     }
-    LIST_ADD_TAIL(&running_list, &task->chain);
+    LIST_ADD_TAIL(&task_list, &task->list);
+    LIST_ENQUEUE(&running_queue, &task->running);
     log_debug("k-task created, pid: %d\n", task->pid);
     return task;
-}
-
-static struct task *next_task()
-{
-    struct list_node *node;
-
-    if (LIST_COUNT(&running_list) == 0) {
-        return kernel_main_task;
-    }
-
-    if (current == kernel_main_task) {
-        node = &running_list;
-    } else {
-        node = &current->chain;
-    }
-    for (node = node->next; node == &running_list; node = node->next);
-    return container_of(node, struct task, chain);
 }
 
 void term_task(uint32_t pid)
@@ -64,10 +55,19 @@ void term_task(uint32_t pid)
     struct list_node *node;
     struct task *task;
 
-    LIST_FOREACH(&running_list, node) {
-        task = container_of(node, struct task, chain);
+    if (current->pid == pid) {
+        current->state = TASK_STATE_TERM;
+        LIST_DEL(&current->running);
+        LIST_ENQUEUE(&term_queue, &current->running);
+        return;
+    }
+
+    LIST_FOREACH(&running_queue, node) {
+        task = container_of(node, struct task, running);
         if (task->pid == pid) {
             task->state = TASK_STATE_TERM;
+            LIST_DEL(&task->running);
+            LIST_ENQUEUE(&term_queue, &task->running);
             break;
         }
     }
@@ -75,53 +75,80 @@ void term_task(uint32_t pid)
 
 static void do_term_task(struct task *task)
 {
-    LIST_DEL(&task->chain);
+    LIST_DEL(&task->list);
     mm_free_user_paging((struct paging_entry *)task->tss.cr3);
     uninstall_ldt(task->tss.ldt);
     uninstall_tss(task->tss_sel);
-    mm_free(task);
+    free(task);
 }
 
 void yield(void) {
-    struct task *onboard = current;
-    sched_task();
-    if (current == onboard) {
-        current = kernel_main_task;
+    struct list_node *node;
+    static struct task *onboard;
+
+    disable_irq();
+    onboard = current;
+    node = LIST_DEQUEUE(&running_queue);
+    if (node == NULL) {
+        current = kernel_idle_task;
+    } else {
+        current = container_of(node, struct task, running);
+    }
+    LIST_ENQUEUE(&running_queue, &onboard->running);
+    asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
+    enable_irq();
+}
+
+void suspend_task(struct list_node *wakeup_queue)
+{
+    struct list_node *node;
+
+    current->state = TASK_STATE_WAIT;
+    LIST_ENQUEUE(wakeup_queue, &current->running);
+
+    node = LIST_DEQUEUE(&running_queue);
+    if (node == NULL) {
+        current = kernel_idle_task;
+    } else {
+        current = container_of(node, struct task, running);
     }
     asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
 }
 
-void sched_task(void)
-{
-    while (LIST_COUNT(&running_list) > 0) {
-        struct task *task = next_task();
-        switch (task->state) {
-            case TASK_STATE_INIT:
-                break;
-            case TASK_STATE_RUNNING:
-                current = task;
-                return;
-            case TASK_STATE_TERM:
-                log_debug("destroy task: %d\n", task->pid);
-                do_term_task(task);
-                break;
-            default:
-                kernel_panic("unknown state, pid: %d, state: %d\n", task->pid, task->state);
-                break;
-        }
-    }
-}
-
-void system_load_report(void)
+void resume_task(struct list_node *wakeup_queue)
 {
     struct list_node *node;
     struct task *task;
 
-    printk("*** System Load Report ***\n");
-    printk("total %u idle %u\n", kget_jeffies(), kernel_main_task->ticks);
-    LIST_FOREACH(&running_list, node) {
-        task = container_of(node, struct task, chain);
-        printk("%u %u\n", task->pid, task->ticks);
+    node = LIST_DEQUEUE(wakeup_queue);
+    if (node == NULL) {
+        return;
+    }
+    task = container_of(node, struct task, running);
+    task->state = TASK_STATE_RUNNING;
+    LIST_ENQUEUE(&running_queue, &current->running);
+    current = task;
+}
+
+void sched_task(void)
+{
+    struct task *task;
+    struct list_node *node;
+
+    if (current != kernel_idle_task && current->state == TASK_STATE_RUNNING) {
+        LIST_ENQUEUE(&running_queue, &current->running);
+    }
+    node = LIST_DEQUEUE(&running_queue);
+    if (node == NULL) {
+        current = kernel_idle_task;
+    } else {
+        current = container_of(node, struct task, running);
+    }
+
+    while (LIST_COUNT(&term_queue) > 0) {
+        node = LIST_DEQUEUE(&term_queue);
+        task = container_of(node, struct task, running);
+        do_term_task(task);
     }
 }
 
@@ -129,10 +156,21 @@ void sched_setup(void)
 {
     task_id = 0;
 
-    kernel_main_task = create_task(task_id++, kernel_main, TASK_TYPE_KERNEL, -1);
-    if (kernel_main_task == NULL) {
-        kernel_panic("create kernel_main task error\n");
+    kernel_idle_task = create_task(task_id++, kernel_idle, "[idle]", TASK_TYPE_KERNEL, -1);
+    if (kernel_idle_task == NULL) {
+        kernel_panic("create kernel_idle task error\n");
+    };
+    current = kernel_idle_task;
+}
+
+void sched_report(void)
+{
+    struct list_node *node;
+    struct task *task;
+
+    printk("pid  state  exe\n");
+    LIST_FOREACH(&task_list, node) {
+        task = container_of(node, struct task, list);
+        printk("%-4d %-5d  %s\n", task->pid, task->state, task->exe);
     }
-    kernel_main_task->tss.eflags &= ~(EFLAGS_IF);
-    current = kernel_main_task;
 }

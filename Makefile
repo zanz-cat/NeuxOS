@@ -1,11 +1,7 @@
-##################################################
-# main Makefile
-##################################################
-
 include common.mk
-SUBDIRS:=lib drivers app boot kernel
+SUBDIRS:=lib drivers boot fs kernel app
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
-MOUNTPOINT:=$(ROOTDIR)/image
+MOUNTPOINT:=$(ROOTDIR)/rootfs
 SUDO:=sudo
 
 ifneq ($(MAKECMDGOALS),config)
@@ -56,7 +52,7 @@ else
 	$(SUDO) mkfs.ext2 -F -b $(CONFIG_EXT2_BS) $$dev;
 endif
 
-install: $(SUBDIRS) $(CONFIG_BOOT).img
+install: $(SUBDIRS) $(CONFIG_BOOT).img umount
 	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
 ifeq ($(CONFIG_BOOT),fd)
 	@echo "=> Write MBR"
@@ -65,6 +61,8 @@ ifeq ($(CONFIG_BOOT),fd)
 	@echo "=> Install NeuxOS"
 	$(SUDO) cp boot/fd/loader.bin $(MOUNTPOINT)/loader.bin
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/kernel.elf
+	$(SUDO) cp -rf app/bin $(MOUNTPOINT)
+	$(SUDO) ls -lh $(MOUNTPOINT)
 	$(SUDO) umount $(MOUNTPOINT)
 else
 	@dev=`$(SUDO) losetup -f --show hd.img`; \
@@ -89,6 +87,7 @@ else
 	echo "=> Install NeuxOS"; \
 	$(SUDO) cp boot/hd/loader.bin $(MOUNTPOINT)/loader.bin; \
 	$(SUDO) cp kernel/kernel.elf $(MOUNTPOINT)/kernel.elf; \
+	$(SUDO) cp -rf app/bin $(MOUNTPOINT); \
 	$(SUDO) ls -lh $(MOUNTPOINT); \
 	$(SUDO) umount $(MOUNTPOINT); \
 	$(SUDO) losetup -d $$dev;
@@ -113,10 +112,11 @@ else
 endif
 
 umount:
-	$(SUDO) umount $(MOUNTPOINT)
-ifeq ($(CONFIG_BOOT),hd)
-	dev=`$(SUDO) losetup -l -O name -n -j hd.img` && $(SUDO) losetup -d $$dev
-endif
+	@while $(SUDO) mount | grep $(MOUNTPOINT) > /dev/null; \
+	do \
+	    $(SUDO) umount $(MOUNTPOINT); \
+	    test ${CONFIG_BOOT} = hd && dev=`$(SUDO) losetup -l -O name -n -j hd.img` && $(SUDO) losetup -d $$dev; \
+	done
 
 image: disk install
 
@@ -162,5 +162,5 @@ config:
 	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$|^0x[0-9a-fA-F]+$$/) \
 		print $$1" equ "$$2; else print $$1" equ \""$$2"\""}' > config.S
 
-clean-config:
+distclean: clean
 	rm -f .config config.h config.S

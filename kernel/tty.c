@@ -1,16 +1,17 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <lib/log.h>
-
 #include <drivers/io.h>
 #include <drivers/monitor.h>
 #include <drivers/keyboard.h>
 
+#include "log.h"
 #include "printk.h"
 #include "sched.h"
 
 #include "tty.h"
+
+extern void F1_handler(void);
 
 #define TTYS_COUNT (TTY_MAX+1)
 #define SCROLL_ROWS 15
@@ -129,8 +130,8 @@ void tty_in_proc(int fd, uint32_t key)
         case F3:
             switch_tty(TTY2);
             break;
-        case F9:
-            system_load_report();
+        case F4:
+            F1_handler();
             break;
         default:
             break;
@@ -188,7 +189,6 @@ int tty_putchar(int fd, char c)
     if (fd == tty_current) {
         monitor_set_cursor(out->start + out->cursor);
     }
-
     return c;
 }
 

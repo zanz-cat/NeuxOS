@@ -5,6 +5,7 @@
 *.img
 *.img.lock
 *.o
+*.a
 *.elf
 .vscode
 .config
@@ -12,5 +13,5 @@ config.h
 config.S
 bochsrc
 ._*.md
-image
+rootfs
 .VSCodeCounter

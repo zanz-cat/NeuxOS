@@ -1,6 +1,8 @@
 #ifndef __KERNEL_INTERRUPT_H__
 #define __KERNEL_INTERRUPT_H__
 
+#include <drivers/i8259a.h>
+
 /* 中断向量 */
 #define	IRQ_EX_DIVIDE		0x0
 #define	IRQ_EX_DEBUG		0x1
@@ -24,17 +26,17 @@ typedef void (*irq_handler)(void);
 typedef void (*irq_ex_handler)(int vec_no, int err_code, int eip, int cs, int eflags);
 
 void irq_setup();
-void enable_irq(int vector);
-void disable_irq(int vector);
+void enable_irq_n(int vector);
+void disable_irq_n(int vector);
 void irq_register_handler(int vector, irq_handler h);
 void irq_register_ex_handler(int vector, irq_ex_handler h);
 
-static inline void irq_enable(void)
+static inline void enable_irq(void)
 {
     asm("sti");
 }
 
-static inline void irq_disable(void)
+static inline void disable_irq(void)
 {
     asm("cli");
 }

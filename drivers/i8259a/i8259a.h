@@ -13,6 +13,7 @@
 
 #define IRQ_CLOCK           (INT_VECTOR_IRQ0 + 0x0)
 #define IRQ_KEYBOARD        (INT_VECTOR_IRQ0 + 0x1)
+#define IRQ_SLAVE           (INT_VECTOR_IRQ0 + 0x2)
 #define IRQ_SERIAL2         (INT_VECTOR_IRQ0 + 0x3)
 #define IRQ_SERIAL1         (INT_VECTOR_IRQ0 + 0x4)
 #define IRQ_LPT2            (INT_VECTOR_IRQ0 + 0x5)
@@ -24,8 +25,8 @@
 #define IRQ_HARDDISK        (INT_VECTOR_IRQ0 + 0xe)
 #define IRQ_COUNT           (IRQ_HARDDISK - IRQ_CLOCK + 1)
 
-void init_8259a();
-void enable_irq(int vector);
-void disable_irq(int vector);
+void setup_8259a(void);
+void enable_irq_n(int vector);
+void disable_irq_n(int vector);
 
 #endif

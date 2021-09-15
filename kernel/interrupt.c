@@ -1,7 +1,6 @@
-#include <lib/log.h>
-#include <drivers/i8259a.h>
 #include <include/syscall.h>
 
+#include "log.h"
 #include "sched.h"
 #include "printk.h"
 #include "interrupt.h"
@@ -93,10 +92,11 @@ static void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int ef
     tty_color(tty_current, TTY_OP_SET, &color_temp);
     printk("\nKernel crashed!\n"
            "%s\n"
+           "TASK: %u(%s)\n"
            "EFLAGS: 0x%x\n"
            "CS: 0x%x\n"
            "EIP: 0x%x\n",
-           exception_msg[vec_no], eflags, cs, eip);
+           exception_msg[vec_no], current->pid, current->exe, eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
         printk("Error code: 0x%x\n", err_code);
@@ -145,11 +145,6 @@ static void copr_handler()
     printk("copr_handler\n");
 }
 
-static void harddisk_handler()
-{
-    printk("harddisk_handler\n");
-}
-
 void irq_register_handler(int vector, irq_handler h)
 {
     irq_handlers[(vector - INT_VECTOR_IRQ0)] = h;
@@ -164,10 +159,9 @@ void irq_setup()
 {
     struct idtr idtr;
 
-    log_info("setup interrupt controller\n");
-    init_8259a();
+    log_info("setup interrupt\n");
+    setup_8259a();
 
-    log_info("setup interrupt descriptor table\n");
     // initialize exception interrupt descriptor
     init_int_desc(IRQ_EX_DIVIDE, DA_386IGate, irq_ex_divide_error, PRIVILEGE_KRNL);
     init_int_desc(IRQ_EX_DEBUG, DA_386IGate, irq_ex_single_step, PRIVILEGE_KRNL);
@@ -226,7 +220,6 @@ void irq_setup()
     irq_register_handler(IRQ_REAL_CLOCK, real_clock_handler);
     irq_register_handler(IRQ_MOUSE, mouse_handler);
     irq_register_handler(IRQ_COPR, copr_handler);
-    irq_register_handler(IRQ_HARDDISK, harddisk_handler);
 
     // init idt ptr
     idtr.base = &idt;

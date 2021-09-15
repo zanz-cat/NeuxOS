@@ -1,9 +1,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <lib/log.h>
-
 #include <arch/x86.h>
+
+#include "log.h"
+#include "gdt.h"
 
 #define	GDT_SIZE 8192
 

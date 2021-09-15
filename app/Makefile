@@ -1,11 +1,18 @@
-include ../common.mk
+SHELL:=/bin/bash
+CC:=gcc
+CFLAGS:=-m32 -g -O0 -Werror -Wall -nostdlib -fno-builtin -fno-leading-underscore
+CFLAGS+=-I.. -I../include
+
+SOURCE:=$(wildcard *.c)
+BINS:=$(patsubst %.c,%, $(SOURCE))
 
 .PHONY: all clean
 
-all: $(OBJS)
+all: $(BINS)
 
-$(OBJS): %.o:%.c
-	$(CC) -c $(CFLAGS) -o $@ $<
+$(BINS): %:%.c
+	test -d bin || mkdir bin
+	$(CC) $(CFLAGS) -o bin/$@ $^ ../lib/c/libc.a ../lib/posix/libposix.a
 
 clean:
-	rm -f $(OBJS)
+	rm -f $(BINS)

@@ -4,7 +4,7 @@
 #include "drivers/io.h"
 #include "i8259a.h"
 
-void init_8259a()
+void setup_8259a(void)
 {
     out_byte(INT_M_CTL, 0x11);
     out_byte(INT_S_CTL, 0x11);
@@ -22,16 +22,18 @@ void init_8259a()
     out_byte(INT_S_CTLMASK, 0xff);
 }
 
-void enable_irq(int vector)
+void enable_irq_n(int vector)
 {
     int port = (vector - INT_VECTOR_IRQ0) < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    int pvec = vector - (port == INT_M_CTLMASK ? INT_VECTOR_IRQ0 : INT_VECTOR_IRQ8);
     uint8_t mask = in_byte(port);
-    out_byte(port, mask & (~(0x1 << (vector - INT_VECTOR_IRQ0))));
+    out_byte(port, mask & (~(0x1 << pvec)));
 }
 
-void disable_irq(int vector)
+void disable_irq_n(int vector)
 {
     int port = (vector - INT_VECTOR_IRQ0) < 8 ? INT_M_CTLMASK : INT_S_CTLMASK;
+    int pvec = vector - (port == INT_M_CTLMASK ? INT_VECTOR_IRQ0 : INT_VECTOR_IRQ8);
     uint8_t mask = in_byte(port);
-    out_byte(port, mask & (0x1 << (vector - INT_VECTOR_IRQ0)));
+    out_byte(port, mask & (0x1 << pvec));
 }

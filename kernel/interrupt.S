@@ -10,15 +10,17 @@
     ; send eoi
     mov al, INT_EOI
     out INT_M_CTL, al
+%if %1 > 7
+    mov al, INT_EOI
+    out INT_S_CTL, al
+%endif
 
-%if %1 = 0
+    ; need to switch task perhapes
     mov eax, [current]
     str bx
     cmp bx, [eax+OFFSET_TASK_TSS_SEL]
     je .continue
     jmp far [eax]
-%endif
-
 .continue:
     ; restore state
     RESTORE_STATE

@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include <lib/log.h>
 #include <drivers/io.h>
 #include <drivers/i8259a.h>
 
+#include "log.h"
 #include "sched.h"
 #include "interrupt.h"
 #include "printk.h"
@@ -44,7 +44,7 @@ void clock_setup()
     out_byte(PIT_TIMER0, (uint8_t)((PIT_FREQ/PIT_HZ) >> 8));
 
     /* 开启时钟中断 */
-    enable_irq(IRQ_CLOCK);
+    enable_irq_n(IRQ_CLOCK);
 }
 
 uint32_t kget_jeffies()

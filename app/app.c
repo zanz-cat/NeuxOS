@@ -1,9 +1,14 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <misc/misc.h>
+#include <config.h>
+#include <fs/ext2.h>
+#include <kernel/clock.h>
 #include <kernel/printk.h>
+#include <kernel/sched.h>
 
-void app1()
+int main(int argc, char *argv[])
 {
     static int count = 0;
     int ret;
@@ -14,29 +19,10 @@ void app1()
             break;
         }
     }
+    return 0;
 }
 
-void app2()
+void _start(void)
 {
-    static int count = 0;
-    while (1) {
-        sleep(30);
-        printf("app2: %d\n", count++);
-    }
-}
-
-void kapp1()
-{
-    static int count = 0;
-    while (1) {
-        printk("kapp1: %d\n", count++);
-    }
-}
-
-void kapp2()
-{
-    static int count = 0;
-    while (1) {
-        printk("kapp2: %d\n", count++);
-    }
+    main(0, NULL);
 }

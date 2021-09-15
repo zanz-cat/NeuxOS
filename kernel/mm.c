@@ -3,9 +3,9 @@
 
 #include <config.h>
 #include <misc/misc.h>
-#include <lib/log.h>
 #include <misc/misc.h>
 
+#include "log.h"
 #include "kernel.h"
 #include "printk.h"
 #include "interrupt.h"
@@ -78,8 +78,8 @@ static void setup_prepare(void)
 }
 
 #define PAGE_OCCUPIED_BY_KERNEL(addr) \
-    (((addr) >= SHARE_DATA()->kernel_main && (addr) < SHARE_DATA()->kernel_end) || \
-    (((addr)+CONFIG_MEM_PAGE_SZ) > SHARE_DATA()->kernel_main && \
+    (((addr) >= SHARE_DATA()->kernel_idle && (addr) < SHARE_DATA()->kernel_end) || \
+    (((addr)+CONFIG_MEM_PAGE_SZ) > SHARE_DATA()->kernel_idle && \
     ((addr)+CONFIG_MEM_PAGE_SZ) <= SHARE_DATA()->kernel_end))
 
 static void init_pages_bitmap(void)
@@ -141,7 +141,7 @@ static void setup_kernel_page_table(void)
 
     mem_size = ALIGN_CEIL(total_mem / KERNEL_MEM_PERCENT, CONFIG_MEM_PAGE_SZ);
     kernel_pages_count = mem_size / CONFIG_MEM_PAGE_SZ;
-    pages = kernel_pages_count * sizeof(struct paging_entry) / CONFIG_MEM_PAGE_SZ + 1; // page dir use 1 page
+    pages = ceil_div(kernel_pages_count * sizeof(struct paging_entry), CONFIG_MEM_PAGE_SZ) + 1; // page dir use 1 page
 
     kernel_page_table = (void *)ALIGN_CEIL(heap_addr, CONFIG_MEM_PAGE_SZ);
     memset(kernel_page_table, 0, pages * CONFIG_MEM_PAGE_SZ);
@@ -155,30 +155,6 @@ static void setup_kernel_page_table(void)
     }
     heap_addr = (uint32_t)PTR_ADD(kernel_page_table, pages * CONFIG_MEM_PAGE_SZ);
 }
-
-// static void 129(struct paging_entry *table, uint32_t index)
-// {
-//     struct paging_entry *entry;
-//     uint32_t t, p;
-
-//     t = (index >> 10) & 0x3ff;
-//     p = index & 0x3ff;
-//     entry = &table->dir_table[t];
-//     if (!entry->present) {
-//         entry->present = 1;
-//         entry->rw = 1;
-//         entry->us = 1;
-//         entry->index = (uint32_t)(&table->page_table[t]) >> 12;
-//     }
-//     entry = &table->page_table[t][p];
-//     if (entry->present) {
-//         kernel_panic("page(0x%x) already register in kernel\n", index);
-//     }
-//     entry->present = 1;
-//     entry->rw = 1;
-//     entry->us = 1;
-//     entry->index = index;
-// }
 
 struct paging_entry *mm_alloc_user_page_table(void)
 {
@@ -216,8 +192,7 @@ void *mm_malloc(size_t size, uint32_t align)
     }
 
     for (block = heap, new_block = ALLOC_BLOCK(block, align);
-         block->next != heap && ((uint32_t)new_block->data > (uint32_t)block->next ||
-                                 PTR_DIFF(block->next, new_block->data) < size); 
+         block->next != heap && ((uint32_t)new_block->data+size > (uint32_t)block->next); 
          block = block->next, new_block = ALLOC_BLOCK(block, align));
 
     new_block->size = size;
@@ -229,19 +204,21 @@ void *mm_malloc(size_t size, uint32_t align)
     return (void *)new_block->data;
 }
 
-void mm_free(void *addr)
+void mm_free(void *ptr)
 {
-    struct heap_block *block = container_of(addr, struct heap_block, data);
+    struct heap_block *block = container_of(ptr, struct heap_block, data);
     block->prev->next = block->next;
+    block->next->prev = block->prev;
     block->prev = NULL;
     block->next = NULL;
 }
 
 static void page_fault_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
-    log_error("Page Fault, terminate task %u\n", current->pid);
+    log_error("Page Fault, term task %u\n", current->pid);
     term_task(current->pid);
-    yield();
+    sched_task();
+    asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
 }
 
 static void enable_paging(void)

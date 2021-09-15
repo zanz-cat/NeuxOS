@@ -8,7 +8,6 @@
 #include <lib/list.h>
 
 #include "tty.h"
-#include "mm.h"
 
 #define LDT_SIZE 16
 #define STACK0_SIZE 10240
@@ -26,7 +25,7 @@
 
 struct task {
     uint32_t pid;
-    uint16_t tss_sel;
+    uint16_t tss_sel; //put here, we can switch task like 'jmp far [task]'
     uint8_t type;
     uint8_t state;
     uint64_t ticks;
@@ -34,11 +33,11 @@ struct task {
     char exe[MAX_PATH_LEN];
     struct tss tss;
     struct descriptor ldt[LDT_SIZE];
-    uint32_t stack0;
-    uint32_t stack3;
-    struct list_node chain;
+    struct list_node list;
+    struct list_node running;
 } __attribute__((packed));
 
-struct task *create_task(uint32_t pid, void *text, uint16_t type, int tty);
+struct task *create_task(uint32_t pid, void *text, 
+            const char *exe, uint16_t type, int tty);
 
 #endif

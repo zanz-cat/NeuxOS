@@ -6,7 +6,7 @@ extern out_byte
 extern in_byte
 extern current
 extern gdt_setup
-extern kernel_basic_setup
+extern kernel_setup
 
 [SECTION .bss]
 resb    10240
@@ -24,8 +24,8 @@ _start:
     jmp SELECTOR_KERNEL_CS:csinit
 csinit:
     ; setup kernel
-    call kernel_basic_setup
+    call kernel_setup
 
-    ; load and jmp to kernel_main task
+    ; load and jmp to kernel_idle task
     mov eax, [current]
     jmp far [eax]

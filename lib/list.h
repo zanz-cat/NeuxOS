@@ -20,6 +20,7 @@ __extension__ ({ \
     __node->next = (node); \
     (node)->prev = __node; \
     (node)->next = (head); \
+    (head)->prev = (node); \
 })
 
 #define LIST_DEL(node) \
@@ -28,6 +29,14 @@ __extension__ ({ \
     (node)->next->prev = (node)->prev; \
     (node)->prev = NULL; \
     (node)->next = NULL; \
+})
+
+#define LIST_DEL_HEAD(name) \
+__extension__ ({ \
+    if ((name)->next != (name)) { \
+        (name)->next = (name)->next->next; \
+        (name)->next->prev = (name); \
+    } \
 })
 
 #define LIST_FOREACH(head, node) \
@@ -40,6 +49,15 @@ __extension__ ({ \
     for (__count = 0, __node = (head); \
     __node->next != (head); __count++, __node = __node->next); \
     __count; \
+})
+
+#define LIST_ENQUEUE(head, node) LIST_ADD_TAIL((head), (node))
+
+#define LIST_DEQUEUE(head) \
+__extension__ ({ \
+    struct list_node *__node = (head)->next; \
+    LIST_DEL_HEAD(head); \
+    (__node == (head) ? NULL : __node); \
 })
 
 #endif

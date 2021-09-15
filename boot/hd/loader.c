@@ -15,7 +15,7 @@
 #include <errcode.h>
 #include <config.h>
 
-#define WAIT_HD_TIMES 10000
+#define HD_TIMEOUT 10000
 #define KERNEL_FILE_NAME "kernel.elf"
 
 #define ERR_READ_MBR 0x100
@@ -100,16 +100,16 @@ static void print_memory_layout(void)
     printf("\n");
 }
 
-void ata_exec_cmd(uint16_t port, uint8_t data)
+static void ata_exec_cmd(uint16_t port, uint8_t data)
 {
     out_byte(port, data);
-    if (in_byte(ATA_PORT_CMD_STATUS) & ATA_STATUS_ERR) {
+    if (in_byte(ATA_PORT_STATUS) & ATA_STATUS_ERR) {
         printf("exec harddisk cmd error: %d\n", in_byte(ATA_PORT_ERR_NO));
         loader_panic(-EERR);
     }
 }
 
-static int read_sector(uint32_t sector, uint8_t count, void *buf)
+static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
 {
     int i;
     uint8_t status;
@@ -121,16 +121,16 @@ static int read_sector(uint32_t sector, uint8_t count, void *buf)
     ata_exec_cmd(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
     ata_exec_cmd(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
     // send request
-    ata_exec_cmd(ATA_PORT_CMD_STATUS, ATA_CMD_READ);
+    ata_exec_cmd(ATA_PORT_CMD, ATA_CMD_READ);
     // wait harddisk ready
-    for (i = 0; i < WAIT_HD_TIMES; i++) {
+    for (i = 0; i < HD_TIMEOUT; i++) {
         // [BSY - - - DRQ - - ERR] DRQ: data ready
-        status = in_byte(ATA_PORT_CMD_STATUS);
+        status = in_byte(ATA_PORT_STATUS);
         if ((status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) == ATA_STATUS_DRQ) {
             break;
         }
     }
-    if (i == WAIT_HD_TIMES) {
+    if (i == HD_TIMEOUT) {
         return -ETIMEOUT;
     }
     // read data
@@ -143,7 +143,7 @@ static int read_sector(uint32_t sector, uint8_t count, void *buf)
 
 static int ext2_read_block(struct hd_mbr_part *part, uint32_t block, uint8_t count, void *buf)
 {
-    return read_sector(part->lba + EXT2_SECTS_PER_BLK * block,
+    return loader_read_sector(part->lba + EXT2_SECTS_PER_BLK * block,
                     EXT2_SECTS_PER_BLK * count, buf);
 }
 
@@ -193,7 +193,7 @@ static int read_kernel_file(void)
     struct ext2_inode kernel_ino;
     void *kernel;
 
-    ret = read_sector(0, 1, &mbr);
+    ret = loader_read_sector(0, 1, &mbr);
     if (ret != 0) {
         return ERR_READ_MBR;
     }
@@ -206,7 +206,7 @@ static int read_kernel_file(void)
         return ERR_NO_BOOTABLE_PART;
     }
     part = &mbr.DPT[i];
-    if (part->type != 0x83) { // EXT2
+    if (part->type != PART_TYPE_EXT2FS) {
         return ERR_INVALID_FS;
     }
     ret = ext2_read_block(part, 1, 1, &s_block);
@@ -371,7 +371,7 @@ static int load_kernel_elf(void **entry)
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
 
-    SHARE_DATA()->kernel_main = 0xffffffff;
+    SHARE_DATA()->kernel_idle = 0xffffffff;
     SHARE_DATA()->kernel_end = 0;
     eh = (Elf32_Ehdr *)kernel_file_start;
     if (strncmp((char *)eh->e_ident, ELFMAG, SELFMAG) != 0) {
@@ -386,8 +386,8 @@ static int load_kernel_elf(void **entry)
             memcpy((void *)ph->p_paddr, kernel_file_start + ph->p_offset, ph->p_filesz);
             count++;
 
-            if (SHARE_DATA()->kernel_main > ph->p_paddr) {
-                SHARE_DATA()->kernel_main = ph->p_paddr;
+            if (SHARE_DATA()->kernel_idle > ph->p_paddr) {
+                SHARE_DATA()->kernel_idle = ph->p_paddr;
             }
             if (ph->p_paddr + ph->p_memsz > SHARE_DATA()->kernel_end) {
                 SHARE_DATA()->kernel_end = ph->p_paddr + ph->p_memsz;
@@ -403,8 +403,8 @@ static int load_kernel_elf(void **entry)
             memset((void *)sh->sh_addr, 0, sh->sh_size);
             count++;
 
-            if (SHARE_DATA()->kernel_main > sh->sh_addr) {
-                SHARE_DATA()->kernel_main = sh->sh_addr;
+            if (SHARE_DATA()->kernel_idle > sh->sh_addr) {
+                SHARE_DATA()->kernel_idle = sh->sh_addr;
             }
             if (sh->sh_addr + sh->sh_size > SHARE_DATA()->kernel_end) {
                 SHARE_DATA()->kernel_end = sh->sh_addr + sh->sh_size;
@@ -416,7 +416,7 @@ static int load_kernel_elf(void **entry)
     // clear kernel file
     memset(kernel_file_start, 0, kernel_size);
 
-    printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_main, SHARE_DATA()->kernel_end);
+    printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_idle, SHARE_DATA()->kernel_end);
 
     return 0;
 }

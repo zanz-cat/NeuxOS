@@ -7,7 +7,7 @@
 #include <arch/x86.h>
 
 struct share_data {
-    uint32_t kernel_main;
+    uint32_t kernel_idle;
     uint32_t kernel_end;
     uint32_t ards_cnt;
     struct ARDS ards[0];
@@ -70,5 +70,24 @@ __extension__({ \
 })
 
 #define is_power_of_2(n) (n && !(n & (n - 1)))
+
+#define do_div(n, base) \
+__extension__({ \
+    uint32_t __base = (base); \
+    uint32_t __rem; \
+    __rem = ((uint64_t)(n)) % __base; \
+    (n) = ((uint64_t)(n)) / __base; \
+    __rem; \
+})
+
+#define ceil_div(n, base) (((n) + ((base) - 1)) / (base))
+
+static inline uint32_t eflags(void)
+{
+    uint32_t eflags;
+    asm volatile("pushf\n\t"
+        "pop %%eax":"=a"(eflags)::"memory");
+    return eflags;
+}
 
 #endif

@@ -24,8 +24,8 @@ void mm_setup(void);
 struct paging_entry *mm_kernel_page_table(void);
 struct paging_entry *mm_alloc_user_page_table(void);
 void mm_free_user_paging(struct paging_entry *table);
-void *mm_malloc(size_t len, uint32_t align);
-void mm_free(void *addr);
+void *mm_malloc(size_t size, uint32_t align);
+void mm_free(void *ptr);
 void mm_report(void);
 
 #endif

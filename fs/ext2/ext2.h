@@ -22,6 +22,7 @@
 
 #define EXT2_SECTS_PER_BLK (CONFIG_EXT2_BS / CONFIG_HD_SECT_SZ)
 
+// inode number start from 1 rather than 0
 #define EXT2_INO_ROOT 2
 
 struct ext2_super_block {
@@ -108,8 +109,22 @@ struct ext2_dir_entry {
     char name[0];
 } __attribute__((packed));
 
-struct ext2_indexed_dir_entry {
+struct ext2_index_dir_entry {
 
 } __attribute__((packed));
+
+#define FILE_PATH_SEP "/"
+
+struct ext2_file {
+    uint32_t inode;
+    uint32_t size;
+    uint16_t mode;
+};
+
+void ext2_setup(void);
+struct ext2_file *ext2_open(const char *abspath);
+int ext2_close(struct ext2_file *f);
+int ext2_read(struct ext2_file *f, void *buf, size_t count);
+int ext2_write(struct ext2_file *f, const void *buf, size_t count);
 
 #endif

@@ -1,8 +1,9 @@
 #include <string.h>
+#include <malloc.h>
 
-#include <lib/log.h>
 #include <arch/x86.h>
 
+#include "log.h"
 #include "gdt.h"
 #include "mm.h"
 
@@ -42,7 +43,7 @@ static int init_kernel_task(struct task *task, void *text)
     task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     task->ldt[index].attr1 = DA_DRW | DA_DPL0;
 
-    ptr = mm_malloc(STACK0_SIZE, sizeof(uint32_t));
+    ptr = memalign(sizeof(uint32_t), STACK0_SIZE);
     if (ptr == NULL) {
         log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
@@ -79,7 +80,7 @@ static int init_kernel_task(struct task *task, void *text)
     ret = install_ldt(task->ldt, LDT_SIZE);
     if (ret < 0) {
         log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
-        mm_free(ptr);
+        free(ptr);
         return -1;
     }
     task->tss.ldt = (uint16_t)ret;
@@ -88,7 +89,7 @@ static int init_kernel_task(struct task *task, void *text)
     if (ret < 0) {
         log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
         uninstall_ldt(task->tss.ldt);
-        mm_free(ptr);
+        free(ptr);
         return -1;
     }
     task->tss_sel = (uint16_t)ret;
@@ -126,15 +127,15 @@ static int init_user_task(struct task *task, void *text)
     task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
     task->ldt[index].attr1 = DA_DRW | DA_DPL0;
 
-    ptr = mm_malloc(STACK0_SIZE, sizeof(uint32_t));
+    ptr = memalign(sizeof(uint32_t), STACK0_SIZE);
     if (ptr == NULL) {
         log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
     }
-    ptr3 = mm_malloc(STACK3_SIZE, sizeof(uint32_t));
+    ptr3 = memalign(sizeof(uint32_t), STACK3_SIZE);
     if (ptr3 == NULL) {
         log_error("create stack3 error, pid: %d\n", task->pid);
-        mm_free(ptr);
+        free(ptr);
         return -1;
     }
     /* init TSS */
@@ -169,8 +170,8 @@ static int init_user_task(struct task *task, void *text)
     ret = install_ldt(task->ldt, LDT_SIZE);
     if (ret < 0) {
         log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
-        mm_free(ptr3);
-        mm_free(ptr);
+        free(ptr3);
+        free(ptr);
         return -1;
     }
     task->tss.ldt = (uint16_t)ret;
@@ -179,8 +180,8 @@ static int init_user_task(struct task *task, void *text)
     if (ret < 0) {
         log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
         uninstall_ldt(task->tss.ldt);
-        mm_free(ptr3);
-        mm_free(ptr);
+        free(ptr3);
+        free(ptr);
         return -1;
     }
     task->tss_sel = (uint16_t)ret;
@@ -188,12 +189,12 @@ static int init_user_task(struct task *task, void *text)
     return 0;
 }
 
-struct task *create_task(uint32_t pid, void *text, uint16_t type, int tty)
+struct task *create_task(uint32_t pid, void *text, const char *exe, uint16_t type, int tty)
 {
     int ret;
     struct task *task;
 
-    task = (struct task *)mm_malloc(sizeof(struct task), 0);
+    task = (struct task *)malloc(sizeof(struct task));
     if (task == NULL) {
         log_error("no enough memory\n");
         return NULL;
@@ -203,6 +204,7 @@ struct task *create_task(uint32_t pid, void *text, uint16_t type, int tty)
     task->type = type;
     task->pid = pid;
     task->tty = tty;
+    strncpy(task->exe, exe, MAX_PATH_LEN);
 
     if (TASK_TYPE_KERNEL == type) {
         ret = init_kernel_task(task, text);

@@ -5,12 +5,17 @@
 #include "task.h"
 
 extern struct task *current;
-struct task *create_user_task(void *text, int tty);
-struct task *create_kernel_task(void *text, int tty);
+
+void sched_setup(void);
+
+struct task *create_user_task(void *text, const char *exe, int tty);
+struct task *create_kernel_task(void *text, const char *exe, int tty);
 void term_task(uint32_t pid);
+
 void sched_task(void);
 void yield(void);
-void sched_setup(void);
-void system_load_report(void);
+void suspend_task(struct list_node *wakeup_queue);
+void resume_task(struct list_node *wakeup_queue);
+void sched_report(void);
 
 #endif

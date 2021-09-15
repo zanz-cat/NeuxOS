@@ -1,12 +1,12 @@
-#include <lib/log.h>
 #include <drivers/io.h>
 #include <drivers/i8259a.h>
 
 #include <kernel/sched.h>
 #include <kernel/interrupt.h>
+#include <kernel/log.h>
 
-#include "keyboard.h"
 #include "keymap.h"
+#include "keyboard.h"
 
 static struct keyboard_input_buffer buf_in;
 static int shift_l;
@@ -24,14 +24,14 @@ static void keyboard_handler()
 {
     uint8_t scan_code = in_byte(KEYBOARD_IO_PORT);
 
-    if (buf_in.count >= KEYBOARD_IN_BYTES)
+    if (buf_in.count >= KEYBOARD_IN_BYTES) {
         return;
-
+    }
     *(buf_in.head) = scan_code;
     buf_in.head++;
-    if (buf_in.head == buf_in.data + KEYBOARD_IN_BYTES)
+    if (buf_in.head == buf_in.data + KEYBOARD_IN_BYTES) {
         buf_in.head = buf_in.data;
-
+    }
     buf_in.count++;
 }
 
@@ -41,14 +41,15 @@ static uint8_t get_byte_from_kbuf()
         yield();
     }
 
-    disable_irq(IRQ_KEYBOARD);
+    disable_irq_n(IRQ_KEYBOARD);
     uint8_t scan_code = *(buf_in.tail);
     buf_in.tail++;
-    if (buf_in.tail == buf_in.data + KEYBOARD_IN_BYTES)
+    if (buf_in.tail == buf_in.data + KEYBOARD_IN_BYTES) {
         buf_in.tail = buf_in.data;
+    }
 
     buf_in.count--;
-    enable_irq(IRQ_KEYBOARD);
+    enable_irq_n(IRQ_KEYBOARD);
 
     return scan_code;
 }
@@ -102,8 +103,9 @@ void keyboard_read(int tty)
             }
         }
 
-        if(is_pausebrk)
+        if(is_pausebrk) {
             key = PAUSEBREAK;
+        }
 
     } else if (scan_code == 0xe0) {
         scan_code = get_byte_from_kbuf();
@@ -118,8 +120,9 @@ void keyboard_read(int tty)
             is_make = 0;
         }
         /* todo */
-        if (key == 0)
+        if (key == 0) {
             code_with_E0 = 1;
+        }
     }
 
     if((key != PAUSEBREAK) && (key != PRINTSCREEN)) {
@@ -285,5 +288,5 @@ void keyboard_setup()
     irq_register_handler(IRQ_KEYBOARD, keyboard_handler);
 
     /* 开启键盘中断 */
-    enable_irq(IRQ_KEYBOARD);
+    enable_irq_n(IRQ_KEYBOARD);
 }

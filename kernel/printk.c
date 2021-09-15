@@ -1,6 +1,8 @@
 #include <stdio.h>
 
 #include "tty.h"
+#include "sched.h"
+
 #include "printk.h"
 
 #define PRINTFK_BUF_SIZE 1024
@@ -47,7 +49,7 @@ int vfprintk(int fd, const char *fmt, va_list ap)
 
 int vprintk(const char *fmt, va_list ap)
 {
-    int i, n;
+    int i, n, fd;
     char buf[PRINTFK_BUF_SIZE];
 
     n = vsprintf(buf, fmt, ap);
@@ -55,8 +57,13 @@ int vprintk(const char *fmt, va_list ap)
         return n;
     }
 
+    if (current == NULL || current->tty == TTY_NULL) {
+        fd = TTY0;
+    } else {
+        fd = current->tty;
+    }
     for (i = 0; i < n; i++) {
-        if (tty_putchar(tty_current, buf[i]) < 0) {
+        if (tty_putchar(fd, buf[i]) < 0) {
             break;
         }
     }

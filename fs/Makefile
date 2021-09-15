@@ -6,20 +6,12 @@ SUBDIRS:=$(basename $(patsubst ./%,%,$(SUBDIRS)))
 SUBDIRS:=$(filter-out $(EXCLUDEDIRS),$(SUBDIRS))
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 
-.PHONY: all clean $(SUBDIRS) $(CLEAN_SUBDIRS)
+.PHONY: clean $(SUBDIRS) $(CLEAN_SUBDIRS)
 
-CFLAGS += -I$(ROOTDIR)/include
-
-all: $(ASMOBJS) $(OBJS) $(SUBDIRS)
-
-$(OBJS): %.o:%.c
-	$(CC) -c $(CFLAGS) -o $@ $^
-
-$(ASMOBJS): %_S.o:%.S
-	nasm $(ASMFLAGS) -f elf -o $@ $^
+all: $(SUBDIRS)
 
 clean: $(CLEAN_SUBDIRS)
-	rm -f $(OBJS) $(ASMOBJS)
+	rm -f $(OBJS)
 
 $(SUBDIRS):
 	$(MAKE) -C $@
