@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <malloc.h>
 
 #include <errcode.h>
 #include <config.h>
@@ -9,6 +8,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/sched.h>
 #include <kernel/log.h>
+#include <kernel/kmalloc.h>
 #include <drivers/io.h>
 #include <lib/list.h>
 #include <misc/misc.h>
@@ -138,7 +138,7 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
 
 void hd_setup(void)
 {
-    log_info("setup harddisk driver\n");
+    log_info("setup harddisk\n");
     irq_register_handler(IRQ_HARDDISK, hd_irq_handler);
     enable_irq_n(IRQ_HARDDISK);
 }

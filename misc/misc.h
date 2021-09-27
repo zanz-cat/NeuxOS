@@ -7,13 +7,17 @@
 #include <arch/x86.h>
 
 struct share_data {
-    uint32_t kernel_idle;
+    uint32_t kernel_start; // physical addr
     uint32_t kernel_end;
     uint32_t ards_cnt;
     struct ARDS ards[0];
 } __attribute__((packed));
 
-#define SHARE_DATA() ((struct share_data *)CONFIG_SHARE_DATA_ADDR)
+#ifdef NO_PAGE
+    #define SHARE_DATA() ((struct share_data *)CONFIG_SHARE_DATA_ADDR)
+#else
+    #define SHARE_DATA() ((struct share_data *)(CONFIG_SHARE_DATA_ADDR+CONFIG_KERNEL_VMA))
+#endif
 
 #define max(a, b) \
     __extension__ ({ \

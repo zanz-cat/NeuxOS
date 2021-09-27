@@ -1,6 +1,5 @@
 #include <stddef.h>
 #include <string.h>
-#include <malloc.h>
 
 #include <lib/list.h>
 #include <config.h>
@@ -12,6 +11,7 @@
 #include "clock.h"
 #include "printk.h"
 #include "kernel.h"
+#include "kmalloc.h"
 #include "interrupt.h"
 
 #include "sched.h"
@@ -20,7 +20,7 @@ static uint32_t task_id;
 static LIST_HEAD(task_list);
 static LIST_HEAD(running_queue);
 static LIST_HEAD(term_queue);
-static struct task *kernel_idle_task;
+static struct task *kernel_loop_task;
 
 struct task *current;
 
@@ -33,7 +33,7 @@ struct task *create_user_task(void *text, const char *exe, int tty)
     }
     LIST_ADD_TAIL(&task_list, &task->list);
     LIST_ENQUEUE(&running_queue, &task->running);
-    log_debug("u-task created, pid: %d\n", task->pid);
+    log_debug("user task created, pid: %d\n", task->pid);
     return task;
 }
 
@@ -46,7 +46,7 @@ struct task *create_kernel_task(void *text, const char *exe, int tty)
     }
     LIST_ADD_TAIL(&task_list, &task->list);
     LIST_ENQUEUE(&running_queue, &task->running);
-    log_debug("k-task created, pid: %d\n", task->pid);
+    log_debug("kernel task created, pid: %d\n", task->pid);
     return task;
 }
 
@@ -79,7 +79,7 @@ static void do_term_task(struct task *task)
     mm_free_user_paging((struct paging_entry *)task->tss.cr3);
     uninstall_ldt(task->tss.ldt);
     uninstall_tss(task->tss_sel);
-    free(task);
+    kfree(task);
 }
 
 void yield(void) {
@@ -90,7 +90,7 @@ void yield(void) {
     onboard = current;
     node = LIST_DEQUEUE(&running_queue);
     if (node == NULL) {
-        current = kernel_idle_task;
+        current = kernel_loop_task;
     } else {
         current = container_of(node, struct task, running);
     }
@@ -108,7 +108,7 @@ void suspend_task(struct list_node *wakeup_queue)
 
     node = LIST_DEQUEUE(&running_queue);
     if (node == NULL) {
-        current = kernel_idle_task;
+        current = kernel_loop_task;
     } else {
         current = container_of(node, struct task, running);
     }
@@ -135,12 +135,12 @@ void sched_task(void)
     struct task *task;
     struct list_node *node;
 
-    if (current != kernel_idle_task && current->state == TASK_STATE_RUNNING) {
+    if (current != kernel_loop_task && current->state == TASK_STATE_RUNNING) {
         LIST_ENQUEUE(&running_queue, &current->running);
     }
     node = LIST_DEQUEUE(&running_queue);
     if (node == NULL) {
-        current = kernel_idle_task;
+        current = kernel_loop_task;
     } else {
         current = container_of(node, struct task, running);
     }
@@ -156,11 +156,12 @@ void sched_setup(void)
 {
     task_id = 0;
 
-    kernel_idle_task = create_task(task_id++, kernel_idle, "[idle]", TASK_TYPE_KERNEL, -1);
-    if (kernel_idle_task == NULL) {
-        kernel_panic("create kernel_idle task error\n");
+    kernel_loop_task = create_task(task_id++, kernel_loop, "[kernel]", TASK_TYPE_KERNEL, -1);
+    if (kernel_loop_task == NULL) {
+        kernel_panic("create kernel_loop task error\n");
     };
-    current = kernel_idle_task;
+    kernel_loop_task->tss.eflags &= ~EFLAGS_IF;
+    current = kernel_loop_task;
 }
 
 void sched_report(void)

@@ -2,6 +2,6 @@
 #define __KERNEL_KERNEL_H__
 
 void kernel_panic(const char *fmt, ...);
-void kernel_idle(void);
+void kernel_loop(void);
 
 #endif

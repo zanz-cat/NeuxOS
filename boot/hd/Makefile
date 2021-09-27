@@ -1,11 +1,16 @@
+export EXTRA_CFLAGS=-DNO_PAGE
+CURDIR:=$(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 include ../../common.mk
 include ../../.config
 
 .PHONY: all clean
 
-ALLOBJS:=$(OBJS) $(DRIVERSDIR)/io_S.o $(DRIVERSDIR)/monitor/monitor.o $(LIBOBJS)
+ALLOBJS:=$(OBJS) $(DRIVERSDIR)/io_S.o monitor.o $(LIBOBJS)
 
-all: mbr.bin boot.bin loader.bin loader.elf
+all: monitor.o mbr.bin boot.bin loader.bin loader.elf
+
+monitor.o:
+	make -C $(ROOTDIR)/drivers/monitor OUTDIR=$(CURDIR)
 
 mbr.bin: mbr.S
 	nasm $(ASMFLAGS) -o $@ $^
@@ -45,5 +50,5 @@ loader.bin: .loader_S.bin .loader.bin
 	exit 1 || exit 0
 
 clean:
-	rm -f .loader_C.text .loader_S.bin $(OBJS) .loader.bin \
-	loader.bin loader.elf boot.bin mbr.bin
+	rm -f .loader_C.text .loader_S.bin $(OBJS) .loader.bin loader.bin loader.elf boot.bin mbr.bin
+	make -C $(ROOTDIR)/drivers/monitor OUTDIR=$(CURDIR) EXTRA_CFLAGS=-DNO_PAGE clean

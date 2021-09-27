@@ -1,8 +1,6 @@
 include ../common.mk
 include ../.config
 
-KERNEL_ADDR=0xc0000000 # 3GB
-
 .PHONY: all clean
 
 all: $(ASMOBJS) $(OBJS) kernel.elf
@@ -14,7 +12,7 @@ $(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
 kernel.elf: $(OBJS) $(ASMOBJS) $(DRIVEROBJS) $(FSOBJS) $(LIBOBJS)
-	$(LD) $(LDFLAGS) -Ttext $(KERNEL_ADDR) -o $@ $^
+	$(LD) $(LDFLAGS) -Ttext $(CONFIG_KERNEL_IMG_VM_ADDR) -o $@ $^
 	objcopy --remove-section=.note.gnu.property $@ 2>/dev/null
 
 clean:

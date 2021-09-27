@@ -10,7 +10,7 @@ jmp LABEL_START
 LABEL_GDT:              Descriptor     0,          0,              0       ; dummy descriptor
 LABEL_DESC_FLAT_C:      Descriptor     0,          0fffffh,        DA_CR|DA_32|DA_LIMIT_4K
 LABEL_DESC_FLAT_RW:     Descriptor     0,          0fffffh,        DA_DRW|DA_32|DA_LIMIT_4K
-LABEL_DESC_VIDEO:       Descriptor     0b8000h,    0ffffh,         DA_DRW|DA_DPL3
+; LABEL_DESC_VIDEO:       Descriptor     0b8000h,    07fffh,         DA_DRW|DA_DPL3
 
 GdtLen equ $ - LABEL_GDT
 GdtPtr dw GdtLen - 1
@@ -19,7 +19,7 @@ GdtPtr dw GdtLen - 1
 ; GDT Selector
 SelectorFlatC equ LABEL_DESC_FLAT_C - LABEL_GDT
 SelectorFlatRW equ LABEL_DESC_FLAT_RW - LABEL_GDT
-SelectorVideo equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
+; SelectorVideo equ LABEL_DESC_VIDEO - LABEL_GDT + SA_RPL3
 
 TOP_OF_STACK equ 0ffffh
 
@@ -55,8 +55,8 @@ LABEL_START:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov ax, SelectorVideo
-    mov gs, ax
+    ; mov ax, SelectorVideo
+    ; mov gs, ax
 
     ; jmp to 32bit segment, clean up pipeline and cache in 16bit mode.
     jmp dword SelectorFlatC:(paddr(LABEL_PM_START))

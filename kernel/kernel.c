@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <string.h>
-#include <malloc.h>
 
 #include <drivers/keyboard.h>
 #include <drivers/harddisk.h>
@@ -12,6 +11,7 @@
 #include "sched.h"
 #include "gdt.h"
 #include "clock.h"
+#include "kmalloc.h"
 #include "printk.h"
 #include "tty.h"
 #include "interrupt.h"
@@ -84,12 +84,18 @@ void kernel_setup()
     welcome();
 }
 
-void kernel_idle(void)
+void kernel_loop(void)
 {
     uint32_t count = 0;
+    struct paging_entry *pg_dir;
+
+    // some cleaning jobs
+    pg_dir = (void *)(CONFIG_KERNEL_PG_ADDR + CONFIG_KERNEL_VMA);
+    pg_dir[0].present = 0;
+
+    enable_irq();
     while (1) {
         if (count++ % 100000 == 0) {
-            printk("idle\n");
             sched_report();
         }
         asm("hlt");
@@ -109,7 +115,7 @@ void F1_handler(void)
         printk("open file failed\n");
         return;
     }
-    char *buf = malloc(f->size);
+    char *buf = kmalloc(f->size);
     if (buf == NULL) {
         printk("malloc failed\n");
         return;
@@ -119,6 +125,7 @@ void F1_handler(void)
         printk("read error: %d\n", ret);
     }
     // create_user_task();
+    printk(buf);
     ext2_close(f);
-    free(buf);
+    kfree(buf);
 }

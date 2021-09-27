@@ -7,6 +7,7 @@
 #define CRT_SIZE        (CRT_NR_COLUMNS * CRT_NR_ROWS)
 
 #define DEFAULT_TEXT_COLOR 0x7
+#define MONITOR_PHY_MEM 0xb8000
 
 void monitor_set_cursor(uint16_t offset);
 uint16_t monitor_get_cursor();

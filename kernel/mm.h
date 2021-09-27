@@ -20,8 +20,9 @@ struct paging_entry {
     uint32_t index:20;
 } __attribute__((packed));
 
+#define PAGE_ENT_CNT (CONFIG_MEM_PAGE_SIZE/sizeof(struct paging_entry))
+
 void mm_setup(void);
-struct paging_entry *mm_kernel_page_table(void);
 struct paging_entry *mm_alloc_user_page_table(void);
 void mm_free_user_paging(struct paging_entry *table);
 void *mm_malloc(size_t size, uint32_t align);

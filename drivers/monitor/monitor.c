@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <drivers/io.h>
+#include <config.h>
 
 #include "monitor.h"
 
@@ -12,7 +13,12 @@
 #define CRT_CUR_LOC_L   0xf
 #define CRT_START_H     0xc
 #define CRT_START_L     0xd
-#define VIDEO_MEM_BASE  ((uint16_t *)0xb8000)
+
+#ifdef NO_PAGE
+    #define VIDEO_MEM_BASE  ((uint16_t *)(MONITOR_PHY_MEM))
+#else
+    #define VIDEO_MEM_BASE  ((uint16_t *)(MONITOR_PHY_MEM+CONFIG_KERNEL_VMA))
+#endif
 
 void monitor_set_cursor(uint16_t offset)
 {

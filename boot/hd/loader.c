@@ -9,6 +9,7 @@
 #include <drivers/io.h>
 #include <drivers/harddisk.h>
 #include <drivers/monitor.h>
+#include <kernel/mm.h>
 
 #include <misc/misc.h>
 #include <fs/ext2/ext2.h>
@@ -363,35 +364,35 @@ static int read_kernel_file(void)
     return 0;
 }
 
-static int load_kernel_elf(void **entry)
+static int load_kernel_elf(uint32_t *entry)
 {
+#define KERNEL_IMG_P_ADDR(vaddr) ((vaddr) - CONFIG_KERNEL_VMA)
     int i;
     uint32_t count;
     Elf32_Ehdr *eh;
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
 
-    SHARE_DATA()->kernel_idle = 0xffffffff;
+    SHARE_DATA()->kernel_start = 0xffffffff;
     SHARE_DATA()->kernel_end = 0;
     eh = (Elf32_Ehdr *)kernel_file_start;
     if (strncmp((char *)eh->e_ident, ELFMAG, SELFMAG) != 0) {
         return ERR_NON_ELF;
     }
-    *entry = (void *)eh->e_entry;
+    *entry = eh->e_entry;
 
     count = 0;
     for (i = 0; i < eh->e_phnum; i++) {
         ph = (Elf32_Phdr *)(kernel_file_start + eh->e_phoff + eh->e_phentsize * i);
-        if (ph->p_type == PT_LOAD && ph->p_filesz > 0) {
-            memcpy((void *)ph->p_paddr, kernel_file_start + ph->p_offset, ph->p_filesz);
+        if (ph->p_type == PT_LOAD && ph->p_filesz > 0 && ph->p_vaddr >= CONFIG_KERNEL_VMA) {
+            memcpy((void *)KERNEL_IMG_P_ADDR(ph->p_vaddr), kernel_file_start + ph->p_offset, ph->p_filesz);
+            if (SHARE_DATA()->kernel_start > KERNEL_IMG_P_ADDR(ph->p_vaddr)) {
+                SHARE_DATA()->kernel_start = KERNEL_IMG_P_ADDR(ph->p_vaddr);
+            }
+            if (KERNEL_IMG_P_ADDR(ph->p_vaddr) + ph->p_memsz > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = KERNEL_IMG_P_ADDR(ph->p_vaddr) + ph->p_memsz;
+            }
             count++;
-
-            if (SHARE_DATA()->kernel_idle > ph->p_paddr) {
-                SHARE_DATA()->kernel_idle = ph->p_paddr;
-            }
-            if (ph->p_paddr + ph->p_memsz > SHARE_DATA()->kernel_end) {
-                SHARE_DATA()->kernel_end = ph->p_paddr + ph->p_memsz;
-            }
         }
     }
     printf("%d program(s) loaded\n", count);
@@ -399,16 +400,15 @@ static int load_kernel_elf(void **entry)
     count = 0;
     for (i = 0; i < eh->e_shnum; i++) {
         sh = (Elf32_Shdr *)(kernel_file_start + eh->e_shoff + eh->e_shentsize * i);
-        if (sh->sh_type == SHT_NOBITS) {
-            memset((void *)sh->sh_addr, 0, sh->sh_size);
+        if (sh->sh_type == SHT_NOBITS && sh->sh_addr >= CONFIG_KERNEL_VMA) {
+            memset((void *)KERNEL_IMG_P_ADDR(sh->sh_addr), 0, sh->sh_size);
+            if (SHARE_DATA()->kernel_start > KERNEL_IMG_P_ADDR(sh->sh_addr)) {
+                SHARE_DATA()->kernel_start = KERNEL_IMG_P_ADDR(sh->sh_addr);
+            }
+            if (KERNEL_IMG_P_ADDR(sh->sh_addr) + sh->sh_size > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = KERNEL_IMG_P_ADDR(sh->sh_addr) + sh->sh_size;
+            }
             count++;
-
-            if (SHARE_DATA()->kernel_idle > sh->sh_addr) {
-                SHARE_DATA()->kernel_idle = sh->sh_addr;
-            }
-            if (sh->sh_addr + sh->sh_size > SHARE_DATA()->kernel_end) {
-                SHARE_DATA()->kernel_end = sh->sh_addr + sh->sh_size;
-            }
         }
     }
     printf("%d BSS(s) initialized\n", count); // Block Started by Symbol
@@ -416,15 +416,15 @@ static int load_kernel_elf(void **entry)
     // clear kernel file
     memset(kernel_file_start, 0, kernel_size);
 
-    printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_idle, SHARE_DATA()->kernel_end);
+    printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_start, SHARE_DATA()->kernel_end);
 
     return 0;
 }
 
-static void *load_kernel(void)
+static uint32_t load_kernel(void)
 {
     int ret;
-    void *entry = NULL;
+    uint32_t entry = 0;
 
     printf("start to load kernel\n");
 
@@ -442,12 +442,63 @@ static void *load_kernel(void)
     return entry;
 }
 
+static void enable_paging(void)
+{
+    asm("movl %0, %%eax\n\t"
+        "movl %%eax, %%cr3\n\t"
+        "movl %%cr0, %%eax\n\t"
+        "or %1, %%eax\n\t"
+        "movl %%eax, %%cr0"::"i"(CONFIG_KERNEL_PG_ADDR),"i"(0x80000000):"%eax");
+}
+
+static void setup_page(void)
+{
+    int i, j;
+    uint32_t page = 0;
+    struct paging_entry *pg_dir = (void *)CONFIG_KERNEL_PG_ADDR;
+    struct paging_entry *pg_table = pg_dir + PAGE_ENT_CNT;
+
+    memset(pg_dir, 0, CONFIG_MEM_PAGE_SIZE);
+    for (i = 0; i < PAGE_ENT_CNT; i++) {
+        if (CONFIG_MEM_PAGE_SIZE*PAGE_ENT_CNT*i < CONFIG_KERNEL_VMA) {
+            pg_dir[i].present = 0;
+            continue;
+        }
+        pg_dir[i].present = 1;
+        pg_dir[i].rw = 1;
+        pg_dir[i].index = (uint32_t)pg_table / CONFIG_MEM_PAGE_SIZE;
+        memset(pg_table, 0, CONFIG_MEM_PAGE_SIZE);
+        for (j = 0; j < PAGE_ENT_CNT; j++) {
+            pg_table[j].present = 1;
+            pg_table[j].rw = 1;
+            pg_table[j].index = page++;
+        }
+        pg_table += PAGE_ENT_CNT;
+    }
+    /* create temporary page table for 0~1MB memory
+     * only valid in loader, kernel should uninstall 
+     * this page table.
+     */
+    pg_table = (void *)ALIGN_CEIL(SHARE_DATA()->kernel_end, CONFIG_MEM_PAGE_SIZE);
+    pg_dir[0].present = 1;
+    pg_dir[0].rw = 0;
+    pg_dir[0].index = (uint32_t)pg_table / CONFIG_MEM_PAGE_SIZE;
+    memset(pg_table, 0, CONFIG_MEM_PAGE_SIZE);
+    for (j = 0; j < 0x100000/CONFIG_MEM_PAGE_SIZE; j++) {
+        pg_table[j].present = 1;
+        pg_table[j].rw = 0;
+        pg_table[j].index = j;
+    }
+    enable_paging();
+}
+
 static void load()
 {
-    void *entry;
-
+    uint32_t entry_point[2] = { 0 };
     printf("loading kernel...\n");
     print_memory_layout();
-    entry = load_kernel();
-    asm("jmp *%0"::"p"(entry):);
+    entry_point[0] = load_kernel();
+    entry_point[1] = SELECTOR_KERNEL_CS;
+    setup_page();
+    asm("ljmp *(%0)"::"p"(entry_point):);
 }

@@ -116,20 +116,8 @@ bochsrc: bochsrc.txt
 	echo "boot: disk" >> bochsrc
 
 config:
-	@rm -f .config
-	@echo CONFIG_HD_SZ=$${HD_SZ:-128M} >> .config; \
-	echo CONFIG_HD_SECT_SZ=$${HD_SECT_SZ:-512} >> .config; \
-	echo CONFIG_HD_HEADS=$${HD_HEADS:-16} >> .config; \
-	echo CONFIG_HD_SPT=$${HD_SPT:-63} >> .config; \
-	echo CONFIG_EXT2_BS=$${EXT2_BS:-1024} >> .config; \
-	echo CONFIG_MEM_PAGE_SZ=$${MEM_PAGE_SZ:-4096} >> .config; \
-	echo CONFIG_SHARE_DATA_ADDR=$${SHARE_DATA_ADDR:-0x60000} >> .config;
-	@cat .config
-	@# non-digital wrapped by ""
-	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$|^0x[0-9a-fA-F]+$$/) \
-		print "#define "$$1" "$$2; else print "#define "$$1" \""$$2"\""}' > config.h
-	@cat .config | awk -F= '{if($$2 ~ /^[0-9]+$$|^0x[0-9a-fA-F]+$$/) \
-		print $$1" equ "$$2; else print $$1" equ \""$$2"\""}' > config.S
+	rm -f .config config.h config.S
+	@./Kconfig
 
 distclean: clean
 	rm -f .config config.h config.S

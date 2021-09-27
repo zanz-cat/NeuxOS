@@ -21,9 +21,8 @@ struct heap_block {
 } __attribute__((packed));
 
 #define KERNEL_MEM_PERCENT 4
-#define MAX_PAGES_COUNT ((0x100000000)/CONFIG_MEM_PAGE_SZ)
+#define MAX_PAGES_COUNT ((0x100000000)/CONFIG_MEM_PAGE_SIZE)
 #define PAGES_BITMAP_SIZE (MAX_PAGES_COUNT / 8)
-#define PAGE_ENT_CNT (CONFIG_MEM_PAGE_SZ/sizeof(struct paging_entry))
 
 #define NEXT_BLOCK(b) \
     ((typeof(b))((uint32_t)(b) + sizeof(struct heap_block) + (b)->size))
@@ -45,11 +44,6 @@ static struct {
     struct paging_entry page_table[PAGE_ENT_CNT][PAGE_ENT_CNT];
 } *kernel_page_table;
 static uint32_t kernel_pages_count;
-
-struct paging_entry *mm_kernel_page_table(void)
-{
-    return kernel_page_table->dir_table;
-}
 
 static inline void pages_bitmap_set(uint32_t page_no)
 {
@@ -74,13 +68,8 @@ static void setup_prepare(void)
     }
     log_info("total memory %u bytes\n", total_mem);
 
-    heap_addr = SHARE_DATA()->kernel_end;
+    heap_addr = SHARE_DATA()->kernel_end + CONFIG_KERNEL_VMA;
 }
-
-#define PAGE_OCCUPIED_BY_KERNEL(addr) \
-    (((addr) >= SHARE_DATA()->kernel_idle && (addr) < SHARE_DATA()->kernel_end) || \
-    (((addr)+CONFIG_MEM_PAGE_SZ) > SHARE_DATA()->kernel_idle && \
-    ((addr)+CONFIG_MEM_PAGE_SZ) <= SHARE_DATA()->kernel_end))
 
 static void init_pages_bitmap(void)
 {
@@ -92,15 +81,15 @@ static void init_pages_bitmap(void)
         if (SHARE_DATA()->ards[i].type != MEM_TYPE_AVL) {
             continue;
         }
-        if (SHARE_DATA()->ards[i].base_addr_low % CONFIG_MEM_PAGE_SZ != 0) {
+        if (SHARE_DATA()->ards[i].base_addr_low % CONFIG_MEM_PAGE_SIZE != 0) {
             log_error("memory block(%d) is not aligned on page size\n", i);
             continue;
         }
-        base = SHARE_DATA()->ards[i].base_addr_low / CONFIG_MEM_PAGE_SZ;
-        cnt = SHARE_DATA()->ards[i].len_low / CONFIG_MEM_PAGE_SZ;
+        base = SHARE_DATA()->ards[i].base_addr_low / CONFIG_MEM_PAGE_SIZE;
+        cnt = SHARE_DATA()->ards[i].len_low / CONFIG_MEM_PAGE_SIZE;
         for (j = 0; j < cnt; j++) {
-            addr = (base + j) * CONFIG_MEM_PAGE_SZ;
-            if (addr < 0x100000 || PAGE_OCCUPIED_BY_KERNEL(addr)) {
+            addr = (base + j) * CONFIG_MEM_PAGE_SIZE;
+            if (addr < SHARE_DATA()->kernel_end) {
                 // 0 ~ 1MB and kernel memory not available
                 continue;
             }
@@ -111,59 +100,14 @@ static void init_pages_bitmap(void)
     log_info("%u free pages\n", pages);
 }
 
-static void init_kernel_4k_page(uint32_t page_no)
-{
-    struct paging_entry *entry;
-    uint32_t t, p;
-
-    t = (page_no >> 10) & 0x3ff;
-    p = page_no & 0x3ff;
-
-    entry = &kernel_page_table->dir_table[t];
-    if (!entry->present) {
-        entry->present = 1;
-        entry->rw = 1;
-        entry->index = (uint32_t)(&kernel_page_table->page_table[t]) >> 12;
-    }
-
-    entry = &kernel_page_table->page_table[t][p];
-    if (entry->present) {
-        kernel_panic("page(0x%x) already register in kernel\n", page_no);
-    }
-    entry->present = 1;
-    entry->rw = 1;
-    entry->index = page_no;
-}
-
-static void setup_kernel_page_table(void)
-{
-    uint32_t i, pages, mem_size;
-
-    mem_size = ALIGN_CEIL(total_mem / KERNEL_MEM_PERCENT, CONFIG_MEM_PAGE_SZ);
-    kernel_pages_count = mem_size / CONFIG_MEM_PAGE_SZ;
-    pages = ceil_div(kernel_pages_count * sizeof(struct paging_entry), CONFIG_MEM_PAGE_SZ) + 1; // page dir use 1 page
-
-    kernel_page_table = (void *)ALIGN_CEIL(heap_addr, CONFIG_MEM_PAGE_SZ);
-    memset(kernel_page_table, 0, pages * CONFIG_MEM_PAGE_SZ);
-
-    for (i = 0; i < kernel_pages_count; i++) {
-#if (CONFIG_MEM_PAGE_SZ != 4096)
-        kernel_panic("page size(%d) not support\n", PAGES_BITMAP_SIZE);
-#endif
-        init_kernel_4k_page(i);
-        pages_bitmap_set(i);
-    }
-    heap_addr = (uint32_t)PTR_ADD(kernel_page_table, pages * CONFIG_MEM_PAGE_SZ);
-}
-
 struct paging_entry *mm_alloc_user_page_table(void)
 {
-    struct paging_entry *table = mm_malloc(CONFIG_MEM_PAGE_SZ, CONFIG_MEM_PAGE_SZ);
+    struct paging_entry *table = mm_malloc(CONFIG_MEM_PAGE_SIZE, CONFIG_MEM_PAGE_SIZE);
     if (table == NULL) {
         log_error("alloc paging table error\n");
         return NULL;
     }
-    memset(table, 0, CONFIG_MEM_PAGE_SZ);
+    memset(table, 0, CONFIG_MEM_PAGE_SIZE);
     memcpy(table, kernel_page_table->dir_table, kernel_pages_count * sizeof(struct paging_entry));
     return table;
 }
@@ -175,11 +119,15 @@ void mm_free_user_paging(struct paging_entry *dir_table)
 
 static void setup_heap(void)
 {
-    heap = (struct heap_block *)ALIGN_CEIL(heap_addr, CONFIG_MEM_PAGE_SZ);
+    uint32_t unused_addr = SHARE_DATA()->kernel_end + CONFIG_KERNEL_VMA;
+    unused_addr = ALIGN_CEIL(unused_addr, CONFIG_MEM_PAGE_SIZE) + 
+                    CONFIG_KERNEL_RES_PAGES * CONFIG_MEM_PAGE_SIZE;
+
+    heap = (struct heap_block *)unused_addr;
     heap->size = 0;
     heap->prev = heap;
     heap->next = heap;
-    pages_bitmap_set((uint32_t)heap / CONFIG_MEM_PAGE_SZ);
+    pages_bitmap_set((uint32_t)heap / CONFIG_MEM_PAGE_SIZE);
 }
 
 void *mm_malloc(size_t size, uint32_t align)
@@ -221,15 +169,6 @@ static void page_fault_handler(int vec_no, int err_code, int eip, int cs, int ef
     asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
 }
 
-static void enable_paging(void)
-{
-    asm("movl %0, %%eax\n\t"
-        "movl %%eax, %%cr3\n\t"
-        "movl %%cr0, %%eax\n\t"
-        "or %1, %%eax\n\t"
-        "movl %%eax, %%cr0"::"p"(kernel_page_table),"i"(0x80000000):"%eax");
-}
-
 void mm_report(void)
 {
 #define MM_REPORT_TEMPLATE "%3u %010p %8u %010p %010p\n"
@@ -251,11 +190,9 @@ void mm_report(void)
 void mm_setup(void)
 {
     log_info("setup memory management\n");
-    log_info("page size %u bytes\n", CONFIG_MEM_PAGE_SZ);
+    log_info("page size %u bytes\n", CONFIG_MEM_PAGE_SIZE);
     setup_prepare();
     init_pages_bitmap();
-    setup_kernel_page_table();
     setup_heap();
     irq_register_ex_handler(IRQ_EX_PAGE_FAULT, page_fault_handler);
-    enable_paging();
 }

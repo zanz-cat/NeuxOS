@@ -1,0 +1,40 @@
+#!/bin/bash
+echo "Configure NeuxOS Kernel..."
+
+echo CONFIG_HD_SZ=${HD_SZ:-128M} >> .config
+echo CONFIG_HD_SECT_SZ=${HD_SECT_SZ:-512} >> .config
+echo CONFIG_HD_HEADS=${HD_HEADS:-16} >> .config
+echo CONFIG_HD_SPT=${HD_SPT:-63} >> .config
+echo CONFIG_SHARE_DATA_ADDR=${SHARE_DATA_ADDR:-0x60000} >> .config
+echo CONFIG_EXT2_BS=${EXT2_BS:-1024} >> .config
+echo CONFIG_MEM_PAGE_SIZE=${MEM_PAGE_SIZE:-4096} >> .config
+echo CONFIG_KERNEL_VMA=${KERNEL_VMA:-0xc0000000} >> .config
+echo CONFIG_KERNEL_VMA_SIZE=${KERNEL_VMA_SIZE:-0x40000000} >> .config
+echo CONFIG_KERNEL_RES_PAGES=${KERNEL_RES_PAGES:-1} >> .config
+. .config
+
+# compute kernel image vm address
+#
+# physical memory layout
+# + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# | basic RAM | page table  |  kernel image | reserved area   | malloc area ...
+# + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# 0           1M            2M+4K
+#
+# reserved area for temporary using and avoiding overflow override kernel code.
+# reserved area is aligned with page size
+# basicRAM-pgt is in reserved area
+# 
+#
+page_table_size=`printf "%d" ${CONFIG_KERNEL_VMA_SIZE}`
+page_table_size=`expr ${page_table_size} / ${CONFIG_MEM_PAGE_SIZE} \* 4`
+tmp=`printf "%d" ${CONFIG_KERNEL_VMA}`
+tmp=`expr ${tmp} + 1024 \* 1024 + 4096 + ${page_table_size}`
+echo CONFIG_KERNEL_IMG_VM_ADDR=`printf "0x%x" ${tmp}` >> .config
+echo CONFIG_KERNEL_PG_ADDR=0x100000 >> .config
+
+cat .config
+cat .config | awk -F= '{if($2 ~ /^[0-9]+$|^0x[0-9a-fA-F]+$/) \
+    print "#define "$1" "$2; else print "#define "$1" \""$2"\""}' > config.h
+cat .config | awk -F= '{if($2 ~ /^[0-9]+$|^0x[0-9a-fA-F]+$/) \
+    print $1" equ "$2; else print $1" equ \""$2"\""}' > config.S

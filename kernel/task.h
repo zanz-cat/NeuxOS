@@ -9,7 +9,7 @@
 
 #include "tty.h"
 
-#define LDT_SIZE 16
+#define LDT_SIZE 8
 #define STACK0_SIZE 10240
 #define STACK3_SIZE 10240
 
@@ -25,7 +25,7 @@
 
 struct task {
     uint32_t pid;
-    uint16_t tss_sel; //put here, we can switch task like 'jmp far [task]'
+    uint16_t tss_sel; //place selector here, we can switch task like 'jmp far [task]'
     uint8_t type;
     uint8_t state;
     uint64_t ticks;

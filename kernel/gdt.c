@@ -1,7 +1,9 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <drivers/monitor.h>
 #include <arch/x86.h>
+#include <config.h>
 
 #include "log.h"
 #include "gdt.h"
@@ -16,9 +18,9 @@ struct gdtr {
 static struct descriptor gdt[GDT_SIZE];
 static uint8_t bitmap[GDT_SIZE/8];
 
-#define BITMAP_SET(index) bitmap[index/8] |= (1 << (index%8))
-#define BITMAP_CLR(index) bitmap[index/8] &= (~(1 << (index%8)))
-#define BITMAP_GET(index) (bitmap[index/8] & (1 << (index%8)))
+#define BITMAP_SET(index) bitmap[(index)/8] |= (1 << ((index)%8))
+#define BITMAP_CLR(index) bitmap[(index)/8] &= (~(1 << ((index)%8)))
+#define BITMAP_GET(index) (bitmap[(index)/8] & (1 << ((index)%8)))
 
 static int alloc()
 {
@@ -33,7 +35,7 @@ static int alloc()
     return i;
 }
 
-static void free(int index)
+static void kfree(int index)
 {
     if (index > GDT_SIZE - 1)
         return;
@@ -41,32 +43,41 @@ static void free(int index)
     BITMAP_CLR(index);
 }
 
-static int uninstall_desc(uint16_t sel)
+static void install_desc(uint16_t index, uint32_t addr, 
+            uint32_t limit, uint16_t attr_type)
 {
-    int index = sel >> 3;
-    if (index > GDT_SIZE - 1)
-        return -1;
+    struct descriptor *pdesc = &gdt[index];
+    pdesc->base_low = (uint32_t)addr & 0xffff;
+    pdesc->base_mid = ((uint32_t)addr >> 16) & 0xff;
+    pdesc->base_high = (uint32_t)addr >> 24;
 
+    pdesc->limit_low = limit & 0xffff;
+    pdesc->limit_high_attr2 = ((attr_type >> 8) & 0xf0) | ((limit >> 16) & 0xf);
+    pdesc->attr1 = attr_type & 0xff;
+}
+
+static void uninstall_desc(uint16_t index)
+{
     memset(&gdt[index], 0, sizeof(struct descriptor));
-    free(index);
-
-    return 0;
+    kfree(index);
 }
 
 void gdt_setup()
 {
     struct gdtr gdtr;
 
-    asm("sgdt %0":"=m"(gdtr)::);
-    memcpy(&gdt, gdtr.base, gdtr.limit + 1);
+    install_desc(SELECTOR_DUMMY >> 3, 0, 0, 0);
+    BITMAP_SET(SELECTOR_DUMMY >> 3);
+
+    install_desc(SELECTOR_FLAT_C >> 3, 0, 0xfffff, DA_CR|DA_32|DA_LIMIT_4K);
+    BITMAP_SET(SELECTOR_FLAT_C >> 3);
+
+    install_desc(SELECTOR_FLAT_RW >> 3, 0, 0xfffff, DA_DRW|DA_32|DA_LIMIT_4K);
+    BITMAP_SET(SELECTOR_FLAT_RW >> 3);
+
     gdtr.base = &gdt;
     gdtr.limit = GDT_SIZE * sizeof(struct descriptor) - 1;
     asm("lgdt %0"::"m"(gdtr):);
-
-    BITMAP_SET(0);
-    BITMAP_SET(1);
-    BITMAP_SET(2);
-    BITMAP_SET(3);
 }
 
 // can i install TSS into LDT? No! P289
@@ -77,23 +88,18 @@ int install_tss(struct tss *ptss)
         log_error("alloc gdt error\n");
         return -1;
     }
-
-    struct descriptor *pdesc = &gdt[index];
-    pdesc->base_low = (uint32_t)ptss & 0xffff;
-    pdesc->base_mid = ((uint32_t)ptss >> 16) & 0xff;
-    pdesc->base_high = (uint32_t)ptss >> 24;
-
-    uint32_t limit = sizeof(struct tss) - 1;
-    pdesc->limit_low = limit & 0xffff;
-    pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
-    pdesc->attr1 = DA_386TSS | DA_DPL0;
-
+    install_desc(index, (uint32_t)ptss, sizeof(struct tss) - 1, DA_386TSS | DA_DPL0);
     return index << 3;
 }
 
 int uninstall_tss(uint16_t sel)
 {
-    return uninstall_desc(sel);
+    int index = sel >> 3;
+    if (index > GDT_SIZE - 1) {
+        return -1;
+    }
+    uninstall_desc(index);
+    return 0;
 }
 
 int install_ldt(void *ldt, uint16_t size)
@@ -102,21 +108,16 @@ int install_ldt(void *ldt, uint16_t size)
     if (index > GDT_SIZE - 1) {
         return -1;
     }
-
-    struct descriptor *pdesc = &gdt[index];
-    pdesc->base_low = (uint32_t)ldt & 0xffff;
-    pdesc->base_mid = ((uint32_t)ldt >> 16) & 0xff;
-    pdesc->base_high = (uint32_t)ldt >> 24;
-
-    uint32_t limit = sizeof(struct descriptor) * size - 1;
-    pdesc->limit_low = limit & 0xffff;
-    pdesc->limit_high_attr2 = (limit >> 16) & 0xf;
-    pdesc->attr1 = DA_LDT | DA_DPL0;
-
+    install_desc(index, (uint32_t)ldt, sizeof(struct descriptor) * size - 1, DA_LDT | DA_DPL0);
     return index << 3;
 }
 
 int uninstall_ldt(uint16_t sel)
 {
-    return uninstall_desc(sel);
+    int index = sel >> 3;
+    if (index > GDT_SIZE - 1) {
+        return -1;
+    }
+    uninstall_desc(index);
+    return 0;
 }

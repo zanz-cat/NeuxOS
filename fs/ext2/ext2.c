@@ -1,5 +1,4 @@
 #include <string.h>
-#include <malloc.h>
 
 #include <neuxos.h>
 #include <errcode.h>
@@ -7,6 +6,7 @@
 #include <kernel/printk.h>
 #include <kernel/interrupt.h>
 #include <kernel/kernel.h>
+#include <kernel/kmalloc.h>
 #include <drivers/harddisk.h>
 #include <lib/list.h>
 #include <misc/misc.h>
@@ -71,7 +71,7 @@ static int read_s_block(void)
     }
     part_lba = partition->lba;
 
-    s_block = malloc(sizeof(struct ext2_super_block));
+    s_block = kmalloc(sizeof(struct ext2_super_block));
     if (s_block == NULL) {
         return -EOOM;
     }
@@ -85,7 +85,7 @@ static int read_b_groups(void)
 
     groups_count = ALIGN_CEIL(s_block->blocks_count, s_block->blocks_per_group)/s_block->blocks_per_group;
     size = sizeof(struct ext2_block_group) * groups_count;
-    b_groups = malloc(size);
+    b_groups = kmalloc(size);
     if (b_groups == NULL) {
         return -EOOM;
     }
@@ -263,7 +263,7 @@ struct ext2_file *ext2_open(const char *abspath)
     if (ret != 0) {
         return NULL;
     }
-    f = malloc(sizeof(struct ext2_file));
+    f = kmalloc(sizeof(struct ext2_file));
     if (f == NULL) {
         return NULL;
     }
@@ -275,7 +275,7 @@ struct ext2_file *ext2_open(const char *abspath)
 
 int ext2_close(struct ext2_file *f)
 {
-    free(f);
+    kfree(f);
     return 0;
 }
 

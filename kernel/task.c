@@ -1,11 +1,11 @@
 #include <string.h>
-#include <malloc.h>
 
 #include <arch/x86.h>
 
 #include "log.h"
 #include "gdt.h"
 #include "mm.h"
+#include "kmalloc.h"
 
 #include "task.h"
 
@@ -20,30 +20,32 @@
 #define SELECTOR_KERN_TASK_DS 0xc
 #define SELECTOR_KERN_TASK_SS SELECTOR_KERN_TASK_DS
 
+static void install_desc(struct descriptor *table, uint16_t index, 
+            uint32_t addr, uint32_t limit, uint16_t attr_type)
+{
+    struct descriptor *pdesc = &table[index];
+    pdesc->base_low = (uint32_t)addr & 0xffff;
+    pdesc->base_mid = ((uint32_t)addr >> 16) & 0xff;
+    pdesc->base_high = (uint32_t)addr >> 24;
+
+    pdesc->limit_low = limit & 0xffff;
+    pdesc->limit_high_attr2 = ((attr_type >> 8) & 0xf0) | ((limit >> 16) & 0xf);
+    pdesc->attr1 = attr_type & 0xff;
+}
+
 static int init_kernel_task(struct task *task, void *text)
 {
     int ret;
-    uint16_t index;
     void *ptr;
 
-    /* init ldt */
-    index = SELECTOR_KERN_TASK_CS >> 3;
-    task->ldt[index].base_low = 0;
-    task->ldt[index].base_mid = 0;
-    task->ldt[index].base_high = 0;
-    task->ldt[index].limit_low = 0xffff;
-    task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
-    task->ldt[index].attr1 = DA_C | DA_DPL0;
+    /* init ldt 3MB ~ 4GB available */
+    install_desc(task->ldt, SELECTOR_KERN_TASK_CS >> 3, 0, 0xfffff, 
+                 DA_C|DA_DPL0|DA_LIMIT_4K|DA_32);
+    // for ds, es, ss
+    install_desc(task->ldt, SELECTOR_KERN_TASK_DS >> 3, 0, 0xfffff, 
+                 DA_DRW|DA_DPL0|DA_LIMIT_4K|DA_32);
 
-    index = SELECTOR_KERN_TASK_DS >> 3;   // for ds, es, ss
-    task->ldt[index].base_low = 0;
-    task->ldt[index].base_mid = 0;
-    task->ldt[index].base_high = 0;
-    task->ldt[index].limit_low = 0xffff;
-    task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
-    task->ldt[index].attr1 = DA_DRW | DA_DPL0;
-
-    ptr = memalign(sizeof(uint32_t), STACK0_SIZE);
+    ptr = kmemalign(sizeof(uint32_t), STACK0_SIZE);
     if (ptr == NULL) {
         log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
@@ -56,7 +58,7 @@ static int init_kernel_task(struct task *task, void *text)
     task->tss.ss1 = 0;
     task->tss.esp2 = 0;
     task->tss.ss2 = 0;
-    task->tss.cr3 = (uint32_t)mm_kernel_page_table();
+    task->tss.cr3 = (uint32_t)CONFIG_KERNEL_PG_ADDR;
     task->tss.eip = (uint32_t)text;
     task->tss.eflags = INITIAL_EFLAGS;
     task->tss.eax = 0;
@@ -72,7 +74,7 @@ static int init_kernel_task(struct task *task, void *text)
     task->tss.ss = SELECTOR_KERN_TASK_SS;
     task->tss.ds = SELECTOR_KERN_TASK_DS;
     task->tss.fs = 0;
-    task->tss.gs = SELECTOR_VIDEO;
+    task->tss.gs = 0;
     task->tss.attrs = 0;
     task->tss.io = 0;
 
@@ -80,7 +82,7 @@ static int init_kernel_task(struct task *task, void *text)
     ret = install_ldt(task->ldt, LDT_SIZE);
     if (ret < 0) {
         log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
-        free(ptr);
+        kfree(ptr);
         return -1;
     }
     task->tss.ldt = (uint16_t)ret;
@@ -89,7 +91,7 @@ static int init_kernel_task(struct task *task, void *text)
     if (ret < 0) {
         log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
         uninstall_ldt(task->tss.ldt);
-        free(ptr);
+        kfree(ptr);
         return -1;
     }
     task->tss_sel = (uint16_t)ret;
@@ -99,43 +101,27 @@ static int init_kernel_task(struct task *task, void *text)
 static int init_user_task(struct task *task, void *text)
 {
     int ret;
-    uint16_t index;
     void *ptr, *ptr3;
 
     /* init ldt */
-    index = SELECTOR_USER_TASK_CS >> 3;
-    task->ldt[index].base_low = 0;
-    task->ldt[index].base_mid = 0;
-    task->ldt[index].base_high = 0;
-    task->ldt[index].limit_low = 0xffff;
-    task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
-    task->ldt[index].attr1 = DA_C | DA_DPL3;
+    install_desc(task->ldt, SELECTOR_USER_TASK_CS >> 3, 0, 0xfffff, 
+                 DA_C|DA_DPL3|DA_LIMIT_4K|DA_32);
+    // for ds, es, ss3
+    install_desc(task->ldt, SELECTOR_USER_TASK_DS >> 3, 0, 0xfffff, 
+                 DA_DRW|DA_DPL3|DA_LIMIT_4K|DA_32);
+    // for ss0
+    install_desc(task->ldt, SELECTOR_USER_TASK_SS0 >> 3, 0, 0xfffff, 
+                 DA_DRW|DA_DPL0|DA_LIMIT_4K|DA_32);
 
-    index = SELECTOR_USER_TASK_DS >> 3;   // for ds, es, ss3
-    task->ldt[index].base_low = 0;
-    task->ldt[index].base_mid = 0;
-    task->ldt[index].base_high = 0;
-    task->ldt[index].limit_low = 0xffff;
-    task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
-    task->ldt[index].attr1 = DA_DRW | DA_DPL3;
-
-    index = SELECTOR_USER_TASK_SS0 >> 3;   // for ss0
-    task->ldt[index].base_low = 0;
-    task->ldt[index].base_mid = 0;
-    task->ldt[index].base_high = 0;
-    task->ldt[index].limit_low = 0xffff;
-    task->ldt[index].limit_high_attr2 = DA_LIMIT_4K | DA_32 | 0xf;
-    task->ldt[index].attr1 = DA_DRW | DA_DPL0;
-
-    ptr = memalign(sizeof(uint32_t), STACK0_SIZE);
+    ptr = kmemalign(sizeof(uint32_t), STACK0_SIZE);
     if (ptr == NULL) {
         log_error("create stack0 error, pid: %d\n", task->pid);
         return -1;
     }
-    ptr3 = memalign(sizeof(uint32_t), STACK3_SIZE);
+    ptr3 = kmemalign(sizeof(uint32_t), STACK3_SIZE);
     if (ptr3 == NULL) {
         log_error("create stack3 error, pid: %d\n", task->pid);
-        free(ptr);
+        kfree(ptr);
         return -1;
     }
     /* init TSS */
@@ -162,7 +148,7 @@ static int init_user_task(struct task *task, void *text)
     task->tss.ss = SELECTOR_USER_TASK_SS3;
     task->tss.ds = SELECTOR_USER_TASK_DS;
     task->tss.fs = 0;
-    task->tss.gs = SELECTOR_VIDEO;
+    task->tss.gs = 0;
     task->tss.attrs = 0;
     task->tss.io = 0;
 
@@ -170,8 +156,8 @@ static int init_user_task(struct task *task, void *text)
     ret = install_ldt(task->ldt, LDT_SIZE);
     if (ret < 0) {
         log_error("install LDT error, pid: %d, errno: %d\n", task->pid, ret);
-        free(ptr3);
-        free(ptr);
+        kfree(ptr3);
+        kfree(ptr);
         return -1;
     }
     task->tss.ldt = (uint16_t)ret;
@@ -180,8 +166,8 @@ static int init_user_task(struct task *task, void *text)
     if (ret < 0) {
         log_error("install TSS error, pid: %d, errno: %d\n", task->pid, ret);
         uninstall_ldt(task->tss.ldt);
-        free(ptr3);
-        free(ptr);
+        kfree(ptr3);
+        kfree(ptr);
         return -1;
     }
     task->tss_sel = (uint16_t)ret;
@@ -189,12 +175,13 @@ static int init_user_task(struct task *task, void *text)
     return 0;
 }
 
-struct task *create_task(uint32_t pid, void *text, const char *exe, uint16_t type, int tty)
+struct task *create_task(uint32_t pid, void *text, 
+                const char *exe, uint16_t type, int tty)
 {
     int ret;
     struct task *task;
 
-    task = (struct task *)malloc(sizeof(struct task));
+    task = (struct task *)kmalloc(sizeof(struct task));
     if (task == NULL) {
         log_error("no enough memory\n");
         return NULL;
