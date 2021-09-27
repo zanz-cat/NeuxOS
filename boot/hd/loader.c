@@ -100,28 +100,28 @@ static void print_memory_layout(void)
     printf("\n");
 }
 
-static void ata_exec_cmd(uint16_t port, uint8_t data)
-{
-    out_byte(port, data);
-    if (in_byte(ATA_PORT_STATUS) & ATA_STATUS_ERR) {
-        printf("exec harddisk cmd error: %d\n", in_byte(ATA_PORT_ERR_NO));
-        loader_panic(-EERR);
-    }
-}
-
 static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
 {
     int i;
     uint8_t status;
     uint16_t data;
 
-    ata_exec_cmd(ATA_PORT_COUNT, count);
-    ata_exec_cmd(ATA_PORT_SECTOR, sector & 0xff);
-    ata_exec_cmd(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
-    ata_exec_cmd(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
-    ata_exec_cmd(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
+    for (i = 0; i < HD_TIMEOUT; i++) {
+        status = in_byte(ATA_PORT_STATUS);
+        if (!(status & ATA_STATUS_BUSY)) {
+            break;
+        }
+    }
+    if (i == HD_TIMEOUT) {
+        return -ETIMEOUT;
+    }
+    out_byte(ATA_PORT_COUNT, count);
+    out_byte(ATA_PORT_SECTOR, sector & 0xff);
+    out_byte(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
+    out_byte(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
+    out_byte(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
     // send request
-    ata_exec_cmd(ATA_PORT_CMD, ATA_CMD_READ);
+    out_byte(ATA_PORT_CMD, ATA_CMD_READ);
     // wait harddisk ready
     for (i = 0; i < HD_TIMEOUT; i++) {
         // [BSY - - - DRQ - - ERR] DRQ: data ready

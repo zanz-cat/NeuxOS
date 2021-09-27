@@ -9,7 +9,7 @@ CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 
 .PHONY: clean $(SUBDIRS) $(CLEAN_SUBDIRS)
 
-all: $(CONFIG_BOOT)
+all: $(SUBDIRS)
 
 $(SUBDIRS):
 	$(MAKE) -C $@

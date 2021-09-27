@@ -1,11 +1,7 @@
 include ../common.mk
 include ../.config
 
-ifeq ($(CONFIG_BOOT),fd)
-KERNEL_ADDR=0x20000 # 128KB
-else
-KERNEL_ADDR=0x100000 # 1MB
-endif
+KERNEL_ADDR=0xc0000000 # 3GB
 
 .PHONY: all clean
 
