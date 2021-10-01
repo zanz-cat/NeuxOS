@@ -2,11 +2,10 @@
 #define __KERNEL_MM_H__
 
 #include <stdint.h>
-#include <stddef.h>
 
 #include <config.h>
 
-struct paging_entry {
+struct page_entry {
     uint32_t present:1;
     uint32_t rw:1;
     uint32_t us:1; // 1 - user, 0 - supervisor
@@ -20,13 +19,11 @@ struct paging_entry {
     uint32_t index:20;
 } __attribute__((packed));
 
-#define PAGE_ENT_CNT (CONFIG_MEM_PAGE_SIZE/sizeof(struct paging_entry))
+#define PAGE_ENTRY_COUNT (PAGE_SIZE/sizeof(struct page_entry))
 
+struct page_entry *alloc_user_page(void);
+void free_user_page(struct page_entry *table);
 void mm_setup(void);
-struct paging_entry *mm_alloc_user_page_table(void);
-void mm_free_user_paging(struct paging_entry *table);
-void *mm_malloc(size_t size, uint32_t align);
-void mm_free(void *ptr);
 void mm_report(void);
 
 #endif

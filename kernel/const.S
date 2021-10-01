@@ -6,6 +6,7 @@ STACK3_SIZE             equ         10240
 
 OFFSET_TASK_PID         equ         0
 OFFSET_TASK_TSS_SEL     equ         OFFSET_TASK_PID + 4
+OFFSET_TASK_STATE       equ         OFFSET_TASK_TSS_SEL + 2
 
 INT_M_CTL               equ         0x20
 INT_M_CTLMASK           equ         0x21

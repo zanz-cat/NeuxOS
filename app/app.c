@@ -13,10 +13,11 @@ int main(int argc, char *argv[])
     static int count = 0;
     int ret;
     while (1) {
-        sleep(2);
-        ret = printf("app1: %d\n", count++);
+        sleep(10);
+        ret = 1 + count; //
+        printf("app1: %d\n", count++);
         if (ret < 0) {
-            break;
+            count = 0;
         }
     }
     return 0;

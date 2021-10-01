@@ -9,7 +9,7 @@
 
 #include "tty.h"
 
-#define LDT_SIZE 8
+#define LDT_SIZE 2
 #define STACK0_SIZE 10240
 #define STACK3_SIZE 10240
 
@@ -31,13 +31,14 @@ struct task {
     uint64_t ticks;
     int tty;
     char exe[MAX_PATH_LEN];
+    uint32_t text;
     struct tss tss;
-    struct descriptor ldt[LDT_SIZE];
     struct list_node list;
     struct list_node running;
 } __attribute__((packed));
 
-struct task *create_task(uint32_t pid, void *text, 
-            const char *exe, uint16_t type, int tty);
+struct task *create_kernel_task(uint32_t text, const char *exe, int tty);
+struct task *create_user_task(const char *exe, int tty);
+int destroy_task(struct task *task);
 
 #endif

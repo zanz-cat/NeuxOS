@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include <include/syscall.h>
 
 #include "log.h"
@@ -47,7 +49,6 @@ struct idtr {
 } __attribute__((packed));
 
 irq_handler irq_handlers[IRQ_COUNT];
-irq_ex_handler irq_ex_handlers[IRQ_EX_COUNT];
 
 static struct gate idt[IDT_SIZE];
 static char *exception_msg[] = {
@@ -83,20 +84,17 @@ static void init_int_desc(uint8_t vector, uint8_t desc_type, irq_handler handler
     int_desc->offset_low = (uint32_t)handler & 0xffff;
 }
 
-static void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
+void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
 {
     uint8_t color, color_temp;
 
     color_temp = 0x74; /* 灰底红字 */
     tty_color(tty_current, TTY_OP_GET, &color);
     tty_color(tty_current, TTY_OP_SET, &color_temp);
-    printk("\nKernel crashed!\n"
-           "%s\n"
-           "TASK: %u(%s)\n"
-           "EFLAGS: 0x%x\n"
-           "CS: 0x%x\n"
-           "EIP: 0x%x\n",
-           exception_msg[vec_no], current->pid, current->exe, eflags, cs, eip);
+    fprintk(TTY0, "\nKernel crashed!\n%s\nTASK: %u(%s)\n"
+           "EFLAGS: 0x%x\nCS: 0x%x\nEIP: 0x%x\n",
+           exception_msg[vec_no], current->pid, 
+           current->exe, eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
         printk("Error code: 0x%x\n", err_code);
@@ -150,11 +148,6 @@ void irq_register_handler(int vector, irq_handler h)
     irq_handlers[(vector - INT_VECTOR_IRQ0)] = h;
 }
 
-void irq_register_ex_handler(int vector, irq_ex_handler h)
-{
-    irq_ex_handlers[vector] = h;
-}
-
 void irq_setup()
 {
     struct idtr idtr;
@@ -193,23 +186,6 @@ void irq_setup()
     init_int_desc(IRQ_MOUSE, DA_386IGate, irq_hwint12, PRIVILEGE_KRNL);
     init_int_desc(IRQ_COPR, DA_386IGate, irq_hwint13, PRIVILEGE_KRNL);
     init_int_desc(IRQ_HARDDISK, DA_386IGate, irq_hwint14, PRIVILEGE_KRNL);
-
-    // install exception handlers
-    irq_register_ex_handler(IRQ_EX_DIVIDE, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_DEBUG, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_NMI, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_BREAKPOINT, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_OVERFLOW, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_BOUNDS, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_INVAL_OP, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_COTASK_NOT, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_DOUBLE_FAULT, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_COTASK_SEG, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_INVAL_TSS, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_SEG_NOT, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_STACK_FAULT, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_PROTECTION, generic_ex_handler);
-    irq_register_ex_handler(IRQ_EX_COTASK_ERR, generic_ex_handler);
 
     // install hardware int handlers
     irq_register_handler(IRQ_SERIAL2, serial2_handler);

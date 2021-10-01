@@ -1,20 +1,16 @@
-#include <stddef.h>
-#include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <elf.h>
 
-#include <misc/misc.h>
 #include <drivers/io.h>
 #include <drivers/harddisk.h>
 #include <drivers/monitor.h>
-#include <kernel/mm.h>
-
+#include <mm/mm.h>
+#include <kernel/memory.h>
 #include <misc/misc.h>
 #include <fs/ext2/ext2.h>
 #include <errcode.h>
-#include <config.h>
 
 #define HD_TIMEOUT 10000
 #define KERNEL_FILE_NAME "kernel.elf"
@@ -30,7 +26,6 @@
 #define ERR_READ_EXT2_ROOT_DIR 0x108
 #define ERR_NO_KERNEL_FILE 0x109
 #define ERR_READ_KERNEL_BLOCK 0x110
-#define ERR_NON_ELF 0x111
 
 static void load();
 
@@ -39,7 +34,7 @@ void _start()
     load();
 }
 
-static void *kernel_file_start;
+static void *kernel_file;
 static size_t kernel_size;
 
 ssize_t write(int fd, const char *buf, size_t nbytes)
@@ -288,8 +283,8 @@ static int read_kernel_file(void)
     if (m % CONFIG_EXT2_BS != 0) {
         m += (CONFIG_EXT2_BS - m % CONFIG_EXT2_BS);
     }
-    kernel_file_start = kernel_file_addr(m);
-    kernel = kernel_file_start;
+    kernel_file = kernel_file_addr(m);
+    kernel = kernel_file;
     printf("reading kernel ELF...0");
     for (i = 0; i < EXT2_N_BLOCKS && kernel_ino.block[i] != 0; i++) {
         if (i < EXT2_BLOCK_L1_INDEX) {
@@ -298,9 +293,9 @@ static int read_kernel_file(void)
                 printf("\n");
                 return ERR_READ_KERNEL_BLOCK;
             }
-            backspace_num(kernel - kernel_file_start);
+            backspace_num(kernel - kernel_file);
             kernel += CONFIG_EXT2_BS;
-            printf("%d", kernel - kernel_file_start);
+            printf("%d", kernel - kernel_file);
         } else if (i == EXT2_BLOCK_L1_INDEX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
             if (ret != 0) {
@@ -317,9 +312,9 @@ static int read_kernel_file(void)
                     printf("\n");
                     return ERR_READ_KERNEL_BLOCK;
                 }
-                backspace_num(kernel - kernel_file_start);
+                backspace_num(kernel - kernel_file);
                 kernel += CONFIG_EXT2_BS;
-                printf("%d", kernel - kernel_file_start);
+                printf("%d", kernel - kernel_file);
             }
         } else if (i == EXT2_BLOCK_L2_INDEX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
@@ -347,9 +342,9 @@ static int read_kernel_file(void)
                         printf("\n");
                         return ERR_READ_KERNEL_BLOCK;
                     }
-                    backspace_num(kernel - kernel_file_start);
+                    backspace_num(kernel - kernel_file);
                     kernel += CONFIG_EXT2_BS;
-                    printf("%d", kernel - kernel_file_start);
+                    printf("%d", kernel - kernel_file);
                 }
             }
         } else if (i == EXT2_BLOCK_L3_INDEX) {
@@ -366,7 +361,6 @@ static int read_kernel_file(void)
 
 static int load_kernel_elf(uint32_t *entry)
 {
-#define KERNEL_IMG_P_ADDR(vaddr) ((vaddr) - CONFIG_KERNEL_VMA)
     int i;
     uint32_t count;
     Elf32_Ehdr *eh;
@@ -375,22 +369,22 @@ static int load_kernel_elf(uint32_t *entry)
 
     SHARE_DATA()->kernel_start = 0xffffffff;
     SHARE_DATA()->kernel_end = 0;
-    eh = (Elf32_Ehdr *)kernel_file_start;
+    eh = (Elf32_Ehdr *)kernel_file;
     if (strncmp((char *)eh->e_ident, ELFMAG, SELFMAG) != 0) {
-        return ERR_NON_ELF;
+        return -EINTVAL;
     }
     *entry = eh->e_entry;
 
     count = 0;
     for (i = 0; i < eh->e_phnum; i++) {
-        ph = (Elf32_Phdr *)(kernel_file_start + eh->e_phoff + eh->e_phentsize * i);
-        if (ph->p_type == PT_LOAD && ph->p_filesz > 0 && ph->p_vaddr >= CONFIG_KERNEL_VMA) {
-            memcpy((void *)KERNEL_IMG_P_ADDR(ph->p_vaddr), kernel_file_start + ph->p_offset, ph->p_filesz);
-            if (SHARE_DATA()->kernel_start > KERNEL_IMG_P_ADDR(ph->p_vaddr)) {
-                SHARE_DATA()->kernel_start = KERNEL_IMG_P_ADDR(ph->p_vaddr);
+        ph = (Elf32_Phdr *)(kernel_file + eh->e_phoff + eh->e_phentsize * i);
+        if (ph->p_type == PT_LOAD && ph->p_filesz > 0 && ph->p_vaddr >= CONFIG_KERNEL_VM_OFFSET) {
+            memcpy((void *)phy_addr(ph->p_vaddr), kernel_file + ph->p_offset, ph->p_filesz);
+            if (SHARE_DATA()->kernel_start > phy_addr(ph->p_vaddr)) {
+                SHARE_DATA()->kernel_start = phy_addr(ph->p_vaddr);
             }
-            if (KERNEL_IMG_P_ADDR(ph->p_vaddr) + ph->p_memsz > SHARE_DATA()->kernel_end) {
-                SHARE_DATA()->kernel_end = KERNEL_IMG_P_ADDR(ph->p_vaddr) + ph->p_memsz;
+            if (phy_addr(ph->p_vaddr) + ph->p_memsz > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = phy_addr(ph->p_vaddr) + ph->p_memsz;
             }
             count++;
         }
@@ -399,14 +393,14 @@ static int load_kernel_elf(uint32_t *entry)
 
     count = 0;
     for (i = 0; i < eh->e_shnum; i++) {
-        sh = (Elf32_Shdr *)(kernel_file_start + eh->e_shoff + eh->e_shentsize * i);
-        if (sh->sh_type == SHT_NOBITS && sh->sh_addr >= CONFIG_KERNEL_VMA) {
-            memset((void *)KERNEL_IMG_P_ADDR(sh->sh_addr), 0, sh->sh_size);
-            if (SHARE_DATA()->kernel_start > KERNEL_IMG_P_ADDR(sh->sh_addr)) {
-                SHARE_DATA()->kernel_start = KERNEL_IMG_P_ADDR(sh->sh_addr);
+        sh = (Elf32_Shdr *)(kernel_file + eh->e_shoff + eh->e_shentsize * i);
+        if (sh->sh_type == SHT_NOBITS && sh->sh_addr >= CONFIG_KERNEL_VM_OFFSET) {
+            memset((void *)phy_addr(sh->sh_addr), 0, sh->sh_size);
+            if (SHARE_DATA()->kernel_start > phy_addr(sh->sh_addr)) {
+                SHARE_DATA()->kernel_start = phy_addr(sh->sh_addr);
             }
-            if (KERNEL_IMG_P_ADDR(sh->sh_addr) + sh->sh_size > SHARE_DATA()->kernel_end) {
-                SHARE_DATA()->kernel_end = KERNEL_IMG_P_ADDR(sh->sh_addr) + sh->sh_size;
+            if (phy_addr(sh->sh_addr) + sh->sh_size > SHARE_DATA()->kernel_end) {
+                SHARE_DATA()->kernel_end = phy_addr(sh->sh_addr) + sh->sh_size;
             }
             count++;
         }
@@ -414,7 +408,7 @@ static int load_kernel_elf(uint32_t *entry)
     printf("%d BSS(s) initialized\n", count); // Block Started by Symbol
 
     // clear kernel file
-    memset(kernel_file_start, 0, kernel_size);
+    memset(kernel_file, 0, kernel_size);
 
     printf("kernel loaded in 0x%x ~ 0x%x\n", SHARE_DATA()->kernel_start, SHARE_DATA()->kernel_end);
 
@@ -455,39 +449,35 @@ static void setup_page(void)
 {
     int i, j;
     uint32_t page = 0;
-    struct paging_entry *pg_dir = (void *)CONFIG_KERNEL_PG_ADDR;
-    struct paging_entry *pg_table = pg_dir + PAGE_ENT_CNT;
+    struct page_entry *pgdir = (void *)CONFIG_KERNEL_PG_ADDR;
+    struct page_entry *pgtbl = pgdir + PAGE_ENTRY_COUNT;
 
-    memset(pg_dir, 0, CONFIG_MEM_PAGE_SIZE);
-    for (i = 0; i < PAGE_ENT_CNT; i++) {
-        if (CONFIG_MEM_PAGE_SIZE*PAGE_ENT_CNT*i < CONFIG_KERNEL_VMA) {
-            pg_dir[i].present = 0;
-            continue;
+    memset(pgdir, 0, PAGE_SIZE);
+    for (i = (CONFIG_KERNEL_VM_OFFSET >> PGDIR_SHIFT); i < PAGE_ENTRY_COUNT; i++) {
+        pgdir[i].present = 1;
+        pgdir[i].rw = 1;
+        pgdir[i].index = (uint32_t)pgtbl >> PAGE_SHIFT;
+        memset(pgtbl, 0, PAGE_SIZE);
+        for (j = 0; j < PAGE_ENTRY_COUNT; j++) {
+            pgtbl[j].present = 1;
+            pgtbl[j].rw = 1;
+            pgtbl[j].index = page++;
         }
-        pg_dir[i].present = 1;
-        pg_dir[i].rw = 1;
-        pg_dir[i].index = (uint32_t)pg_table / CONFIG_MEM_PAGE_SIZE;
-        memset(pg_table, 0, CONFIG_MEM_PAGE_SIZE);
-        for (j = 0; j < PAGE_ENT_CNT; j++) {
-            pg_table[j].present = 1;
-            pg_table[j].rw = 1;
-            pg_table[j].index = page++;
-        }
-        pg_table += PAGE_ENT_CNT;
+        pgtbl += PAGE_ENTRY_COUNT;
     }
     /* create temporary page table for 0~1MB memory
      * only valid in loader, kernel should uninstall 
      * this page table.
      */
-    pg_table = (void *)ALIGN_CEIL(SHARE_DATA()->kernel_end, CONFIG_MEM_PAGE_SIZE);
-    pg_dir[0].present = 1;
-    pg_dir[0].rw = 0;
-    pg_dir[0].index = (uint32_t)pg_table / CONFIG_MEM_PAGE_SIZE;
-    memset(pg_table, 0, CONFIG_MEM_PAGE_SIZE);
-    for (j = 0; j < 0x100000/CONFIG_MEM_PAGE_SIZE; j++) {
-        pg_table[j].present = 1;
-        pg_table[j].rw = 0;
-        pg_table[j].index = j;
+    pgtbl = (void *)ALIGN_CEIL(SHARE_DATA()->kernel_end, PAGE_SIZE);
+    pgdir[0].present = 1;
+    pgdir[0].rw = 0;
+    pgdir[0].index = (uint32_t)pgtbl / PAGE_SIZE;
+    memset(pgtbl, 0, PAGE_SIZE);
+    for (j = 0; j < (0x100000 >> PAGE_SHIFT); j++) {
+        pgtbl[j].present = 1;
+        pgtbl[j].rw = 0;
+        pgtbl[j].index = j;
     }
     enable_paging();
 }
@@ -500,5 +490,5 @@ static void load()
     entry_point[0] = load_kernel();
     entry_point[1] = SELECTOR_KERNEL_CS;
     setup_page();
-    asm("ljmp *(%0)"::"p"(entry_point):);
+    asm("jmp *(%0)"::"p"(entry_point):);
 }

@@ -7,11 +7,12 @@
 
 #include "log.h"
 #include "printk.h"
-#include "sched.h"
 
 #include "tty.h"
 
 extern void F1_handler(void);
+extern void mm_report(void);
+extern void sched_report(void);
 
 #define TTYS_COUNT (TTY_MAX+1)
 #define SCROLL_ROWS 15
@@ -132,6 +133,10 @@ void tty_in_proc(int fd, uint32_t key)
             break;
         case F4:
             F1_handler();
+            break;
+        case F5:
+            mm_report();
+            sched_report();
             break;
         default:
             break;

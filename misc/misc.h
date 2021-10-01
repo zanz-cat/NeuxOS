@@ -6,6 +6,8 @@
 #include <config.h>
 #include <arch/x86.h>
 
+#include <kernel/memory.h>
+
 struct share_data {
     uint32_t kernel_start; // physical addr
     uint32_t kernel_end;
@@ -16,7 +18,7 @@ struct share_data {
 #ifdef NO_PAGE
     #define SHARE_DATA() ((struct share_data *)CONFIG_SHARE_DATA_ADDR)
 #else
-    #define SHARE_DATA() ((struct share_data *)(CONFIG_SHARE_DATA_ADDR+CONFIG_KERNEL_VMA))
+    #define SHARE_DATA() ((struct share_data *)virt_addr(CONFIG_SHARE_DATA_ADDR))
 #endif
 
 #define max(a, b) \
@@ -93,5 +95,19 @@ static inline uint32_t eflags(void)
         "pop %%eax":"=a"(eflags)::"memory");
     return eflags;
 }
+
+#define SAVE_STATE() \
+    asm("pusha\n\t" \
+        "push %ds\n\t" \
+        "push %es\n\t" \
+        "push %fs\n\t" \
+        "push %gs\n\t");
+
+#define RESTORE_STATE() \
+    asm("pop %gs\n\t" \
+        "pop %fs\n\t" \
+        "pop %es\n\t" \
+        "pop %ds\n\t" \
+        "popa\n\t");
 
 #endif

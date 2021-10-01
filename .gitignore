@@ -9,9 +9,11 @@
 *.elf
 .vscode
 .config
+config
 config.h
 config.S
 bochsrc
 ._*.md
 rootfs
 .VSCodeCounter
+check

@@ -6,7 +6,7 @@ global _start
 extern out_byte
 extern in_byte
 extern current
-extern gdt_setup
+extern descriptor_setup
 extern kernel_setup
 
 [SECTION .bss]
@@ -19,10 +19,10 @@ _start:
     mov esp, temp_stacktop
 
     ; move GDT to kernel
-    call gdt_setup
+    call descriptor_setup
 
     ; can't uninstall 0~1MB page table, which is needed by 'jmp tss'
-    ; mov dword [CONFIG_KERNEL_VMA+CONFIG_KERNEL_PG_ADDR], 0
+    ; mov dword [CONFIG_KERNEL_VM_OFFSET+CONFIG_KERNEL_PG_ADDR], 0
 
     ; jmp with new GDT, make sure GDT correct
     jmp SELECTOR_KERNEL_CS:csinit

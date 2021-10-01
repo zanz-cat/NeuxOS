@@ -20,6 +20,10 @@
     str bx
     cmp bx, [eax+OFFSET_TASK_TSS_SEL]
     je .continue
+;     cmp word [eax], 2
+;     jne .aaa
+;     xchg bx, bx
+; .aaa:
     jmp far [eax]
 .continue:
     ; restore state
@@ -29,7 +33,8 @@
 
 extern current
 extern irq_handlers
-extern irq_ex_handlers
+extern generic_ex_handler
+extern page_fault_handler
 
 global irq_ex_divide_error
 global irq_ex_single_step
@@ -60,71 +65,96 @@ global irq_hwint12
 global irq_hwint13
 global irq_hwint14
 
-%macro call_ex_handler 1
-    push %1 ; vector_no
-    call [irq_ex_handlers + 4 * %1]
-    add esp, 4*2
-%endmacro
-
 [SECTION .text]
 irq_ex_divide_error:
     push 0ffffffffh ; err_code
-    call_ex_handler 0
+    push 0
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_single_step:
     push 0ffffffffh
-    call_ex_handler 1
+    push 1
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_nmi:
     push 0ffffffffh
-    call_ex_handler 2
+    push 2
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_breakpoint:
     push 0ffffffffh
-    call_ex_handler 3
+    push 3
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_overflow:
     push 0ffffffffh
-    call_ex_handler 4
+    push 4
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_bounds_check:
     push 0ffffffffh
-    call_ex_handler 5
+    push 5
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_inval_opcode:
     push 0ffffffffh
-    call_ex_handler 6
+    push 6
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_copr_not_available:
     push 0ffffffffh
-    call_ex_handler 7
+    push 7
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_double_fault:
     push 0ffffffffh
-    call_ex_handler 8
+    push 8
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_copr_seg_overrun:
     push 0ffffffffh
-    call_ex_handler 9
+    push 9
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_inval_tss:
-    call_ex_handler 10
+    push 10
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_segment_not_present:
-    call_ex_handler 11
+    push 11
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_stack_exception:
-    call_ex_handler 12
+    push 12
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_general_protection:
-    call_ex_handler 13
+    push 13
+    call generic_ex_handler
+    add esp, 8
     iret
 irq_ex_page_fault:
-    call_ex_handler 14
+    call page_fault_handler
+    add esp, 4
     iret
 irq_ex_copr_error:
     push 0ffffffffh
-    call_ex_handler 16
+    push 16
+    call generic_ex_handler
+    add esp, 8
     iret
 
 irq_hwint00:

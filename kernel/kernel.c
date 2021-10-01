@@ -5,16 +5,18 @@
 #include <drivers/harddisk.h>
 #include <arch/x86.h>
 #include <fs/ext2.h>
+#include <mm/mm.h>
+#include <mm/kmalloc.h>
 
 #include "log.h"
-#include "mm.h"
 #include "sched.h"
-#include "gdt.h"
+#include "descriptor.h"
 #include "clock.h"
-#include "kmalloc.h"
 #include "printk.h"
 #include "tty.h"
 #include "interrupt.h"
+#include "task.h"
+#include "memory.h"
 
 /**
  * https://www.bootschool.net/ascii
@@ -69,63 +71,59 @@ void enable_em(void)
 
 void kernel_setup()
 {
+    struct task *task;
+
     set_log_level(DEBUG);
     tty_setup();
     mm_setup();
-    sched_setup();
     enable_em();
     irq_setup();
     clock_setup();
     keyboard_setup();
     hd_setup();
     ext2_setup();
+    sched_setup();
 
-    create_kernel_task(tty_task, "[ttyd]", TTY0);
+    task = create_kernel_task((uint32_t)tty_task, "[ttyd]", TTY0);
+    if (task == NULL) {
+        kernel_panic("create tty task failed\n");
+    }
+    start_task(task);
     welcome();
 }
 
 void kernel_loop(void)
 {
-    uint32_t count = 0;
-    struct paging_entry *pg_dir;
+    struct page_entry *pgdir;
 
     // some cleaning jobs
-    pg_dir = (void *)(CONFIG_KERNEL_PG_ADDR + CONFIG_KERNEL_VMA);
-    pg_dir[0].present = 0;
+    pgdir = (void *)virt_addr(CONFIG_KERNEL_PG_ADDR);
+    pgdir[0].present = 0;
 
     enable_irq();
     while (1) {
-        if (count++ % 100000 == 0) {
-            sched_report();
-        }
         asm("hlt");
     }
 }
 
 void F1_handler(void)
 {
-    // int sect_cnt = 10;
-    // char buf2[CONFIG_HD_SECT_SZ * sect_cnt];
-    // hd_read(2048, sect_cnt, buf2, sizeof(buf2));
-    // printk("buf2: %s\n", buf2);
-    // return;
+    #define TASK_NUM 10
+    static struct task *task_list[TASK_NUM];
+    static int i;
 
-    struct ext2_file *f = ext2_open("/bin/app");
-    if (f == NULL) {
-        printk("open file failed\n");
+    int k = i++ % TASK_NUM;
+
+    if (task_list[k] != NULL) {
+        term_task(task_list[k]->pid);
+        task_list[k] = NULL;
         return;
     }
-    char *buf = kmalloc(f->size);
-    if (buf == NULL) {
-        printk("malloc failed\n");
+
+    task_list[k] = create_user_task("/bin/app", TTY1);
+    if (task_list[k] == NULL) {
+        printk("create user task failed\n");
         return;
     }
-    int ret = ext2_read(f, buf, f->size);
-    if (ret < 0) {
-        printk("read error: %d\n", ret);
-    }
-    // create_user_task();
-    printk(buf);
-    ext2_close(f);
-    kfree(buf);
+    start_task(task_list[k]);
 }

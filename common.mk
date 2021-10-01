@@ -16,7 +16,9 @@ ASMOBJS:=$(patsubst %.S,%_S.o, $(ASMSOURCE))
 LIBDIR:=$(ROOTDIR)/lib
 DRIVERSDIR:=$(ROOTDIR)/drivers
 FSDIR:=$(ROOTDIR)/fs
+MMDIR:=$(ROOTDIR)/mm
 
 LIBOBJS:=$(wildcard $(LIBDIR)/*.o) $(LIBDIR)/c/libc.a $(LIBDIR)/posix/libposix.a
 DRIVEROBJS:=$(wildcard $(DRIVERSDIR)/*.o) $(wildcard $(DRIVERSDIR)/*/*.o)
 FSOBJS:=$(wildcard $(FSDIR)/*.o) $(wildcard $(FSDIR)/*/*.o)
+MMOBJS:=$(wildcard $(MMDIR)/*.o) $(wildcard $(MMDIR)/*/*.o)

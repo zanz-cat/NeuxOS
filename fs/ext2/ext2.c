@@ -6,7 +6,7 @@
 #include <kernel/printk.h>
 #include <kernel/interrupt.h>
 #include <kernel/kernel.h>
-#include <kernel/kmalloc.h>
+#include <mm/kmalloc.h>
 #include <drivers/harddisk.h>
 #include <lib/list.h>
 #include <misc/misc.h>
@@ -376,7 +376,7 @@ int ext2_read(struct ext2_file *f, void *buf, size_t size)
     struct ext2_inode inode;
 
     if (size < f->size) {
-        return -EOVERFLOW;
+        return -EORANGE;
     }
 
     offset = 0;

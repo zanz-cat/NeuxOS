@@ -4,11 +4,14 @@
 #include <drivers/monitor.h>
 #include <arch/x86.h>
 #include <config.h>
+#include <errcode.h>
 
 #include "log.h"
-#include "gdt.h"
+#include "kernel.h"
+#include "descriptor.h"
 
 #define	GDT_SIZE 8192
+#define LDT_SIZE 2
 
 struct gdtr {
     uint16_t limit;
@@ -35,7 +38,7 @@ static int alloc()
     return i;
 }
 
-static void kfree(int index)
+static void free(int index)
 {
     if (index > GDT_SIZE - 1)
         return;
@@ -44,7 +47,7 @@ static void kfree(int index)
 }
 
 static void install_desc(uint16_t index, uint32_t addr, 
-            uint32_t limit, uint16_t attr_type)
+                uint32_t limit, uint16_t attr_type)
 {
     struct descriptor *pdesc = &gdt[index];
     pdesc->base_low = (uint32_t)addr & 0xffff;
@@ -59,21 +62,26 @@ static void install_desc(uint16_t index, uint32_t addr,
 static void uninstall_desc(uint16_t index)
 {
     memset(&gdt[index], 0, sizeof(struct descriptor));
-    kfree(index);
+    free(index);
 }
 
-void gdt_setup()
+void descriptor_setup()
 {
     struct gdtr gdtr;
 
+    memset(gdt, 0, sizeof(struct descriptor)*GDT_SIZE);
+    memset(bitmap, 0, sizeof(bitmap));
+
     install_desc(SELECTOR_DUMMY >> 3, 0, 0, 0);
     BITMAP_SET(SELECTOR_DUMMY >> 3);
-
-    install_desc(SELECTOR_FLAT_C >> 3, 0, 0xfffff, DA_CR|DA_32|DA_LIMIT_4K);
-    BITMAP_SET(SELECTOR_FLAT_C >> 3);
-
-    install_desc(SELECTOR_FLAT_RW >> 3, 0, 0xfffff, DA_DRW|DA_32|DA_LIMIT_4K);
-    BITMAP_SET(SELECTOR_FLAT_RW >> 3);
+    install_desc(SELECTOR_KERNEL_CS >> 3, 0, 0xfffff, DA_CR|DA_32|DA_LIMIT_4K);
+    BITMAP_SET(SELECTOR_KERNEL_CS >> 3);
+    install_desc(SELECTOR_KERNEL_DS >> 3, 0, 0xfffff, DA_DRW|DA_32|DA_LIMIT_4K);
+    BITMAP_SET(SELECTOR_KERNEL_DS >> 3);
+    install_desc(SELECTOR_USER_CS >> 3, 0, 0xfffff, DA_C|DA_DPL3|DA_LIMIT_4K|DA_32);
+    BITMAP_SET(SELECTOR_USER_CS >> 3);
+    install_desc(SELECTOR_USER_DS >> 3, 0, 0xfffff, DA_DRW|DA_DPL3|DA_LIMIT_4K|DA_32);
+    BITMAP_SET(SELECTOR_USER_DS >> 3);
 
     gdtr.base = &gdt;
     gdtr.limit = GDT_SIZE * sizeof(struct descriptor) - 1;
@@ -81,15 +89,16 @@ void gdt_setup()
 }
 
 // can i install TSS into LDT? No! P289
-int install_tss(struct tss *ptss)
+int install_tss(struct tss *tss, uint8_t priv)
 {
+    priv = DA_DPL0;
     int index = alloc();
     if (index < 0) {
         log_error("alloc gdt error\n");
         return -1;
     }
-    install_desc(index, (uint32_t)ptss, sizeof(struct tss) - 1, DA_386TSS | DA_DPL0);
-    return index << 3;
+    install_desc(index, (uint32_t)tss, sizeof(struct tss) - 1, DA_386TSS | priv);
+    return (index << 3) | (priv >> 5);
 }
 
 int uninstall_tss(uint16_t sel)
@@ -102,22 +111,11 @@ int uninstall_tss(uint16_t sel)
     return 0;
 }
 
-int install_ldt(void *ldt, uint16_t size)
-{
-    int index = alloc();
-    if (index > GDT_SIZE - 1) {
-        return -1;
-    }
-    install_desc(index, (uint32_t)ldt, sizeof(struct descriptor) * size - 1, DA_LDT | DA_DPL0);
-    return index << 3;
-}
-
-int uninstall_ldt(uint16_t sel)
+struct descriptor *get_descriptor(uint16_t sel)
 {
     int index = sel >> 3;
     if (index > GDT_SIZE - 1) {
-        return -1;
+        return NULL;
     }
-    uninstall_desc(index);
-    return 0;
+    return &gdt[index];
 }

@@ -23,13 +23,12 @@
 #define IRQ_EX_COUNT        (IRQ_EX_COTASK_ERR - IRQ_EX_DIVIDE + 1)
 
 typedef void (*irq_handler)(void);
-typedef void (*irq_ex_handler)(int vec_no, int err_code, int eip, int cs, int eflags);
+typedef void (*irq_ex_handler)(int err_code, int eip, int cs, int eflags);
 
 void irq_setup();
 void enable_irq_n(int vector);
 void disable_irq_n(int vector);
 void irq_register_handler(int vector, irq_handler h);
-void irq_register_ex_handler(int vector, irq_ex_handler h);
 
 static inline void enable_irq(void)
 {

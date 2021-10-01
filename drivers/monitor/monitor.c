@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <drivers/io.h>
+#include <kernel/memory.h>
 #include <config.h>
 
 #include "monitor.h"
@@ -17,7 +18,7 @@
 #ifdef NO_PAGE
     #define VIDEO_MEM_BASE  ((uint16_t *)(MONITOR_PHY_MEM))
 #else
-    #define VIDEO_MEM_BASE  ((uint16_t *)(MONITOR_PHY_MEM+CONFIG_KERNEL_VMA))
+    #define VIDEO_MEM_BASE  ((uint16_t *)virt_addr(MONITOR_PHY_MEM))
 #endif
 
 void monitor_set_cursor(uint16_t offset)

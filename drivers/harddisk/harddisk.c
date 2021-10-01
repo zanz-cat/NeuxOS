@@ -8,7 +8,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/sched.h>
 #include <kernel/log.h>
-#include <kernel/kmalloc.h>
+#include <mm/kmalloc.h>
 #include <drivers/io.h>
 #include <lib/list.h>
 #include <misc/misc.h>

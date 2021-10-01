@@ -5,7 +5,7 @@
 #define EINTVAL 2
 #define ETIMEOUT 3
 #define ENEXIST 4
-#define EOVERFLOW 5
+#define EORANGE 5
 #define EOOM 6
 
 #endif

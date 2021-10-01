@@ -23,7 +23,7 @@ memcpy:
     pop esi
     pop edi
 
-    pop ebp
+    leave
     ret
 
 ; void* memmove(void *dest, void *src, uint32_t size);
@@ -56,10 +56,11 @@ memmove:
     pop esi
     pop edi
 
-    pop ebp
+    leave
     ret
 
-; void *memset(void *s, int ch, uint32_t size);
+; void *memset(void *s, int ch, size_t size);
+; arg(i) [ebp+4*(i+2)]
 memset:
     push ebp
     mov ebp, esp
@@ -77,5 +78,5 @@ memset:
     pop edi
     pop eax
 
-    pop ebp
+    leave
     ret

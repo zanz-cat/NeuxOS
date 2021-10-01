@@ -3,15 +3,15 @@
 
 #include <lib/list.h>
 #include <config.h>
+#include <mm/mm.h>
+#include <mm/kmalloc.h>
 
-#include "mm.h"
 #include "log.h"
-#include "gdt.h"
+#include "descriptor.h"
 #include "task.h"
 #include "clock.h"
 #include "printk.h"
 #include "kernel.h"
-#include "kmalloc.h"
 #include "interrupt.h"
 
 #include "sched.h"
@@ -24,30 +24,14 @@ static struct task *kernel_loop_task;
 
 struct task *current;
 
-struct task *create_user_task(void *text, const char *exe, int tty)
+uint32_t start_task(struct task *task)
 {
-    struct task *task = create_task(task_id++, text, exe, TASK_TYPE_USER, tty);
-    if (task == NULL) {
-        log_error("create task error\n");
-        return NULL;
-    }
-    LIST_ADD_TAIL(&task_list, &task->list);
-    LIST_ENQUEUE(&running_queue, &task->running);
-    log_debug("user task created, pid: %d\n", task->pid);
-    return task;
-}
+    task->pid = task_id++;
+    log_debug("start task, pid: %d, exe: %s\n", task->pid, task->exe);
 
-struct task *create_kernel_task(void *text, const char *exe, int tty)
-{
-    struct task *task = create_task(task_id++, text, exe, TASK_TYPE_KERNEL, tty);
-    if (task == NULL) {
-        log_error("create task error\n");
-        return NULL;
-    }
     LIST_ADD_TAIL(&task_list, &task->list);
     LIST_ENQUEUE(&running_queue, &task->running);
-    log_debug("kernel task created, pid: %d\n", task->pid);
-    return task;
+    return task->pid;
 }
 
 void term_task(uint32_t pid)
@@ -55,31 +39,29 @@ void term_task(uint32_t pid)
     struct list_node *node;
     struct task *task;
 
+    log_debug("term task, pid: %u\n", pid);
     if (current->pid == pid) {
         current->state = TASK_STATE_TERM;
-        LIST_DEL(&current->running);
         LIST_ENQUEUE(&term_queue, &current->running);
         return;
     }
 
     LIST_FOREACH(&running_queue, node) {
         task = container_of(node, struct task, running);
-        if (task->pid == pid) {
-            task->state = TASK_STATE_TERM;
-            LIST_DEL(&task->running);
-            LIST_ENQUEUE(&term_queue, &task->running);
-            break;
+        if (task->pid != pid) {
+            continue;
         }
+        task->state = TASK_STATE_TERM;
+        LIST_DEL(&task->running);
+        LIST_ENQUEUE(&term_queue, &task->running);
+        break;
     }
 }
 
 static void do_term_task(struct task *task)
 {
     LIST_DEL(&task->list);
-    mm_free_user_paging((struct paging_entry *)task->tss.cr3);
-    uninstall_ldt(task->tss.ldt);
-    uninstall_tss(task->tss_sel);
-    kfree(task);
+    destroy_task(task);
 }
 
 void yield(void) {
@@ -95,7 +77,7 @@ void yield(void) {
         current = container_of(node, struct task, running);
     }
     LIST_ENQUEUE(&running_queue, &onboard->running);
-    asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
+    asm("ljmp *(%0)"::"p"(current):);
     enable_irq();
 }
 
@@ -112,7 +94,7 @@ void suspend_task(struct list_node *wakeup_queue)
     } else {
         current = container_of(node, struct task, running);
     }
-    asm("ljmp *(%0)"::"p"(PTR_SUB(&current->tss_sel, sizeof(uint32_t))):);
+    asm("ljmp *(%0)"::"p"(current):);
 }
 
 void resume_task(struct list_node *wakeup_queue)
@@ -156,12 +138,13 @@ void sched_setup(void)
 {
     task_id = 0;
 
-    kernel_loop_task = create_task(task_id++, kernel_loop, "[kernel]", TASK_TYPE_KERNEL, -1);
+    kernel_loop_task = create_kernel_task((uint32_t)kernel_loop, "[kernel]", TASK_TYPE_KERNEL);
     if (kernel_loop_task == NULL) {
         kernel_panic("create kernel_loop task error\n");
     };
     kernel_loop_task->tss.eflags &= ~EFLAGS_IF;
     current = kernel_loop_task;
+    start_task(kernel_loop_task);
 }
 
 void sched_report(void)

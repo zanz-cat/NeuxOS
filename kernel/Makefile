@@ -11,7 +11,7 @@ $(OBJS): %.o:%.c
 $(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
-kernel.elf: $(OBJS) $(ASMOBJS) $(DRIVEROBJS) $(FSOBJS) $(LIBOBJS)
+kernel.elf: $(OBJS) $(ASMOBJS) $(DRIVEROBJS) $(FSOBJS) $(LIBOBJS) $(MMOBJS)
 	$(LD) $(LDFLAGS) -Ttext $(CONFIG_KERNEL_IMG_VM_ADDR) -o $@ $^
 	objcopy --remove-section=.note.gnu.property $@ 2>/dev/null
 

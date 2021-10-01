@@ -77,9 +77,10 @@ struct tss {
 #define	SELECTOR_FLAT_RW	0x10		// ┃
 #define	SELECTOR_VIDEO		(0x18+3)	// ┛<-- RPL=3
 
-#define	SELECTOR_KERNEL_CS	SELECTOR_FLAT_C
-#define	SELECTOR_KERNEL_DS	SELECTOR_FLAT_RW
-
+#define	SELECTOR_KERNEL_CS 0x08
+#define	SELECTOR_KERNEL_DS 0x10
+#define SELECTOR_USER_CS 0x1b
+#define SELECTOR_USER_DS 0x23
 
 /* 描述符类型值说明 */
 #define	DA_32			0x4000	/* 32 位段				*/
@@ -114,5 +115,12 @@ struct ARDS {
 	uint32_t len_high;
 	uint32_t type;
 } __attribute__((packed));
+
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1U << PAGE_SHIFT)
+#define PAGE_MASK (~(PAGE_SIZE - 1))
+
+#define PGDIR_SHIFT 22
+#define PGDIR_MASK (~((1U << PGDIR_SHIFT) - 1))
 
 #endif /* __ARCH_X86_H__ */
