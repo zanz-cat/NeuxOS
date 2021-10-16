@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 void clock_setup();
-uint32_t kget_jeffies();
+void delay(uint32_t us);
 
 #endif

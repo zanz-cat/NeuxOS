@@ -82,18 +82,17 @@ static void print_memory_layout(void)
 {
     uint16_t i;
 
-    printf("\nMemory Layout:\n"
-           "  %-2s %-18s %-18s %-4s\n", 
+    printf("Memory Layout:\n"
+           "%-2s %-18s %-18s %-4s\n", 
            "no", "addr", "length", "type");
     for (i = 0; i < SHARE_DATA()->ards_cnt; i++) {
-        printf("  %-2d 0x%08x%08x 0x%08x%08x %s\n", i + 1,
+        printf("%-2d 0x%08x%08x 0x%08x%08x %s\n", i + 1,
                SHARE_DATA()->ards[i].base_addr_high,
                SHARE_DATA()->ards[i].base_addr_low,
                SHARE_DATA()->ards[i].len_high,
                SHARE_DATA()->ards[i].len_low,
                memory_type(SHARE_DATA()->ards[i].type));
     }
-    printf("\n");
 }
 
 static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)

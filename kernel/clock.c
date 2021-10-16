@@ -2,6 +2,7 @@
 
 #include <drivers/io.h>
 #include <drivers/i8259a.h>
+#include <misc/misc.h>
 
 #include "log.h"
 #include "sched.h"
@@ -17,7 +18,8 @@
 #define PIT_FREQ 1193182L
 #define PIT_HZ 1000
 
-static uint64_t jeffies;
+static uint32_t jeffies;
+static LIST_HEAD(delay_queue);
 
 uint64_t rdtsc(void)
 {
@@ -28,7 +30,20 @@ uint64_t rdtsc(void)
 
 static void clock_handler()
 {
+    struct list_node *node;
+    struct task *task;
+
     jeffies++;
+
+    LIST_FOREACH(&delay_queue, node) {
+        task = container_of(node, struct task, running);
+        if (task->delay < MICROSEC/PIT_HZ) {
+            task->delay = 0;
+            resume_task(&delay_queue);
+            return;
+        }
+        task->delay -= MICROSEC/PIT_HZ;
+    }
     sched_task();
 }
 
@@ -47,7 +62,8 @@ void clock_setup()
     enable_irq_n(IRQ_CLOCK);
 }
 
-uint32_t kget_jeffies()
+void delay(uint32_t us)
 {
-    return jeffies;
+    current->delay = us;
+    suspend_task(&delay_queue);
 }

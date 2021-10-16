@@ -81,12 +81,12 @@ void yield(void) {
     enable_irq();
 }
 
-void suspend_task(struct list_node *wakeup_queue)
+void suspend_task(struct list_node *queue)
 {
     struct list_node *node;
 
     current->state = TASK_STATE_WAIT;
-    LIST_ENQUEUE(wakeup_queue, &current->running);
+    LIST_ENQUEUE(queue, &current->running);
 
     node = LIST_DEQUEUE(&running_queue);
     if (node == NULL) {
@@ -97,12 +97,13 @@ void suspend_task(struct list_node *wakeup_queue)
     asm("ljmp *(%0)"::"p"(current):);
 }
 
-void resume_task(struct list_node *wakeup_queue)
+// called in interrupt routine
+void resume_task(struct list_node *queue)
 {
     struct list_node *node;
     struct task *task;
 
-    node = LIST_DEQUEUE(wakeup_queue);
+    node = LIST_DEQUEUE(queue);
     if (node == NULL) {
         return;
     }
@@ -147,6 +148,21 @@ void sched_setup(void)
     start_task(kernel_loop_task);
 }
 
+static const char *task_state(uint8_t state)
+{
+    switch (state) {
+        case TASK_STATE_INIT:
+            return "I";
+        case TASK_STATE_RUNNING:
+            return "R";
+        case TASK_STATE_TERM:
+            return "T";
+        case TASK_STATE_WAIT:
+            return "S";
+        default:
+            return "U";
+    }
+}
 void sched_report(void)
 {
     struct list_node *node;
@@ -155,6 +171,6 @@ void sched_report(void)
     printk("pid  state  exe\n");
     LIST_FOREACH(&task_list, node) {
         task = container_of(node, struct task, list);
-        printk("%-4d %-5d  %s\n", task->pid, task->state, task->exe);
+        printk("%-4d %s      %s\n", task->pid, task_state(task->state), task->exe);
     }
 }

@@ -8,10 +8,10 @@ struct list_node {
     struct list_node *next;
 };
 
-#define LIST_HEAD_INIT(name) {&(name), &(name)}
+#define __LIST_HEAD_INIT(name) {&(name), &(name)}
 
 #define LIST_HEAD(name) \
-    struct list_node name = LIST_HEAD_INIT(name)
+    struct list_node name = __LIST_HEAD_INIT(name)
 
 #define LIST_ADD_TAIL(head, node) \
 __extension__ ({ \

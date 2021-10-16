@@ -33,6 +33,7 @@ struct task {
     char exe[MAX_PATH_LEN];
     uint32_t text;
     struct tss tss;
+    uint32_t delay; // us
     struct list_node list;
     struct list_node running;
 } __attribute__((packed));

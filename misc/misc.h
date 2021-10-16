@@ -8,6 +8,9 @@
 
 #include <kernel/memory.h>
 
+#define MICROSEC 1000000U
+#define MILLISEC 1000U
+
 struct share_data {
     uint32_t kernel_start; // physical addr
     uint32_t kernel_end;
@@ -76,15 +79,6 @@ __extension__({ \
 })
 
 #define is_power_of_2(n) (n && !(n & (n - 1)))
-
-#define do_div(n, base) \
-__extension__({ \
-    uint32_t __base = (base); \
-    uint32_t __rem; \
-    __rem = ((uint64_t)(n)) % __base; \
-    (n) = ((uint64_t)(n)) / __base; \
-    __rem; \
-})
 
 #define ceil_div(n, base) (((n) + ((base) - 1)) / (base))
 

@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <misc/misc.h>
 #include <syscall.h>
 
 #include <unistd.h>
@@ -9,14 +10,6 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
-static uint32_t get_ticks()
-{
-    asm("movl %0, %%eax\n\t"
-        "int %1"
-        :
-        :"i"(SYSCALL_GET_TICKS), "i"(IRQ_EX_SYSCALL)
-        :"%eax");
-}
 
 ssize_t write(int fd, const void *buf, size_t n)
 {
@@ -28,18 +21,20 @@ ssize_t write(int fd, const void *buf, size_t n)
         :"i"(SYSCALL_WRITE), "p"(buf), "m"(n), "i"(IRQ_EX_SYSCALL)
         :"%eax", "%ebx", "%ecx");
 }
+
+int usleep(useconds_t useconds)
+{
+    asm("movl %0, %%eax\n\t"
+        "movl %1, %%ebx\n\t"
+        "int %2\n\t"
+        :
+        :"i"(SYSCALL_DELAY), "m"(useconds), "i"(IRQ_EX_SYSCALL)
+        :"%eax", "%ebx");
+}
+
 #pragma GCC diagnostic pop
 
 unsigned int sleep(unsigned int seconds)
 {
-    uint32_t t = get_ticks();
-    while ((get_ticks() - t)/HZ < seconds);
-    return 0;
-}
-
-int usleep(useconds_t useconds)
-{
-    int t = get_ticks();
-    while ((get_ticks() - t)*1000000/HZ < useconds);
-    return 0;
+    return usleep(seconds * MICROSEC);
 }
