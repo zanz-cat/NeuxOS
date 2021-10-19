@@ -6,7 +6,7 @@
 extern struct task *current;
 
 uint32_t start_task(struct task *task);
-void term_task(uint32_t pid);
+void term_task(struct task *task);
 void sched_task(void);
 void yield(void);
 void suspend_task(struct list_node *queue);

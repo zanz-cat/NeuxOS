@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <misc/misc.h>
 #include <config.h>
@@ -12,6 +13,9 @@ int main(int argc, char *argv[])
 {
     static int count = 0;
 
+    printf("app1\n");
+    return 100;
+
     while (1) {
         sleep(1);
         printf("\b\b\b\b\b\b\b\b\b\bapp1: %d", count++);
@@ -21,5 +25,6 @@ int main(int argc, char *argv[])
 
 void _start(void)
 {
-    main(0, NULL);
+    int ret = main(0, NULL);
+    exit(ret);
 }

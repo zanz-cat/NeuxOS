@@ -121,7 +121,7 @@ error:
            reason, current->pid, current->exe, 
            eflags, cs, eip, cr2, write ? "w" : "r", user);
 
-    term_task(current->pid);
+    term_task(current);
     sched_task();
     asm("ljmp *(%0)"::"p"(current):);
 }

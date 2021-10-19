@@ -6,8 +6,6 @@
 
 #include <unistd.h>
 
-#define HZ 60
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
 

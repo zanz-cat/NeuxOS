@@ -115,7 +115,7 @@ void F1_handler(void)
     int k = i++ % TASK_NUM;
 
     if (task_list[k] != NULL) {
-        term_task(task_list[k]->pid);
+        term_task(task_list[k]);
         task_list[k] = NULL;
         return;
     }

@@ -25,11 +25,11 @@ static int _log(enum log_level level, const char *fmt, va_list args)
     if (level > FATAL) {
         return -1;
     }
-    ret = printk("[%s] ", log_level_name[level]);
+    ret = fprintk(TTY0, "[%s] ", log_level_name[level]);
     if (ret < 0) {
         return ret;
     }
-    return vprintk(fmt, args);
+    return vfprintk(TTY0, fmt, args);
 }
 
 int set_log_level(enum log_level level)

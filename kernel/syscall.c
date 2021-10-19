@@ -4,8 +4,13 @@
 #include "task.h"
 #include "tty.h"
 #include "sched.h"
+#include "log.h"
 
-typedef void* syscall_handler;
+static void sys_exit(int status)
+{
+    log_info("[%u][%s] return code=[%d]\n", current->pid, current->exe, status);
+    term_task(current);
+}
 
 static int sys_write(char *buf, int len)
 {
@@ -23,7 +28,8 @@ static void sys_delay(int us)
     delay(us);
 }
 
-syscall_handler syscall_handler_table[] = {
+void *syscall_handler_table[] = {
+    [SYSCALL_EXIT] = sys_exit,
     [SYSCALL_WRITE] = sys_write,
     [SYSCALL_DELAY] = sys_delay,
 };

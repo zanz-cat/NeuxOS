@@ -34,28 +34,18 @@ uint32_t start_task(struct task *task)
     return task->pid;
 }
 
-void term_task(uint32_t pid)
+void term_task(struct task *task)
 {
-    struct list_node *node;
-    struct task *task;
-
-    log_debug("term task, pid: %u\n", pid);
-    if (current->pid == pid) {
+    log_debug("term task, pid: %u\n", task->pid);
+    if (current == task) {
         current->state = TASK_STATE_TERM;
         LIST_ENQUEUE(&term_queue, &current->running);
         return;
     }
 
-    LIST_FOREACH(&running_queue, node) {
-        task = container_of(node, struct task, running);
-        if (task->pid != pid) {
-            continue;
-        }
-        task->state = TASK_STATE_TERM;
-        LIST_DEL(&task->running);
-        LIST_ENQUEUE(&term_queue, &task->running);
-        break;
-    }
+    task->state = TASK_STATE_TERM;
+    LIST_DEL(&task->running);
+    LIST_ENQUEUE(&term_queue, &task->running);
 }
 
 static void do_term_task(struct task *task)
