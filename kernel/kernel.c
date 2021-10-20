@@ -73,7 +73,7 @@ void kernel_setup()
 {
     struct task *task;
 
-    set_log_level(DEBUG);
+    set_log_level(INFO);
     tty_setup();
     mm_setup();
     enable_em();
