@@ -73,7 +73,7 @@ void kernel_setup()
 {
     struct task *task;
 
-    set_log_level(INFO);
+    set_log_level(DEBUG);
     tty_setup();
     mm_setup();
     enable_em();
@@ -84,11 +84,18 @@ void kernel_setup()
     ext2_setup();
     sched_setup();
 
+    task = create_user_task("/bin/init", TTY0);
+    if (task == NULL) {
+        kernel_panic("create init task failed\n");
+    }
+    start_task(task);
+
     task = create_kernel_task((uint32_t)tty_task, "[ttyd]", TTY0);
     if (task == NULL) {
         kernel_panic("create tty task failed\n");
     }
     start_task(task);
+
     welcome();
 }
 

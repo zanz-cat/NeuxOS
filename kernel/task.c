@@ -9,6 +9,7 @@
 
 #include "log.h"
 #include "descriptor.h"
+#include "sched.h"
 
 #include "task.h"
 
@@ -104,27 +105,28 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
     return count;
 }
 
-static void user_task_launcher(const char *exe)
+static void user_task_launcher(void)
 {
     uint32_t ebp;
     struct _stack_content *_stack;
 
-    struct ext2_file *f = ext2_open("/bin/app");
+    struct ext2_file *f = ext2_open(current->exe);
     if (f == NULL) {
-        log_error("open file failed\n");
-        return;
+        log_error("open file %s failed\n", current->exe);
+        term_task(current);
     }
     char *buf = kmalloc(f->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
         ext2_close(f);
-        return;
+        term_task(current);
     }
     int ret = ext2_read(f, buf, f->size);
     ext2_close(f);
     if (ret < 0) {
         log_error("read error: %d\n", ret);
         kfree(buf);
+        term_task(current);
     }
 
     uint32_t entry_point;
@@ -132,7 +134,7 @@ static void user_task_launcher(const char *exe)
     kfree(buf);
     if (ret < 0) {
         log_error("load elf error: %d\n", ret);
-        return;
+        term_task(current);
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);

@@ -37,15 +37,14 @@ uint32_t start_task(struct task *task)
 void term_task(struct task *task)
 {
     log_debug("term task, pid: %u\n", task->pid);
-    if (current == task) {
-        current->state = TASK_STATE_TERM;
-        LIST_ENQUEUE(&term_queue, &current->running);
-        return;
-    }
-
     task->state = TASK_STATE_TERM;
-    LIST_DEL(&task->running);
+    if (task != current) {
+        LIST_DEL(&task->running);
+    }
     LIST_ENQUEUE(&term_queue, &task->running);
+    if (task == current) {
+        yield();
+    }
 }
 
 static void do_term_task(struct task *task)
