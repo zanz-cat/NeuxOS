@@ -155,8 +155,12 @@ static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
 
 static int ext2_read_block(struct hd_mbr_part *part, uint32_t block, uint8_t count, void *buf)
 {
-    return loader_read_sector(part->lba + EXT2_SECTS_PER_BLK * block,
-                    EXT2_SECTS_PER_BLK * count, buf);
+    int ret = loader_read_sector(part->lba + EXT2_SECTS_PER_BLK * block,
+                                 EXT2_SECTS_PER_BLK * count, buf);
+    if (ret != 0) {
+        printf("loader_read_sector error: %d\n", ret);
+    }
+    return ret;
 }
 
 static inline void backspace_num(int num)

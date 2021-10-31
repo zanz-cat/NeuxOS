@@ -33,9 +33,22 @@ static void sys_delay(int us)
     delay(us);
 }
 
-void *syscall_handler_table[] = {
-    [SYSCALL_EXIT] = sys_exit,
-    [SYSCALL_READ] = sys_read,
-    [SYSCALL_WRITE] = sys_write,
-    [SYSCALL_DELAY] = sys_delay,
-};
+void do_syscall(struct syscall_request *request)
+{
+    switch (request->irq) {
+        case SYSCALL_EXIT:
+            sys_exit(request->arg0);
+            break;
+        case SYSCALL_READ:
+            sys_read(request->arg0, (void *)request->arg1, (size_t)request->arg2);
+            break;
+        case SYSCALL_WRITE:
+            sys_write(request->arg0, (void *)request->arg1, (size_t)request->arg2);
+            break;
+        case SYSCALL_DELAY:
+            sys_delay(request->arg0);
+            break;
+        default:
+            break;
+    }
+}

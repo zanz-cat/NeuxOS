@@ -101,7 +101,11 @@ umount:
 image: disk install
 
 run: hd.img bochsrc
+ifeq ($(Q),qemu)
+	qemu-system-i386 -m 1024 -smp 1 -drive file=hd.img,format=raw || true
+else
 	bochs -q || true
+endif
 
 debug: hd.img bochsrc
 	bochsdbg -q
