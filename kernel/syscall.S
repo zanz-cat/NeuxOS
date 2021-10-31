@@ -11,10 +11,11 @@ irq_ex_syscall:
     ; handler's arguments
     push ecx ; arg1
     push ebx ; arg0
+    push 0   ; fd
 
     ; TODO arpl
     call [syscall_handler_table + 4*eax] ; sizeof(void *) == 4
-    add esp, 4*2 ; free arguments
+    add esp, 4*3 ; free arguments
 
     mov [esp+4*11], eax ; return value
 

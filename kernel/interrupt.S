@@ -64,6 +64,7 @@ global irq_hwint08
 global irq_hwint12
 global irq_hwint13
 global irq_hwint14
+global irq_hwint15
 
 [SECTION .text]
 irq_ex_divide_error:
@@ -189,3 +190,6 @@ irq_hwint13:
 
 irq_hwint14:
     hwint 14
+
+irq_hwint15:
+    hwint 15

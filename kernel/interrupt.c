@@ -19,6 +19,7 @@ void irq_hwint08();
 void irq_hwint12();
 void irq_hwint13();
 void irq_hwint14();
+void irq_hwint15();
 void irq_ex_divide_error();
 void irq_ex_single_step();
 void irq_ex_nmi();
@@ -143,6 +144,11 @@ static void copr_handler()
     printk("copr_handler\n");
 }
 
+static void resv_handler()
+{
+    printk("resv_handler\n");
+}
+
 void irq_register_handler(int vector, irq_handler h)
 {
     irq_handlers[(vector - INT_VECTOR_IRQ0)] = h;
@@ -186,6 +192,7 @@ void irq_setup()
     init_int_desc(IRQ_MOUSE, DA_386IGate, irq_hwint12, PRIVILEGE_KRNL);
     init_int_desc(IRQ_COPR, DA_386IGate, irq_hwint13, PRIVILEGE_KRNL);
     init_int_desc(IRQ_HARDDISK, DA_386IGate, irq_hwint14, PRIVILEGE_KRNL);
+    init_int_desc(IRQ_RESV, DA_386CGate, irq_hwint15, PRIVILEGE_KRNL);
 
     // install hardware int handlers
     irq_register_handler(IRQ_SERIAL2, serial2_handler);
@@ -196,6 +203,7 @@ void irq_setup()
     irq_register_handler(IRQ_REAL_CLOCK, real_clock_handler);
     irq_register_handler(IRQ_MOUSE, mouse_handler);
     irq_register_handler(IRQ_COPR, copr_handler);
+    irq_register_handler(IRQ_RESV, resv_handler);
 
     // init idt ptr
     idtr.base = &idt;

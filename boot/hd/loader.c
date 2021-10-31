@@ -15,17 +15,17 @@
 #define HD_TIMEOUT 10000
 #define KERNEL_FILE_NAME "kernel.elf"
 
-#define ERR_READ_MBR 0x100
-#define ERR_NO_BOOTABLE_PART 0x101
-#define ERR_INVALID_FS 0x102
-#define ERR_READ_EXT2_S_BLOCK 0x103
-#define ERR_READ_EXT2_BLOCK_GROUP 0x104
-#define ERR_READ_EXT2_INODE_MAP 0x105
-#define ERR_NO_ROOT_DIR 0x106
-#define ERR_READ_EXT2_INODE_TABLE 0x107
-#define ERR_READ_EXT2_ROOT_DIR 0x108
-#define ERR_NO_KERNEL_FILE 0x109
-#define ERR_READ_KERNEL_BLOCK 0x110
+#define ERR_READ_MBR 100
+#define ERR_NO_BOOTABLE_PART 101
+#define ERR_INVALID_FS 102
+#define ERR_READ_EXT2_S_BLOCK 103
+#define ERR_READ_EXT2_BLOCK_GROUP 104
+#define ERR_READ_EXT2_INODE_MAP 105
+#define ERR_NO_ROOT_DIR 106
+#define ERR_READ_EXT2_INODE_TABLE 107
+#define ERR_READ_EXT2_ROOT_DIR 108
+#define ERR_NO_KERNEL_FILE 109
+#define ERR_READ_KERNEL_BLOCK 110
 
 static void load();
 
@@ -95,11 +95,38 @@ static void print_memory_layout(void)
     }
 }
 
+static int wait(void)
+{
+    uint32_t i;
+    uint8_t status;
+    
+    for (i = 0; i < HD_TIMEOUT; i++) {
+        // [BSY - - - DRQ - - ERR] DRQ: data ready
+        status = in_byte(ATA_PORT_STATUS);
+        if ((status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) == ATA_STATUS_DRQ) {
+            return 0;
+        }
+    }
+    return -ETIMEOUT;
+}
+
+static size_t read_one_sector(void *buf)
+{
+    uint32_t i;
+    size_t n = 0;
+
+    for (i = 0; i < CONFIG_HD_SECT_SZ/sizeof(uint16_t); i++) {
+        *(uint16_t *)(buf + n) = in_word(ATA_PORT_DATA);
+        n += sizeof(uint16_t);
+    }
+    return n;
+}
+
 static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
 {
     int i;
     uint8_t status;
-    uint16_t data;
+    size_t offset = 0;
 
     for (i = 0; i < HD_TIMEOUT; i++) {
         status = in_byte(ATA_PORT_STATUS);
@@ -117,21 +144,11 @@ static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
     out_byte(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
     // send request
     out_byte(ATA_PORT_CMD, ATA_CMD_READ);
-    // wait harddisk ready
-    for (i = 0; i < HD_TIMEOUT; i++) {
-        // [BSY - - - DRQ - - ERR] DRQ: data ready
-        status = in_byte(ATA_PORT_STATUS);
-        if ((status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) == ATA_STATUS_DRQ) {
-            break;
+    for (i = 0; i < count; i++) {
+        if (wait() != 0) {
+            return -ETIMEOUT;
         }
-    }
-    if (i == HD_TIMEOUT) {
-        return -ETIMEOUT;
-    }
-    // read data
-    for (i = 0; i < CONFIG_HD_SECT_SZ * count / sizeof(uint16_t); i++) {
-        data = in_word(ATA_PORT_DATA);
-        *(uint16_t *)(buf + sizeof(uint16_t) * i) = data;
+        offset += read_one_sector(buf + offset);
     }
     return 0;
 }
@@ -423,13 +440,13 @@ static uint32_t load_kernel(void)
 
     ret = read_kernel_file();
     if (ret != 0) {
-        printf("read kernel file error: 0x%x\n", ret);
+        printf("read kernel file error: %d\n", ret);
         loader_panic(ret);
     }
 
     ret = load_kernel_elf(&entry);
     if (ret != 0) {
-        printf("load kernel ELF error: 0x%x\n", ret);
+        printf("load kernel ELF error: %d\n", ret);
         loader_panic(ret);
     }
     return entry;

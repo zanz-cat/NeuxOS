@@ -23,6 +23,7 @@
 #define IRQ_MOUSE           (INT_VECTOR_IRQ0 + 0xc)
 #define IRQ_COPR            (INT_VECTOR_IRQ0 + 0xd)
 #define IRQ_HARDDISK        (INT_VECTOR_IRQ0 + 0xe)
+#define IRQ_RESV            (INT_VECTOR_IRQ0 + 0xf)
 #define IRQ_COUNT           (IRQ_HARDDISK - IRQ_CLOCK + 1)
 
 void setup_8259a(void);
