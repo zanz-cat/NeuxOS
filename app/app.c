@@ -16,7 +16,6 @@ int main(int argc, char *argv[])
     while (1) {
         sleep(1);
         printf("\b\b\b\b\b\b\b\b\b\bapp1: %d", count++);
-        return 1;
     }
     return 0;
 }

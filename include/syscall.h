@@ -9,12 +9,4 @@
 #define SYSCALL_WRITE 2
 #define SYSCALL_DELAY 3
 
-struct syscall_request {
-    uint32_t irq;
-    int arg0;
-    int arg1;
-    int arg2;
-    int arg3;
-};
-
 #endif

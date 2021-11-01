@@ -1,7 +1,7 @@
 %include "const.S"
 
 extern current
-extern do_syscall
+extern syscall_handler_table
 
 global irq_ex_syscall
 
@@ -10,9 +10,14 @@ irq_ex_syscall:
     SAVE_STATE
 
     ; TODO arpl
-    push eax
-    call do_syscall
-    add esp, 4
+    ; handler's arguments
+    push edx ; arg2
+    push ecx ; arg1
+    push ebx ; arg0
+
+    ; TODO arpl
+    call [syscall_handler_table + 4*eax] ; sizeof(void *) == 4
+    add esp, 4*3 ; free arguments
 
     mov [esp+4*11], eax ; return value
 
