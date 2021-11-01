@@ -34,8 +34,11 @@ __extension__ ({ \
 #define LIST_DEL_HEAD(name) \
 __extension__ ({ \
     if ((name)->next != (name)) { \
-        (name)->next = (name)->next->next; \
-        (name)->next->prev = (name); \
+        struct list_node *__node = (name)->next; \
+        __node->next->prev = __node->prev; \
+        __node->prev->next = __node->next; \
+        __node->next = NULL; \
+        __node->prev = NULL; \
     } \
 })
 

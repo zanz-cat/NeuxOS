@@ -65,7 +65,9 @@ void yield(void) {
     } else {
         current = container_of(node, struct task, running);
     }
-    LIST_ENQUEUE(&running_queue, &onboard->running);
+    if (onboard->state == TASK_STATE_RUNNING) {
+        LIST_ENQUEUE(&running_queue, &onboard->running);
+    }
     asm("ljmp *(%0)"::"p"(current):);
     enable_irq();
 }
