@@ -4,7 +4,6 @@
 #include <drivers/monitor.h>
 #include <arch/x86.h>
 #include <config.h>
-#include <errcode.h>
 
 #include "log.h"
 #include "kernel.h"

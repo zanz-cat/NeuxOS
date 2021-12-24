@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <errno.h>
 
-#include <errcode.h>
 #include <config.h>
 #include <kernel/kernel.h>
 #include <kernel/interrupt.h>
@@ -47,7 +47,7 @@ static int wait(void)
             return 0;
         }
     }
-    return -ETIMEOUT;
+    return -ETIMEDOUT;
 }
 
 static size_t read_one_sector(void *buf, size_t size)
@@ -80,7 +80,7 @@ static int do_read_sync(uint8_t count, void *buf, size_t size)
     // send request
     out_byte(ATA_PORT_CMD, ATA_CMD_READ);
     if (wait() != 0) {
-        return -ETIMEOUT;
+        return -ETIMEDOUT;
     }
     for (i = 0; i < count; i++) {
         offset += read_one_sector(buf + offset, size);
@@ -110,7 +110,7 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
     uint8_t status;
 
     if (count == 0) {
-        return -EINTVAL;
+        return -EINVAL;
     }
     for (i = 0; i < HD_TIMEOUT; i++) {
         status = in_byte(ATA_PORT_STATUS);
@@ -120,7 +120,7 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
     }
     if (i == HD_TIMEOUT) {
         log_error("hd busy\n");
-        return -ETIMEOUT;
+        return -ETIMEDOUT;
     }
     out_byte(ATA_PORT_DEV_CTRL, 0); // enable interrupt
     out_byte(ATA_PORT_FEATURES, 0);

@@ -7,7 +7,7 @@
 
 #define LIST_DEQUEUE(head) \
 __extension__ ({ \
-    struct list_node *__node = (head)->next; \
+    struct list_head *__node = (head)->next; \
     LIST_DEL_HEAD(head); \
     (__node == (head) ? NULL : __node); \
 })

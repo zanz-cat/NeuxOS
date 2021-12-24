@@ -16,7 +16,7 @@
 #
 # reserved area for temporary using and avoiding overflow override kernel code.
 # reserved area is aligned with page size
-# basicRAM-pgt is in reserved area
+# basicRAM page table is in reserved area
 # 
 */
 

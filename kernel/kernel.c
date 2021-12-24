@@ -7,6 +7,7 @@
 #include <fs/ext2.h>
 #include <mm/mm.h>
 #include <mm/kmalloc.h>
+#include <fs/fs.h>
 
 #include "log.h"
 #include "sched.h"
@@ -81,6 +82,7 @@ void kernel_setup()
     clock_setup();
     keyboard_setup();
     hd_setup();
+    vfs_setup();
     ext2_setup();
     sched_setup();
 
@@ -90,7 +92,7 @@ void kernel_setup()
     }
     start_task(task);
 
-    task = create_kernel_task((uint32_t)tty_task, "[ttyd]", TTY0);
+    task = create_kernel_task(tty_task, "[ttyd]", TTY0);
     if (task == NULL) {
         kernel_panic("create tty task failed\n");
     }

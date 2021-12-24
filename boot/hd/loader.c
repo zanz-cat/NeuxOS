@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <elf.h>
+#include <errno.h>
 
 #include <drivers/io.h>
 #include <drivers/harddisk.h>
@@ -9,10 +10,9 @@
 #include <mm/mm.h>
 #include <kernel/memory.h>
 #include <misc/misc.h>
-#include <fs/ext2/ext2.h>
-#include <errcode.h>
+#include <fs/ext2.h>
 
-#define HD_TIMEOUT 10000
+#define HD_TIMEOUT 100000
 #define KERNEL_FILE_NAME "kernel.elf"
 
 #define ERR_READ_MBR 100
@@ -107,7 +107,7 @@ static int wait(void)
             return 0;
         }
     }
-    return -ETIMEOUT;
+    return -ETIMEDOUT;
 }
 
 static size_t read_one_sector(void *buf)
@@ -135,7 +135,7 @@ static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
         }
     }
     if (i == HD_TIMEOUT) {
-        return -ETIMEOUT;
+        return -ETIMEDOUT;
     }
     out_byte(ATA_PORT_COUNT, count);
     out_byte(ATA_PORT_SECTOR, sector & 0xff);
@@ -146,7 +146,7 @@ static int loader_read_sector(uint32_t sector, uint8_t count, void *buf)
     out_byte(ATA_PORT_CMD, ATA_CMD_READ);
     for (i = 0; i < count; i++) {
         if (wait() != 0) {
-            return -ETIMEOUT;
+            return -ETIMEDOUT;
         }
         offset += read_one_sector(buf + offset);
     }
@@ -186,7 +186,7 @@ static void *kernel_file_addr(size_t filesz)
         }
     }
     printf("no space to hold kernel file!\n");
-    loader_panic(-EERR);
+    loader_panic(-ENOMEM);
     return NULL;
 }
 
@@ -369,10 +369,10 @@ static int read_kernel_file(void)
             }
         } else if (i == EXT2_BLOCK_L3_INDEX) {
             printf("\ntoo large kernel!");
-            loader_panic(-EERR);
+            loader_panic(-ENOMEM);
         } else {
             printf("\nNEVER REACH!!!");
-            loader_panic(-EERR);
+            loader_panic(-1);
         }
     }
     printf("\n");
@@ -391,7 +391,7 @@ static int load_kernel_elf(uint32_t *entry)
     SHARE_DATA()->kernel_end = 0;
     eh = (Elf32_Ehdr *)kernel_file;
     if (strncmp((char *)eh->e_ident, ELFMAG, SELFMAG) != 0) {
-        return -EINTVAL;
+        return -EINVAL;
     }
     *entry = eh->e_entry;
 

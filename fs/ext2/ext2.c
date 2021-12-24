@@ -1,7 +1,7 @@
 #include <string.h>
+#include <errno.h>
 
 #include <neuxos.h>
-#include <errcode.h>
 #include <kernel/log.h>
 #include <kernel/printk.h>
 #include <kernel/interrupt.h>
@@ -10,6 +10,7 @@
 #include <drivers/harddisk.h>
 #include <lib/list.h>
 #include <misc/misc.h>
+#include <fs/fs.h>
 
 #include "ext2.h"
 
@@ -23,6 +24,8 @@ static uint32_t groups_count;
 static uint32_t inodes_per_block = CONFIG_EXT2_BS/sizeof(struct ext2_inode);
 
 static LIST_HEAD(inode_cache);
+
+static struct inode_ops ext2_inode_ops;
 
 static inline int read_block(uint32_t block, uint32_t count, void *buf, size_t size)
 {
@@ -59,7 +62,7 @@ static int read_s_block(void)
         return ret;
     }
     if (*(uint16_t*)mbr.end_magic != HD_MBR_END_MAGIC) {
-        return -EINTVAL;
+        return -EINVAL;
     }
     for (i = 0; i < HD_MBR_DPT_SIZE; i++) {
         if (mbr.DPT[i].boot == PART_BOOTABLE) {
@@ -67,13 +70,13 @@ static int read_s_block(void)
         }
     }
     if (partition == NULL) {
-        return -EERR;
+        return -ENONET;
     }
     part_lba = partition->lba;
 
     s_block = kmalloc(sizeof(struct ext2_super_block));
     if (s_block == NULL) {
-        return -EOOM;
+        return -ENOMEM;
     }
     return read_block(1, 1, s_block, sizeof(struct ext2_super_block));
 }
@@ -87,26 +90,10 @@ static int read_b_groups(void)
     size = sizeof(struct ext2_block_group) * groups_count;
     b_groups = kmalloc(size);
     if (b_groups == NULL) {
-        return -EOOM;
+        return -ENOMEM;
     }
     blocks = ceil_div(size, CONFIG_EXT2_BS);
     return read_block(2, blocks, b_groups, size);
-}
-
-void ext2_setup(void)
-{
-    int ret;
-
-    log_info("setup ext2 fs\n");
-    ret = read_s_block();
-    if (ret != 0) {
-        kernel_panic("read s_block error, code: %d\n", ret);
-    }
-    ret = read_b_groups();
-      if (ret != 0) {
-        kernel_panic("read block groups error, code: %d\n", ret);
-    }
-    log_info("ext2 fs has %u blocks in %u groups\n", s_block->blocks_count, groups_count);
 }
 
 static uint32_t search_dir_L0(uint32_t dir_ino, const char *name)
@@ -247,7 +234,7 @@ struct ext2_file *ext2_open(const char *abspath)
 
     strncpy(buf, abspath, MAX_PATH_LEN);
     s = buf;
-    while ((name = strsep(&s, FILE_PATH_SEP)) != NULL) {
+    while ((name = strsep(&s, PATH_SEP)) != NULL) {
         if (strlen(name) == 0) {
             continue;
         }
@@ -369,18 +356,14 @@ static int read_L3(uint32_t ino, void *buf)
     return offset;
 }
 
-int ext2_read(struct ext2_file *f, void *buf, size_t size)
+int ext2_read(struct file *f, void *buf, size_t count)
 {
     int i, ret;
     uint32_t offset;
     struct ext2_inode inode;
 
-    if (size < f->size) {
-        return -EORANGE;
-    }
-
     offset = 0;
-    ret = read_inode(f->inode, &inode);
+    ret = read_inode(f->dentry->inode->ino, &inode);
     if (ret != 0) {
         log_error("Ext2: read block error, errno: %d\n", ret);
         return ret;
@@ -406,7 +389,100 @@ int ext2_read(struct ext2_file *f, void *buf, size_t size)
     return offset;
 }
 
-int ext2_write(struct ext2_file *f, const void *buf, size_t count)
+int ext2_write(struct file *f, const void *buf, size_t count)
 {
     return 0;
 }
+
+int ext2_inode_create(struct inode *dir, struct dentry *dentry, int mode)
+{
+    return 0;
+}
+
+static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
+{
+    uint32_t ino = search_in_dir(dir->ino, dentry->name);
+    if (ino == 0) {
+        return -ENOENT;
+    }
+
+    struct ext2_inode ext2_ino;
+    int ret = read_inode(ino, &ext2_ino);
+    if (ret != 0) {
+        return -EIO;
+    }
+
+    struct inode *inode = kmalloc(sizeof(struct inode));
+    if (inode == NULL) {
+        return -ENOMEM;
+    }
+
+    inode->ino = ino;
+    inode->size = ext2_ino.size;
+    inode->ops = &ext2_inode_ops;
+    inode->dentry.prev = &inode->dentry;
+    inode->dentry.next = &inode->dentry;
+    LIST_ADD(&inode->dentry, &dentry->alias);
+    dentry->inode = inode;
+    return 0;
+}
+
+void ext2_mount_rootfs(void)
+{
+    struct ext2_inode inode;
+    int ret = read_inode(EXT2_INO_ROOT, &inode);
+    if (ret != 0) {
+        kernel_panic("read root inode error, code: %d\n", ret);
+    }
+
+    struct dentry *d = kmalloc(sizeof(struct dentry));
+    if (d == NULL) {
+        kernel_panic("no memory for root dentry\n");
+    }
+    d->inode = kmalloc(sizeof(struct inode));
+    if (d->inode == NULL) {
+        kfree(d);
+        kernel_panic("no memory for root inode\n");
+    }
+
+    d->mnt = NULL;
+    d->parent = NULL;
+    LIST_HEAD_INIT(&d->alias);
+    LIST_HEAD_INIT(&d->child);
+    LIST_HEAD_INIT(&d->subdirs);
+
+    d->inode->ino = EXT2_INO_ROOT;
+    d->inode->size = inode.size;
+    d->inode->ops = &ext2_inode_ops;
+    LIST_HEAD_INIT(&d->inode->dentry);
+    LIST_ADD(&d->inode->dentry, &d->alias);
+
+    ret = vfs_mount("/", d);
+    if (ret != 0) {
+        kernel_panic("mount rootfs error, code: %d\n", ret);
+    }
+    log_info("root fs mounted.\n");
+}
+
+void ext2_setup(void)
+{
+    int ret;
+
+    log_info("setup ext2 fs\n");
+    ret = read_s_block();
+    if (ret != 0) {
+        kernel_panic("read s_block error, code: %d\n", ret);
+    }
+    ret = read_b_groups();
+    if (ret != 0) {
+        kernel_panic("read block groups error, code: %d\n", ret);
+    }
+    log_info("ext2 fs has %u blocks in %u groups\n", s_block->blocks_count, groups_count);
+
+    ext2_mount_rootfs();
+}
+
+static struct inode_ops ext2_inode_ops = {
+    .create = ext2_inode_create,
+    .lookup = ext2_inode_lookup,
+};

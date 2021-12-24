@@ -30,7 +30,7 @@ uint64_t rdtsc(void)
 
 static void clock_handler()
 {
-    struct list_node *node;
+    struct list_head *node;
     struct task *task;
 
     jeffies++;

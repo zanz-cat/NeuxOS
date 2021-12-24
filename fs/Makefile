@@ -8,10 +8,13 @@ CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 
 .PHONY: clean $(SUBDIRS) $(CLEAN_SUBDIRS)
 
-all: $(SUBDIRS)
+all: $(OBJS) $(SUBDIRS)
 
 clean: $(CLEAN_SUBDIRS)
 	rm -f $(OBJS)
+
+$(OBJS): %.o:%.c
+	$(CC) -c $(CFLAGS) -o $@ $^
 
 $(SUBDIRS):
 	$(MAKE) -C $@

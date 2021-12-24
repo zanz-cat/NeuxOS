@@ -5,6 +5,7 @@
 
 #include <neuxos.h>
 #include <arch/x86.h>
+#include <fs/fs.h>
 #include <lib/list.h>
 
 #include "tty.h"
@@ -23,6 +24,8 @@
 
 #define EFLAGS_IF 0x200
 
+#define NR_TASK_FILES 256
+
 struct task {
     uint32_t pid;
     uint16_t tss_sel; //place selector here, we can switch task like 'jmp far [task]'
@@ -31,14 +34,22 @@ struct task {
     uint64_t ticks;
     int tty;
     char exe[MAX_PATH_LEN];
-    uint32_t text;
     struct tss tss;
     uint32_t delay; // us
-    struct list_node list;
-    struct list_node running;
+    struct file *files[NR_TASK_FILES];
+    struct list_head list;
+    struct list_head running;
 } __attribute__((packed));
 
-struct task *create_kernel_task(uint32_t text, const char *exe, int tty);
+struct stack_content {
+    uint32_t eip;
+    uint32_t cs;
+    uint32_t eflags;
+    uint32_t esp;
+    uint32_t ss;
+} __attribute__((packed));
+
+struct task *create_kernel_task(void *text, const char *exe, int tty);
 struct task *create_user_task(const char *exe, int tty);
 int destroy_task(struct task *task);
 

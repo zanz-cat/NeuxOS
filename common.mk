@@ -2,7 +2,10 @@ SHELL:=/bin/bash
 CC:=gcc
 LD:=ld
 ROOTDIR:=$(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-CFLAGS:=-m32 -g -O0 -Werror -Wall -nostdlib -fno-builtin -fno-leading-underscore
+CFLAGS:=-m32 -g -O0 -nostdlib -fno-builtin -fno-leading-underscore
+ifneq ($(strict),no)
+	CFLAGS+=-Werror -Wall
+endif
 CFLAGS+=-I$(ROOTDIR) -I$(ROOTDIR)/include
 CFLAGS+=$(EXTRA_CFLAGS)
 ASMFLAGS:=-Werror -I$(ROOTDIR)

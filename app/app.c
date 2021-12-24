@@ -11,11 +11,15 @@
 
 int main(int argc, char *argv[])
 {
-    static int count = 0;
-
+    int count = 0;
+    int printed = 0;
+    printf("app1: ");
     while (1) {
         sleep(1);
-        printf("\b\b\b\b\b\b\b\b\b\bapp1: %d", count++);
+        for (int i = 0; i < printed; i++) {
+            printf("\b");
+        }
+        printed = printf("%d", count++);
     }
     return 0;
 }
