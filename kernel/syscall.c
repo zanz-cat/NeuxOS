@@ -9,7 +9,7 @@
 static void sys_exit(int status)
 {
     log_info("[%u][%s] return code=[%d]\n", current->pid, current->exe, status);
-    term_task(current);
+    task_term(current);
 }
 
 static int sys_write(int fd, const void *buf, size_t nbytes)

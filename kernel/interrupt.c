@@ -1,6 +1,7 @@
 #include <stddef.h>
 
 #include <include/syscall.h>
+#include <kernel/sched.h>
 
 #include "log.h"
 #include "sched.h"
@@ -92,7 +93,7 @@ void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
     color_temp = 0x74; /* 灰底红字 */
     tty_color(tty_current, TTY_OP_GET, &color);
     tty_color(tty_current, TTY_OP_SET, &color_temp);
-    fprintk(TTY0, "\nKernel crashed!\n%s\nTASK: %u(%s)\n"
+    fprintk(TTY0, "Kernel crashed!\n%s\nTASK: %u(%s)\n"
            "EFLAGS: 0x%x\nCS: 0x%x\nEIP: 0x%x\n",
            exception_msg[vec_no], current->pid, 
            current->exe, eflags, cs, eip);
@@ -101,7 +102,7 @@ void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
         printk("Error code: 0x%x\n", err_code);
     }
     tty_color(tty_current, TTY_OP_SET, &color);
-    asm("hlt");
+    task_term(current);
 }
 
 static void serial2_handler()

@@ -90,13 +90,13 @@ void kernel_setup()
     if (task == NULL) {
         kernel_panic("create init task failed\n");
     }
-    start_task(task);
+    task_start(task);
 
     task = create_kernel_task(tty_task, "[ttyd]", TTY0);
     if (task == NULL) {
         kernel_panic("create tty task failed\n");
     }
-    start_task(task);
+    task_start(task);
 
     welcome();
 }
@@ -124,7 +124,7 @@ void F1_handler(void)
     int k = i++ % TASK_NUM;
 
     if (task_list[k] != NULL) {
-        term_task(task_list[k]);
+        task_term(task_list[k]);
         task_list[k] = NULL;
         return;
     }
@@ -134,5 +134,5 @@ void F1_handler(void)
         printk("create user task failed\n");
         return;
     }
-    start_task(task_list[k]);
+    task_start(task_list[k]);
 }

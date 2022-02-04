@@ -76,7 +76,7 @@ void page_fault_handler(uint32_t err_code, uint32_t eip, uint32_t cs, uint32_t e
         goto error;
     }
     if (cr2 == 0) {
-        
+
     }
     if (cr2 >= CONFIG_KERNEL_VM_OFFSET) {
         reason = "never reach";
@@ -124,8 +124,8 @@ error:
            reason, current->pid, current->exe, 
            eflags, cs, eip, cr2, write ? "w" : "r", user);
 
-    term_task(current);
-    sched_task();
+    task_term(current);
+    task_sched();
     asm("ljmp *(%0)"::"p"(current):);
 }
 

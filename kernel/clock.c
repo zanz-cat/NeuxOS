@@ -39,12 +39,12 @@ static void clock_handler()
         task = container_of(node, struct task, running);
         if (task->delay < MICROSEC/PIT_HZ) {
             task->delay = 0;
-            resume_task(&delay_queue);
+            task_resume(&delay_queue);
             return;
         }
         task->delay -= MICROSEC/PIT_HZ;
     }
-    sched_task();
+    task_sched();
 }
 
 void clock_setup()
@@ -65,5 +65,5 @@ void clock_setup()
 void delay(uint32_t us)
 {
     current->delay = us;
-    suspend_task(&delay_queue);
+    task_suspend(&delay_queue);
 }

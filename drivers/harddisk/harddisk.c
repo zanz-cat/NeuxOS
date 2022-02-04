@@ -32,7 +32,7 @@ static void hd_irq_handler(void)
     if (LIST_COUNT(&wait_queue) == 0) {
         return;
     }
-    resume_task(&wait_queue);
+    task_resume(&wait_queue);
 }
 
 static int wait(void)
@@ -97,7 +97,7 @@ static int do_read_async(uint8_t count, void *buf, size_t size)
     // send request
     out_byte(ATA_PORT_CMD, ATA_CMD_READ);
     for (i = 0; i < count; i++) {
-        suspend_task(&wait_queue);
+        task_suspend(&wait_queue);
         offset += read_one_sector(buf + offset, size);
     }
     enable_irq();

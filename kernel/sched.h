@@ -5,12 +5,13 @@
 
 extern struct task *current;
 
-uint32_t start_task(struct task *task);
-void term_task(struct task *task);
-void sched_task(void);
+uint32_t task_start(struct task *task);
+void task_term(struct task *task);
+void task_sched(void);
+void task_suspend(struct list_head *queue);
+void task_resume(struct list_head *queue);
 void yield(void);
-void suspend_task(struct list_head *queue);
-void resume_task(struct list_head *queue);
+
 void sched_setup(void);
 void sched_report(void);
 

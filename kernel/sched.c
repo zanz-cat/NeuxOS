@@ -69,27 +69,27 @@ static void user_task_launcher(void)
     struct file *f = vfs_open(current->exe, 0);
     if (f == NULL) {
         log_error("open file %s failed\n", current->exe);
-        term_task(current);
+        task_term(current);
     }
     char *buf = kmalloc(f->dentry->inode->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
         vfs_close(f);
-        term_task(current);
+        task_term(current);
     }
     int ret = vfs_read(f, buf, f->dentry->inode->size);
     vfs_close(f);
     if (ret < 0) {
         log_error("read error: %d\n", ret);
         kfree(buf);
-        term_task(current);
+        task_term(current);
     }
     uint32_t entry_point;
     ret = load_elf(buf, 0, &entry_point);
     kfree(buf);
     if (ret < 0) {
         log_error("load elf error: %d\n", ret);
-        term_task(current);
+        task_term(current);
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);
@@ -106,12 +106,7 @@ static void user_task_launcher(void)
         "iret\n\t"::"i"(SELECTOR_USER_DS):);
 }
 
-static void user_test(void)
-{
-    while (1);
-}
-
-uint32_t start_task(struct task *task)
+uint32_t task_start(struct task *task)
 {
     task->pid = task_id++;
     if (task->type == TASK_TYPE_USER) {
@@ -124,7 +119,7 @@ uint32_t start_task(struct task *task)
     return task->pid;
 }
 
-void term_task(struct task *task)
+void task_term(struct task *task)
 {
     log_debug("term task, pid: %u\n", task->pid);
     task->state = TASK_STATE_TERM;
@@ -162,7 +157,7 @@ void yield(void) {
     enable_irq();
 }
 
-void suspend_task(struct list_head *queue)
+void task_suspend(struct list_head *queue)
 {
     struct list_head *node;
 
@@ -179,7 +174,7 @@ void suspend_task(struct list_head *queue)
 }
 
 // called in interrupt routine
-void resume_task(struct list_head *queue)
+void task_resume(struct list_head *queue)
 {
     struct list_head *node;
     struct task *task;
@@ -194,7 +189,7 @@ void resume_task(struct list_head *queue)
     current = task;
 }
 
-void sched_task(void)
+void task_sched(void)
 {
     struct task *task;
     struct list_head *node;
@@ -226,7 +221,7 @@ void sched_setup(void)
     }
     kernel_loop_task->tss.eflags &= ~EFLAGS_IF;
     current = kernel_loop_task;
-    start_task(kernel_loop_task);
+    task_start(kernel_loop_task);
 }
 
 static const char *task_state(uint8_t state)
