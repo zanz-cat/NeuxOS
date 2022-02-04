@@ -13,6 +13,7 @@ struct inode {
     unsigned long ino;
     size_t size;
     struct inode_ops *ops;
+    void *priv;
 };
 
 struct inode_ops {

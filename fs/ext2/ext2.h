@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <config.h>
-#include <fs/fs.h>
+#include <fs/file.h>
 
 #define EXT2_N_BLOCKS 15
 #define EXT2_BLOCK_L1_INDEX 12
@@ -110,20 +110,6 @@ struct ext2_dir_entry {
     char name[0];
 } __attribute__((packed));
 
-struct ext2_index_dir_entry {
-
-} __attribute__((packed));
-
-struct ext2_file {
-    uint32_t inode;
-    uint32_t size;
-    uint16_t mode;
-};
-
 void ext2_setup(void);
-struct ext2_file *ext2_open(const char *abspath);
-int ext2_close(struct ext2_file *f);
-int ext2_read(struct file *f, void *buf, size_t count);
-int ext2_write(struct file *f, const void *buf, size_t count);
 
 #endif

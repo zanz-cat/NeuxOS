@@ -20,11 +20,8 @@ static uint32_t part_lba;
 static struct ext2_super_block *s_block;
 static struct ext2_block_group *b_groups;
 static uint32_t groups_count;
-
 static uint32_t inodes_per_block = CONFIG_EXT2_BS/sizeof(struct ext2_inode);
-
 static LIST_HEAD(inode_cache);
-
 static struct inode_ops ext2_inode_ops;
 
 static inline int read_block(uint32_t block, uint32_t count, void *buf, size_t size)
@@ -223,62 +220,19 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
     return 0;
 }
 
-struct ext2_file *ext2_open(const char *abspath)
-{
-    int ret;
-    char *s, *name;
-    struct ext2_file *f;
-    struct ext2_inode inode;
-    uint32_t ino = EXT2_INO_ROOT;
-    char buf[MAX_PATH_LEN];
-
-    strncpy(buf, abspath, MAX_PATH_LEN);
-    s = buf;
-    while ((name = strsep(&s, PATH_SEP)) != NULL) {
-        if (strlen(name) == 0) {
-            continue;
-        }
-        ino = search_in_dir(ino, name);
-        if (ino == 0) {
-            break;
-        }
-    }
-    if (ino == 0) {
-        return NULL;
-    }
-    ret = read_inode(ino, &inode);
-    if (ret != 0) {
-        return NULL;
-    }
-    f = kmalloc(sizeof(struct ext2_file));
-    if (f == NULL) {
-        return NULL;
-    }
-    f->inode = ino;
-    f->mode = inode.mode;
-    f->size = inode.size;
-    return f;
-}
-
-int ext2_close(struct ext2_file *f)
-{
-    kfree(f);
-    return 0;
-}
-
-static int read_L0(uint32_t ino, void *buf)
+static int read_L0(uint32_t ino, void *buf, size_t size)
 {
     int ret;
 
-    ret = read_block(ino, 1, buf, CONFIG_EXT2_BS);
+    ret = read_block(ino, 1, buf, size);
     if (ret != 0) {
         log_error("Ext2: read block error, errno: %d\n", ret);
         return ret;
     }
-    return CONFIG_EXT2_BS;
+    return min(CONFIG_EXT2_BS, size);
 }
 
-static int read_L1(uint32_t ino, void *buf)
+static int read_L1(uint32_t ino, void *buf, size_t size)
 {
     int i, ret;
     uint32_t m, offset;
@@ -295,7 +249,7 @@ static int read_L1(uint32_t ino, void *buf)
         if (m == 0) {
             break;
         }
-        ret = read_L0(m, buf+offset);
+        ret = read_L0(m, buf+offset, size-offset);
         if (ret < 0) {
             return ret;
         }
@@ -304,7 +258,7 @@ static int read_L1(uint32_t ino, void *buf)
     return offset;
 }
 
-static int read_L2(uint32_t ino, void *buf)
+static int read_L2(uint32_t ino, void *buf, size_t size)
 {
     int i, ret;
     uint32_t m, offset;
@@ -321,7 +275,7 @@ static int read_L2(uint32_t ino, void *buf)
         if (m == 0) {
             break;
         }
-        ret = read_L1(m, buf+offset);
+        ret = read_L1(m, buf+offset, size-offset);
         if (ret < 0) {
             return ret;
         }
@@ -330,7 +284,7 @@ static int read_L2(uint32_t ino, void *buf)
     return offset;
 }
 
-static int read_L3(uint32_t ino, void *buf)
+static int read_L3(uint32_t ino, void *buf, size_t size)
 {
     int i, ret;
     uint32_t m, offset;
@@ -347,7 +301,7 @@ static int read_L3(uint32_t ino, void *buf)
         if (m == 0) {
             break;
         }
-        ret = read_L2(m, buf+offset);
+        ret = read_L2(m, buf+offset, size-offset);
         if (ret < 0) {
             return ret;
         }
@@ -356,27 +310,21 @@ static int read_L3(uint32_t ino, void *buf)
     return offset;
 }
 
-int ext2_read(struct file *f, void *buf, size_t count)
+static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
 {
     int i, ret;
-    uint32_t offset;
-    struct ext2_inode inode;
+    struct ext2_inode *inode = f->dentry->inode->priv;
 
-    offset = 0;
-    ret = read_inode(f->dentry->inode->ino, &inode);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return ret;
-    }
-    for (i = 0; i < EXT2_N_BLOCKS && inode.block[i] != 0; i++) {
+    uint32_t offset = 0;
+    for (i = 0; i < EXT2_N_BLOCKS && inode->block[i] != 0; i++) {
         if (i < EXT2_BLOCK_L1_INDEX) {
-            ret = read_L0(inode.block[i], buf+offset);
+            ret = read_L0(inode->block[i], buf+offset, count-offset);
         } else if (i == EXT2_BLOCK_L1_INDEX) {
-            ret = read_L1(inode.block[i], buf+offset);
+            ret = read_L1(inode->block[i], buf+offset, count-offset);
         } else if (i == EXT2_BLOCK_L2_INDEX) {
-            ret = read_L2(inode.block[i], buf+offset);
+            ret = read_L2(inode->block[i], buf+offset, count-offset);
         } else if (i == EXT2_BLOCK_L3_INDEX) {
-            ret = read_L3(inode.block[i], buf+offset);
+            ret = read_L3(inode->block[i], buf+offset, count-offset);
         } else {
             kernel_panic("Ext2: NEVER REACH!!!\n");
         }
@@ -389,8 +337,14 @@ int ext2_read(struct file *f, void *buf, size_t count)
     return offset;
 }
 
-int ext2_write(struct file *f, const void *buf, size_t count)
+static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count)
 {
+    return 0;
+}
+
+static int ext2_f_close(struct file *f)
+{
+    kfree(f->dentry->inode->priv);
     return 0;
 }
 
@@ -406,20 +360,27 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
         return -ENOENT;
     }
 
-    struct ext2_inode ext2_ino;
-    int ret = read_inode(ino, &ext2_ino);
+    struct ext2_inode *ext2_ino = kmalloc(sizeof(struct ext2_inode));
+    if (ext2_ino == NULL) {
+        return -ENOMEM;
+    }
+
+    int ret = read_inode(ino, ext2_ino);
     if (ret != 0) {
+        kfree(ext2_ino);
         return -EIO;
     }
 
     struct inode *inode = kmalloc(sizeof(struct inode));
     if (inode == NULL) {
+        kfree(ext2_ino);
         return -ENOMEM;
     }
 
     inode->ino = ino;
-    inode->size = ext2_ino.size;
+    inode->size = ext2_ino->size;
     inode->ops = &ext2_inode_ops;
+    inode->priv = ext2_ino;
     inode->dentry.prev = &inode->dentry;
     inode->dentry.next = &inode->dentry;
     LIST_ADD(&inode->dentry, &dentry->alias);
@@ -427,7 +388,7 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
     return 0;
 }
 
-void ext2_mount_rootfs(void)
+void ext2_mount_rootfs(struct fs *fs)
 {
     struct ext2_inode inode;
     int ret = read_inode(EXT2_INO_ROOT, &inode);
@@ -435,30 +396,34 @@ void ext2_mount_rootfs(void)
         kernel_panic("read root inode error, code: %d\n", ret);
     }
 
-    struct dentry *d = kmalloc(sizeof(struct dentry));
-    if (d == NULL) {
+    struct mount *mnt = kmalloc(sizeof(struct mount));
+    if (mnt == NULL) {
+        kernel_panic("no memory for mount\n");
+    }
+    mnt->fs = fs;
+    mnt->dentry = kmalloc(sizeof(struct dentry));
+    if (mnt->dentry == NULL) {
+        kfree(mnt);
         kernel_panic("no memory for root dentry\n");
     }
-    d->inode = kmalloc(sizeof(struct inode));
-    if (d->inode == NULL) {
-        kfree(d);
+    dentry_init(mnt->dentry);
+    mnt->dentry->rc = 1;
+    mnt->dentry->inode = kmalloc(sizeof(struct inode));
+    if (mnt->dentry->inode == NULL) {
+        kfree(mnt->dentry);
+        kfree(mnt);
         kernel_panic("no memory for root inode\n");
     }
+    mnt->dentry->inode->ino = EXT2_INO_ROOT;
+    mnt->dentry->inode->size = inode.size;
+    mnt->dentry->inode->ops = &ext2_inode_ops;
+    LIST_HEAD_INIT(&mnt->dentry->inode->dentry);
+    LIST_ADD(&mnt->dentry->inode->dentry, &mnt->dentry->alias);
 
-    d->mnt = NULL;
-    d->parent = NULL;
-    LIST_HEAD_INIT(&d->alias);
-    LIST_HEAD_INIT(&d->child);
-    LIST_HEAD_INIT(&d->subdirs);
-
-    d->inode->ino = EXT2_INO_ROOT;
-    d->inode->size = inode.size;
-    d->inode->ops = &ext2_inode_ops;
-    LIST_HEAD_INIT(&d->inode->dentry);
-    LIST_ADD(&d->inode->dentry, &d->alias);
-
-    ret = vfs_mount("/", d);
+    ret = vfs_mount("/", mnt);
     if (ret != 0) {
+        kfree(mnt->dentry);
+        kfree(mnt);
         kernel_panic("mount rootfs error, code: %d\n", ret);
     }
     log_info("root fs mounted.\n");
@@ -467,6 +432,15 @@ void ext2_mount_rootfs(void)
 void ext2_setup(void)
 {
     int ret;
+    static struct fs ext2_fs = {
+        .name = "EXT2",
+        .ops = {},
+        .f_ops = {
+            .read = ext2_f_read,
+            .write = ext2_f_write,
+            .close = ext2_f_close,
+        },
+    };
 
     log_info("setup ext2 fs\n");
     ret = read_s_block();
@@ -479,7 +453,7 @@ void ext2_setup(void)
     }
     log_info("ext2 fs has %u blocks in %u groups\n", s_block->blocks_count, groups_count);
 
-    ext2_mount_rootfs();
+    ext2_mount_rootfs(&ext2_fs);
 }
 
 static struct inode_ops ext2_inode_ops = {

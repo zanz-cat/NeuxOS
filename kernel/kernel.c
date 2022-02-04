@@ -117,6 +117,14 @@ void kernel_loop(void)
 
 void F1_handler(void)
 {
+    struct task *task = create_user_task("/bin/app", TTY1);
+    if (task == NULL) {
+        printk("create user task failed\n");
+        return;
+    }
+    task_start(task);
+    return;
+
     #define TASK_NUM 10
     static struct task *task_list[TASK_NUM];
     static int i;

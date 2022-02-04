@@ -23,6 +23,7 @@
 #define TASK_TYPE_USER 1
 
 #define EFLAGS_IF 0x200
+#define INITIAL_EFLAGS (EFLAGS_IF | 0x3000) /* IF | IOPL=3 */
 
 #define NR_TASK_FILES 256
 
@@ -34,6 +35,7 @@ struct task {
     uint64_t ticks;
     int tty;
     char exe[MAX_PATH_LEN];
+    struct file *f_exe;
     struct tss tss;
     uint32_t delay; // us
     struct file *files[NR_TASK_FILES];

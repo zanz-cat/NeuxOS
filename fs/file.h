@@ -14,8 +14,9 @@ struct file {
 };
 
 struct file_ops {
-    ssize_t (*read)(struct file *file, void *buf, size_t count);
-    ssize_t (*write)(struct file *file, void *buf, size_t count);
+    ssize_t (*read)(struct file *f, void *buf, size_t count);
+    ssize_t (*write)(struct file *f, const void *buf, size_t count);
+    int (*close)(struct file *f);
 };
 
 struct file *vfs_open(const char *pathname, int flags);

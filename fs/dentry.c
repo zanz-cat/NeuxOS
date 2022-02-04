@@ -9,18 +9,25 @@
 
 static struct dentry rootfs = {
     .name = "",
+    .inode = NULL,
+    .rc = 1,
     .mnt = NULL,
     .parent = NULL,
-    .inode = NULL,
     .alias = { .prev = &rootfs.alias, .next = &rootfs.alias },
     .child = { .prev = &rootfs.child, .next = &rootfs.child },
     .subdirs = { .prev = &rootfs.subdirs, .next = &rootfs.subdirs },
 };
 
+static inline struct dentry *dentry_obtain(struct dentry *d)
+{
+    d->rc++;
+    return d;
+}
+
 static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 {
     if (dir->mnt != NULL) {
-        return __dentry_lookup(dir->mnt, token);
+        return __dentry_lookup(dir->mnt->dentry, token);
     }
 
     char *dname = strsep(token, PATH_SEP);
@@ -33,20 +40,20 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
         errno = -ENOMEM;
         return NULL;
     }
-    memset(dentry, 0, sizeof(struct dentry));
-    dentry->name = dname;
+    dentry_init(dentry);
+    strncpy(dentry->name, dname, DNAME_MAX_LEN);
+    dentry->rc = 1;
+    dentry->inode = NULL;
+    dentry->mnt = NULL;
+    dentry->parent = dentry_obtain(dir);
 
     int ret = dir->inode->ops->lookup(dir->inode, dentry);
     if (ret != 0) {
-        kfree(dentry);
+        dentry_free(dentry);
         errno = -ENOENT;
         return NULL;
     }
-    struct dentry *res = __dentry_lookup(dentry, token);
-    if (dentry != res) {
-        kfree(dentry);
-    }
-    return res;
+    return __dentry_lookup(dentry, token);
 }
 
 struct dentry *dentry_lookup(const char *pathname)
@@ -71,17 +78,22 @@ struct dentry *dentry_lookup(const char *pathname)
 void dentry_free(struct dentry *d)
 {
     d->rc--;
-    if (d->rc == 0) {
-        kfree(d);
+    if (d->rc != 0) {
+        return;
     }
+    if (d->parent != NULL) {
+        dentry_free(d->parent);
+    }
+    kfree(d);
 }
 
 void dentry_init(struct dentry *d)
 {
-    d->child.prev = &d->child;
-    d->child.next = &d->child;
-    d->subdirs.prev = &d->subdirs;
-    d->subdirs.next = &d->subdirs;
-    d->alias.prev = &d->alias;
-    d->alias.next = &d->alias;
+    d->rc = 0;
+    d->inode = NULL;
+    d->parent = NULL;
+    d->mnt = NULL;
+    LIST_HEAD_INIT(&d->child);
+    LIST_HEAD_INIT(&d->subdirs);
+    LIST_HEAD_INIT(&d->alias);
 }

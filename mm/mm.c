@@ -75,9 +75,6 @@ void page_fault_handler(uint32_t err_code, uint32_t eip, uint32_t cs, uint32_t e
         reason = "no permission";
         goto error;
     }
-    if (cr2 == 0) {
-
-    }
     if (cr2 >= CONFIG_KERNEL_VM_OFFSET) {
         reason = "never reach";
         goto error;

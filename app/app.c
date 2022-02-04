@@ -13,7 +13,8 @@ int main(int argc, char *argv[])
 {
     int count = 0;
     int printed = 0;
-    printf("app1: ");
+    printf("app1: \n");
+    return 0;
     while (1) {
         sleep(1);
         for (int i = 0; i < printed; i++) {

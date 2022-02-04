@@ -7,7 +7,7 @@
 #include <config.h>
 #include <mm/mm.h>
 #include <mm/kmalloc.h>
-#include <fs/fs.h>
+#include <fs/file.h>
 
 #include "log.h"
 #include "descriptor.h"
@@ -66,19 +66,19 @@ static void user_task_launcher(void)
     uint32_t ebp;
     struct stack_content *stack;
 
-    struct file *f = vfs_open(current->exe, 0);
-    if (f == NULL) {
-        log_error("open file %s failed\n", current->exe);
+    current->f_exe = vfs_open(current->exe, 0);
+    if (current->f_exe == NULL) {
+        log_error("open file %s error: %d\n", current->exe, errno);
         task_term(current);
     }
-    char *buf = kmalloc(f->dentry->inode->size);
+    char *buf = kmalloc(current->f_exe->dentry->inode->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
-        vfs_close(f);
+        vfs_close(current->f_exe);
         task_term(current);
     }
-    int ret = vfs_read(f, buf, f->dentry->inode->size);
-    vfs_close(f);
+    int ret = vfs_read(current->f_exe, buf, current->f_exe->dentry->inode->size);
+    vfs_close(current->f_exe);
     if (ret < 0) {
         log_error("read error: %d\n", ret);
         kfree(buf);
@@ -96,7 +96,7 @@ static void user_task_launcher(void)
     stack = (void *)(*(uint32_t *)ebp - sizeof(struct stack_content));
     stack->ss = SELECTOR_USER_DS;
     stack->esp = CONFIG_KERNEL_VM_OFFSET;
-    stack->eflags = current->tss.eflags;
+    stack->eflags = INITIAL_EFLAGS;
     stack->cs = SELECTOR_USER_CS;
     stack->eip = entry_point;
     asm("leave\n\t"

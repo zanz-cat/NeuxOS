@@ -10,8 +10,6 @@
 
 #include "task.h"
 
-#define INITIAL_EFLAGS (EFLAGS_IF | 0x3000) /* IF | IOPL=3 */
-
 static int init_kernel_task(struct task *task, void *text)
 {
     int ret;
@@ -163,6 +161,7 @@ int destroy_task(struct task *task)
     }
     uninstall_tss(task->tss_sel);
     kfree(PTR_SUB((void *)task->tss.esp0, STACK0_SIZE));
+    vfs_close(task->f_exe);
     kfree(task);
     return 0;
 }
