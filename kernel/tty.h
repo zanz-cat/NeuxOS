@@ -15,10 +15,9 @@ enum tty_op {
 
 void tty_setup();
 void tty_task();
-void tty_in_proc(int fd, uint32_t key);
-int tty_putchar(int fd, char c);
+int tty_write(int fd, char *buf, size_t n);
+int tty_read(int fd, char *buf, size_t n);
 int tty_color(int fd, enum tty_op op, uint8_t *color);
-
-extern int tty_current;
+int tty_get_cur();
 
 #endif

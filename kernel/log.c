@@ -72,13 +72,13 @@ int log_fatal(const char *fmt, ...)
 	va_list args;
 
     color_fatal = 0x4;
-    tty_color(tty_current, TTY_OP_GET, &color);
-    tty_color(tty_current, TTY_OP_SET, &color_fatal);
+    tty_color(tty_get_cur(), TTY_OP_GET, &color);
+    tty_color(tty_get_cur(), TTY_OP_SET, &color_fatal);
 
 	va_start(args, fmt);
 	ret = _log(FATAL, fmt, args);
 	va_end(args);
 
-    tty_color(tty_current, TTY_OP_SET, &color);
+    tty_color(tty_get_cur(), TTY_OP_SET, &color);
     return ret;
 }

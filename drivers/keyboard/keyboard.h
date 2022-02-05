@@ -118,7 +118,7 @@
 /*                         Stucture Definition                          */
 /************************************************************************/
 /* Keyboard structure, 1 per console. */
-struct keyboard_input_buffer {
+struct keyboard_buf {
         char*   head;                 /* 指向缓冲区中下一个空闲位置 */
         char*   tail;                 /* 指向键盘任务应处理的字节 */
         int     count;                  /* 缓冲区中共有多少字节 */
@@ -126,6 +126,6 @@ struct keyboard_input_buffer {
 };
 
 void keyboard_setup();
-void keyboard_read(int tty);
+void keyboard_read(void (*handler)(int, uint16_t), int fd);
 
 #endif

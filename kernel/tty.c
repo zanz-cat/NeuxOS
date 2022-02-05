@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <drivers/io.h>
 #include <drivers/monitor.h>
@@ -7,6 +8,7 @@
 
 #include "log.h"
 #include "printk.h"
+#include "sched.h"
 
 #include "tty.h"
 
@@ -16,185 +18,143 @@ extern void sched_report(void);
 
 #define TTYS_COUNT (TTY_MAX+1)
 #define SCROLL_ROWS 15
-#define TTY_IN_BYTES 1024
+#define TTY_BUF_SIZE 1024
 
-struct output {
-    uint32_t start;
-    uint32_t limit;
-    uint32_t screen; // display area, relative to start
-    uint32_t cursor; // relative to start
-    uint8_t color;
+struct iobuf {
+    char data[TTY_BUF_SIZE];
+    size_t count;
+    char *head;
+    char *tail;
 };
+
+static inline void iobuf_init(struct iobuf *buf)
+{
+    buf->count = 0;
+    buf->head = buf->data;
+    buf->tail = buf->data;
+}
+
+static inline void iobuf_put(struct iobuf *buf, char ch)
+{
+    *(buf->head++) = ch;
+    if (buf->head == buf->data + TTY_BUF_SIZE) {
+        buf->head = buf->data;
+    }
+    buf->count++;
+}
+
+static inline int iobuf_get(struct iobuf *buf, char *ch)
+{
+    if (buf->count == 0) {
+        return -ENOENT;
+    }
+    *ch = *(buf->tail++);
+    if (buf->tail == buf->data + TTY_BUF_SIZE) {
+        buf->tail = buf->data;
+    }
+    buf->count--;
+    return 0;
+}
 
 struct tty {
-    uint32_t in_buf[TTY_IN_BYTES];
-    uint32_t *p_inbuf_head;
-    uint32_t *p_inbuf_tail;
-    int inbuf_count;
-    struct output out;
+    struct iobuf in;
+    struct monitor mon;
 };
 
-#define screen_detached(out) \
-    ((out)->cursor >= (out)->screen + CRT_SIZE)
+static struct tty ttys[TTYS_COUNT];
+static int _tty_current;
 
-struct tty ttys[TTYS_COUNT];
-int tty_current;
-
-static void tty_do_read(int fd)
+static void tty_switch(int fd)
 {
-    if (fd == tty_current) {
-        keyboard_read(fd);
-    }
+    monitor_switch(&ttys[_tty_current].mon, &ttys[fd].mon);
+    _tty_current = fd;
 }
 
-static void tty_do_write(int fd)
+static void tty_in_proc(int fd, uint16_t key)
 {
-    struct tty *tty;
-    char ch;
-
-    tty = &ttys[fd];
-    if (tty->inbuf_count) {
-        ch = *(tty->p_inbuf_tail++);
-        if (tty->p_inbuf_tail == tty->in_buf + TTY_IN_BYTES) {
-            tty->p_inbuf_tail = tty->in_buf;
-        }
-        tty->inbuf_count--;
-        tty_putchar(fd, ch);
-    }
-}
-
-static void scroll_up(int fd)
-{
-    struct output *out = &ttys[fd].out;
-
-    if (out->screen == 0) {
-        return;
-    }
-    out->screen -= CRT_NR_COLUMNS;
-    monitor_set_start(out->start + out->screen);
-}
-
-static void scroll_down(int fd)
-{
-    struct output *out = &ttys[fd].out;
-
-    if (out->cursor < out->screen + CRT_SIZE) {
-        return;
-    }
-    out->screen += CRT_NR_COLUMNS;
-    monitor_set_start(out->start + out->screen);
-}
-
-static void switch_tty(int fd)
-{
-    struct output *out = &ttys[fd].out;
-    monitor_set_start(out->start + out->screen);
-    monitor_set_cursor(out->start + out->cursor);
-    tty_current = fd;
-    while (screen_detached(out)) {
-        scroll_down(fd);
-    }
-}
-
-void tty_in_proc(int fd, uint32_t key)
-{
-    struct tty *tty;
-
     if (fd < TTY0 || fd > TTY_MAX) {
         return;
     }
-    tty = &ttys[fd];
+
     if (key & FLAG_EXT) {
         switch (key) {
-        case ENTER:
-            tty_putchar(fd, '\n');
-            break;
-        case BACKSPACE:
-            tty_putchar(fd, '\b');
-            break;
-        case FLAG_SHIFT_L | PAGEUP:
-            for (int i = 0; i < SCROLL_ROWS; i++) {
-                scroll_up(fd);
-            }
-            break;
-        case FLAG_SHIFT_L | PAGEDOWN:
-            for (int i = 0; i < SCROLL_ROWS; i++) {
-                scroll_down(fd);
-            }
-            break;
-        case F1:
-            switch_tty(TTY0);
-            break;
-        case F2:
-            switch_tty(TTY1);
-            break;
-        case F3:
-            switch_tty(TTY2);
-            break;
-        case F4:
-            F1_handler();
-            break;
-        case F5:
-            mm_report();
-            sched_report();
-            break;
-        default:
-            break;
+            case ENTER:
+                key = '\n';
+                goto put_in_buf;
+            case BACKSPACE:
+                key = '\b';
+                goto put_in_buf;
+            case FLAG_SHIFT_L | PAGEUP:
+                for (int i = 0; i < SCROLL_ROWS; i++) {
+                    monitor_scroll_up(&ttys[fd].mon);
+                }
+                break;
+            case FLAG_SHIFT_L | PAGEDOWN:
+                for (int i = 0; i < SCROLL_ROWS; i++) {
+                    monitor_scroll_down(&ttys[fd].mon);
+                }
+                break;
+            case FLAG_SHIFT_L | F1:
+                tty_switch(TTY0);
+                break;
+            case FLAG_SHIFT_L | F2:
+                tty_switch(TTY1);
+                break;
+            case FLAG_SHIFT_L | F3:
+                tty_switch(TTY2);
+                break;
+            case FLAG_SHIFT_L | F4:
+                F1_handler();
+                break;
+            case FLAG_SHIFT_L | F5:
+                mm_report();
+                sched_report();
+                break;
+            default:
+                break;
         }
         return;
-    } else {
-        if (tty->inbuf_count < TTY_IN_BYTES) {
-            *(tty->p_inbuf_head++) = key;
-            if (tty->p_inbuf_head == tty->in_buf + TTY_IN_BYTES) {
-                tty->p_inbuf_head = tty->in_buf;
-            }
-            tty->inbuf_count++;
-        }
     }
+
+put_in_buf:
+    iobuf_put(&ttys[fd].in, (char)key);
 }
 
-int tty_putchar(int fd, char c)
+static void tty_do_read(int fd)
 {
-    if (fd == TTY_NULL) {
-        return c;
+    if (fd != _tty_current) {
+        return;
     }
-    if (fd < TTY_NULL || fd > TTY_MAX) {
-        log_error("invalid tty %d\n", fd);
-        return c;
-    }
+    keyboard_read(tty_in_proc, fd);
+}
 
-    struct output *out = &ttys[fd].out;
-    uint32_t cursor = out->cursor;
-    switch (c) {
-        case '\n':
-            cursor += CRT_NR_COLUMNS - cursor % CRT_NR_COLUMNS;
+int tty_write(int fd, char *buf, size_t n)
+{
+    int i;
+
+    for (i = 0; i < n; i++) {
+        monitor_putchar(&ttys[fd].mon, buf[i]);
+    }
+    return i;
+}
+
+int tty_read(int fd, char *buf, size_t n)
+{
+    int i, ret;
+
+    i = 0;
+    while (i < n) {
+        ret = iobuf_get(&ttys[fd].in, buf + i);
+        if (ret == 0) {
+            i++;
+            continue;
+        }
+        if (i > 0) {
             break;
-        case '\b':
-            if (cursor % CRT_NR_COLUMNS) {
-                cursor--;
-                monitor_putchar(out->start + cursor, DEFAULT_TEXT_COLOR, '\0');
-            }
-            break;
-        default:
-            monitor_putchar(out->start + cursor, out->color, c);
-            cursor++;
-            break;
+        }
+        yield();
     }
-
-    if (cursor == out->limit) {
-        monitor_shift(out->start + CRT_NR_COLUMNS, -CRT_NR_COLUMNS, out->limit);
-        cursor -= CRT_NR_COLUMNS;
-    }
-    out->cursor = cursor;
-
-    while (fd == tty_current && screen_detached(out)) {
-        scroll_down(fd);
-    }
-
-    if (fd == tty_current) {
-        monitor_set_cursor(out->start + out->cursor);
-    }
-    return c;
+    return i;
 }
 
 int tty_color(int fd, enum tty_op op, uint8_t *color)
@@ -207,12 +167,12 @@ int tty_color(int fd, enum tty_op op, uint8_t *color)
         return -1;
     }
 
-    struct output *out = &ttys[fd].out;
+    struct monitor *mon = &ttys[fd].mon;
 
     if (op == TTY_OP_GET) {
-        *color = out->color;
+        *color = mon->color;
     } else {
-        out->color = *color;
+        mon->color = *color;
     }
     return 0;
 }
@@ -224,7 +184,6 @@ void tty_task()
     while (1) {
         for (i = 0; i < TTYS_COUNT; i++) {
             tty_do_read(i);
-            tty_do_write(i);
         }
     }
 }
@@ -232,19 +191,15 @@ void tty_task()
 void tty_setup()
 {
     int i;
-    for (i = 0; i < TTYS_COUNT; i++) {
-        ttys[i].inbuf_count = 0;
-        ttys[i].p_inbuf_head = ttys[i].in_buf;
-        ttys[i].p_inbuf_tail = ttys[i].in_buf;
-        ttys[i].out.start = i * CRT_BUF_SIZE;
-        ttys[i].out.limit = CRT_BUF_SIZE;
-        ttys[i].out.screen = 0;
-        ttys[i].out.color = DEFAULT_TEXT_COLOR;
-        if (i == 0) {
-            ttys[i].out.cursor = monitor_get_cursor();
-        } else {
-            ttys[i].out.cursor = 0;
-            fprintk(i, "NeuxOS liwei-PC tty%d\n", i+1);
-        }
+    for (i = TTY0; i < TTYS_COUNT; i++) {
+        iobuf_init(&ttys[i].in);
+        monitor_init(&ttys[i].mon, i);
     }
+    monitor_switch(NULL, &ttys[TTY0].mon);
+    printk_set_write(tty_write);
+}
+
+int tty_get_cur()
+{
+    return _tty_current;
 }

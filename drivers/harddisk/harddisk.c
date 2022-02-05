@@ -7,6 +7,7 @@
 #include <kernel/kernel.h>
 #include <kernel/interrupt.h>
 #include <kernel/sched.h>
+#include <kernel/lock.h>
 #include <kernel/log.h>
 #include <mm/kmalloc.h>
 #include <drivers/io.h>
@@ -18,8 +19,7 @@
 #define HD_TIMEOUT 10000
 
 static LIST_HEAD(wait_queue);
-
-#include <kernel/printk.h>
+static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
 
 static void hd_irq_handler(void)
 {
@@ -83,7 +83,7 @@ static int do_read_sync(uint8_t count, void *buf, size_t size)
         return -ETIMEDOUT;
     }
     for (i = 0; i < count; i++) {
-        offset += read_one_sector(buf + offset, size);
+        offset += read_one_sector(buf + offset, size - offset);
     }
     return 0;
 }
@@ -98,7 +98,7 @@ static int do_read_async(uint8_t count, void *buf, size_t size)
     out_byte(ATA_PORT_CMD, ATA_CMD_READ);
     for (i = 0; i < count; i++) {
         task_suspend(&wait_queue);
-        offset += read_one_sector(buf + offset, size);
+        offset += read_one_sector(buf + offset, size - offset);
     }
     enable_irq();
     return 0;
@@ -106,12 +106,15 @@ static int do_read_async(uint8_t count, void *buf, size_t size)
 
 int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
 {
+    int res;
     uint32_t i;
     uint8_t status;
 
     if (count == 0) {
         return -EINVAL;
     }
+
+    obtain_lock(&lock);
     for (i = 0; i < HD_TIMEOUT; i++) {
         status = in_byte(ATA_PORT_STATUS);
         if (!(status & ATA_STATUS_BUSY)) {
@@ -120,7 +123,8 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
     }
     if (i == HD_TIMEOUT) {
         log_error("hd busy\n");
-        return -ETIMEDOUT;
+        res = -ETIMEDOUT;
+        goto out;
     }
     out_byte(ATA_PORT_DEV_CTRL, 0); // enable interrupt
     out_byte(ATA_PORT_FEATURES, 0);
@@ -129,11 +133,11 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
     out_byte(ATA_PORT_CYLINDER_LOW, (sector >> 8) & 0xff);
     out_byte(ATA_PORT_CYLINDER_HIGH, (sector >> 16) & 0xff);
     out_byte(ATA_PORT_DISK_HEAD, ((sector >> 24) & 0x0f) | 0xe0); // 0xe0 means LBA mode and master disk
+    res = (eflags() & EFLAGS_IF) ? do_read_async(count, buf, size) : do_read_sync(count, buf, size);
 
-    if (eflags() & EFLAGS_IF) {
-        return do_read_async(count, buf, size);
-    }
-    return do_read_sync(count, buf, size);
+out:
+    release_lock(&lock);
+    return res;
 }
 
 void hd_setup(void)

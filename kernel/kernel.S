@@ -22,6 +22,8 @@ _start:
     call descriptor_setup
 
     ; can't uninstall 0~1MB page table, which is needed by 'jmp tss'
+    ; task switching need save some info to 'old tss', the tss from
+    ; booting is at address 0x0.
     ; mov dword [CONFIG_KERNEL_VM_OFFSET+CONFIG_KERNEL_PG_ADDR], 0
 
     ; jmp with new GDT, make sure GDT correct

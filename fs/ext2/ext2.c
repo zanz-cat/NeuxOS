@@ -317,7 +317,7 @@ static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
 
     uint32_t offset = 0;
     for (i = 0; i < EXT2_N_BLOCKS && inode->block[i] != 0; i++) {
-        if (i < EXT2_BLOCK_L1_INDEX) {
+        if (i < EXT2_BLOCK_L1_INDEX) { // TODO
             ret = read_L0(inode->block[i], buf+offset, count-offset);
         } else if (i == EXT2_BLOCK_L1_INDEX) {
             ret = read_L1(inode->block[i], buf+offset, count-offset);

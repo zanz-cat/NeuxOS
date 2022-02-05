@@ -14,18 +14,12 @@ static void sys_exit(int status)
 
 static int sys_write(int fd, const void *buf, size_t nbytes)
 {
-    int i;
-    for (i = 0; i < nbytes; i++) {
-        if (tty_putchar(current->tty, ((char *)buf)[i]) < 0) {
-            break;
-        }
-    }
-    return i;
+    return tty_write(current->tty, (char *)buf, nbytes);
 }
 
 static int sys_read(int fd, void *buf, size_t nbytes)
 {
-    return 0;
+    return tty_read(fd, buf, nbytes);
 }
 
 static void sys_delay(int us)

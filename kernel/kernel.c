@@ -34,10 +34,10 @@ static void welcome()
 {
     uint8_t color = 0xa;
     uint8_t origin;
-    tty_color(tty_current, TTY_OP_GET, &origin);
-    tty_color(tty_current, TTY_OP_SET, &color);
+    tty_color(tty_get_cur(), TTY_OP_GET, &origin);
+    tty_color(tty_get_cur(), TTY_OP_SET, &color);
     printk(banner);
-    tty_color(tty_current, TTY_OP_SET, &origin);
+    tty_color(tty_get_cur(), TTY_OP_SET, &origin);
     printk("Welcome to NeuxOS!\n");
 }
 
@@ -47,15 +47,15 @@ void kernel_panic(const char *fmt, ...)
 	va_list args;
 
     color_fatal = 0x4;
-    tty_color(tty_current, TTY_OP_GET, &color);
-    tty_color(tty_current, TTY_OP_SET, &color_fatal);
+    tty_color(tty_get_cur(), TTY_OP_GET, &color);
+    tty_color(tty_get_cur(), TTY_OP_SET, &color_fatal);
 
     printk("kernel panic! \nError: ");
 	va_start(args, fmt);
     vprintk(fmt, args);
 	va_end(args);
 
-    tty_color(tty_current, TTY_OP_SET, &color);
+    tty_color(tty_get_cur(), TTY_OP_SET, &color);
     asm("hlt");
 }
 
@@ -86,15 +86,21 @@ void kernel_setup()
     ext2_setup();
     sched_setup();
 
+    task = create_kernel_task(tty_task, "[ttyd]", TTY0);
+    if (task == NULL) {
+        kernel_panic("create tty task failed\n");
+    }
+    task_start(task);
+
     task = create_user_task("/bin/init", TTY0);
     if (task == NULL) {
         kernel_panic("create init task failed\n");
     }
     task_start(task);
 
-    task = create_kernel_task(tty_task, "[ttyd]", TTY0);
+    task = create_user_task("/bin/nxsh", TTY0);
     if (task == NULL) {
-        kernel_panic("create tty task failed\n");
+        kernel_panic("create nxsh task failed\n");
     }
     task_start(task);
 
@@ -117,30 +123,11 @@ void kernel_loop(void)
 
 void F1_handler(void)
 {
-    struct task *task = create_user_task("/bin/app", TTY1);
+    struct task *task = create_user_task("/bin/nxsh", tty_get_cur());
     if (task == NULL) {
         printk("create user task failed\n");
         return;
     }
     task_start(task);
     return;
-
-    #define TASK_NUM 10
-    static struct task *task_list[TASK_NUM];
-    static int i;
-
-    int k = i++ % TASK_NUM;
-
-    if (task_list[k] != NULL) {
-        task_term(task_list[k]);
-        task_list[k] = NULL;
-        return;
-    }
-
-    task_list[k] = create_user_task("/bin/app", TTY1);
-    if (task_list[k] == NULL) {
-        printk("create user task failed\n");
-        return;
-    }
-    task_start(task_list[k]);
 }

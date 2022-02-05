@@ -24,6 +24,7 @@ struct page_entry *alloc_user_page(void)
         return NULL;
     }
     memcpy(dir, (void *)virt_addr(CONFIG_KERNEL_PG_ADDR), PAGE_SIZE);
+    dir[0].present = 0; // strip 0 ~ 4MB mapping
     return phy_addr(dir);
 }
 
@@ -69,6 +70,11 @@ void page_fault_handler(uint32_t err_code, uint32_t eip, uint32_t cs, uint32_t e
 
     SAVE_STATE();
     asm("movl %%cr2, %0":"=r"(cr2)::);
+    if (cr2 < PAGE_SIZE) {
+        reason = "memory access denied";
+        goto error;
+    }
+
     write = err_code & PAGE_FAULT_WRITE;
     user = err_code & PAGE_FAULT_USER;
     if (err_code & PAGE_FAULT_NO_PERM) {

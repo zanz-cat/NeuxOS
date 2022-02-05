@@ -9,7 +9,6 @@ global irq_ex_syscall
 irq_ex_syscall:
     SAVE_STATE
 
-    ; TODO arpl
     ; handler's arguments
     push edx ; arg2
     push ecx ; arg1

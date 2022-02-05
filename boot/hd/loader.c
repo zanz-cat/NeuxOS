@@ -39,26 +39,19 @@ static size_t kernel_size;
 
 ssize_t write(int fd, const char *buf, size_t nbytes)
 {
-    size_t i;
-    uint16_t cursor = monitor_get_cursor();
-    for (i = 0; i < nbytes; i++) {
-        if (buf[i] == '\n') {
-            cursor += CRT_NR_COLUMNS - cursor % CRT_NR_COLUMNS;
-        } else if (buf[i] == '\b') {
-            cursor--;
-            monitor_putchar(cursor, DEFAULT_TEXT_COLOR, '\0');
-        } else {
-            monitor_putchar(cursor, DEFAULT_TEXT_COLOR, buf[i]);
-            cursor++;
-        }
-
-        if (cursor >= CRT_SIZE) {
-            cursor -= CRT_NR_COLUMNS;
-            monitor_shift(CRT_NR_COLUMNS, -CRT_NR_COLUMNS, CRT_SIZE);
-        }
-        monitor_set_cursor(cursor);
+    static struct monitor _mon;
+    static struct monitor *mon = NULL;
+    if (mon == NULL) {
+        monitor_init(&_mon, 0);
+        monitor_switch(NULL, &_mon);
+        mon = &_mon;
     }
-    return 0;
+
+    size_t i;
+    for (i = 0; i < nbytes; i++) {
+        monitor_putchar(mon, buf[i]);
+    }
+    return i;
 }
 
 static void loader_panic(int errcode)

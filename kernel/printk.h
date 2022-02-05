@@ -3,6 +3,8 @@
 
 #include <stdarg.h>
 
+void printk_set_write(int (*writer)(int, char *, size_t));
+
 int printk(const char *fmt, ...);
 int fprintk(int fd, const char *fmt, ...);
 

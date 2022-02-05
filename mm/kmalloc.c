@@ -21,9 +21,7 @@ struct heap_block {
 #define IN_SAME_PAGE(a1,a2) (((uint32_t)(a1) & PAGE_MASK) == ((uint32_t)(a2) & PAGE_MASK))
 
 static struct heap_block *heap;
-static struct sample_lock lock = {
-    .owners = 0
-};
+static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
 
 static void *search_interspace(const struct heap_block *block, size_t size, size_t align)
 {

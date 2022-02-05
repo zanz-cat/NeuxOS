@@ -1,11 +1,37 @@
 #include <stdio.h>
 
+#include <drivers/monitor.h>
+
 #include "tty.h"
 #include "sched.h"
 
 #include "printk.h"
 
 #define PRINTFK_BUF_SIZE 1024
+
+static int default_write(int fd, char *buf, size_t n)
+{
+    static struct monitor _mon;
+    static struct monitor *mon = NULL;
+    if (mon == NULL) {
+        monitor_init(&_mon, 0);
+        monitor_switch(NULL, &_mon);
+        mon = &_mon;
+    }
+
+    int i;
+    for (i = 0; i < n; i++) {
+        monitor_putchar(mon, buf[i]);
+    }
+    return i;
+}
+
+static int (*_write_func)(int, char *, size_t) = default_write;
+
+void printk_set_write(int (*writer)(int, char *, size_t))
+{
+    _write_func = writer;
+}
 
 int printk(const char *fmt, ...)
 {
@@ -31,7 +57,7 @@ int fprintk(int fd, const char *fmt, ...)
 
 int vfprintk(int fd, const char *fmt, va_list ap)
 {
-    int i, n;
+    int n;
     char buf[PRINTFK_BUF_SIZE];
 
     n = vsprintf(buf, fmt, ap);
@@ -39,17 +65,12 @@ int vfprintk(int fd, const char *fmt, va_list ap)
         return n;
     }
 
-    for (i = 0; i < n; i++) {
-        if (tty_putchar(fd, buf[i]) < 0) {
-            break;
-        }
-    }
-    return i;
+    return _write_func(fd, buf, n);
 }
 
 int vprintk(const char *fmt, va_list ap)
 {
-    int i, n, fd;
+    int n, fd;
     char buf[PRINTFK_BUF_SIZE];
 
     n = vsprintf(buf, fmt, ap);
@@ -62,10 +83,5 @@ int vprintk(const char *fmt, va_list ap)
     } else {
         fd = current->tty;
     }
-    for (i = 0; i < n; i++) {
-        if (tty_putchar(fd, buf[i]) < 0) {
-            break;
-        }
-    }
-    return i;
+    return _write_func(fd, buf, n);
 }
