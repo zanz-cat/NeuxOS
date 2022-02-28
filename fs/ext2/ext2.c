@@ -93,133 +93,6 @@ static int read_b_groups(void)
     return read_block(2, blocks, b_groups, size);
 }
 
-static uint32_t search_dir_L0(uint32_t dir_ino, const char *name)
-{
-    int ret;
-    struct ext2_dir_entry *dir_ent;
-    char buf[CONFIG_EXT2_BS];
-
-    ret = read_block(dir_ino, 1, buf, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return 0;
-    }
-    dir_ent = (struct ext2_dir_entry *)buf;
-    while ((void *)dir_ent < (void *)buf + CONFIG_EXT2_BS &&
-           dir_ent->inode != 0 && strncmp(dir_ent->name, name, dir_ent->name_len) != 0) {
-        dir_ent = (void *)dir_ent + dir_ent->rec_len;
-    }
-    if ((void *)dir_ent == (void *)buf + CONFIG_EXT2_BS || dir_ent->inode == 0) {
-        return 0;
-    }
-    return dir_ent->inode;
-}
-
-static uint32_t search_dir_L1(uint32_t dir_ino, const char *name)
-{
-    int i, ret;
-    uint32_t m, ino;
-    char buf[CONFIG_EXT2_BS];
-
-    ret = read_block(dir_ino, 1, buf, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return 0;
-    }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)buf + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ino = search_dir_L0(m, name);
-        if (ino != 0) {
-            return ino;
-        }
-    }
-    return 0;
-}
-
-static uint32_t search_dir_L2(uint32_t dir_ino, const char *name)
-{
-    int i, ret;
-    uint32_t m, ino;
-    char buf[CONFIG_EXT2_BS];
-
-    ret = read_block(dir_ino, 1, buf, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return 0;
-    }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)buf + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ino = search_dir_L1(m, name);
-        if (ino != 0) {
-            return ino;
-        }
-    }
-    return 0;
-}
-
-static uint32_t search_dir_L3(uint32_t dir_ino, const char *name)
-{
-    int i, ret;
-    uint32_t m, ino;
-    char buf[CONFIG_EXT2_BS];
-
-    ret = read_block(dir_ino, 1, buf, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return 0;
-    }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)buf + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ino = search_dir_L2(m, name);
-        if (ino != 0) {
-            return ino;
-        }
-    }
-    return 0;
-}
-
-static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
-{
-    int i, ret;
-    uint32_t ino;
-    struct ext2_inode inode;
-
-    ret = read_inode(dir_ino, &inode);
-    if (ret != 0) {
-        log_error("read inode error, errno: %d\n", ret);
-        return 0;
-    }
-    for (i = 0; i < EXT2_N_BLOCKS && inode.block[i] != 0; i++) {
-        if (i < EXT2_BLOCK_L1_INDEX) {
-            ino = search_dir_L0(inode.block[i], name);
-        } else if (i == EXT2_BLOCK_L1_INDEX) {
-            ino = search_dir_L1(inode.block[i], name);
-        } else if (i == EXT2_BLOCK_L2_INDEX) {
-            ino = search_dir_L2(inode.block[i], name);
-        } else if (i == EXT2_BLOCK_L3_INDEX) {
-            ino = search_dir_L3(inode.block[i], name);
-        } else {
-            kernel_panic("Ext2: NEVER REACH!!!\n");
-        }
-
-        // found
-        if (ino != 0) {
-            return ino;
-        }
-    }
-
-    return 0;
-}
-
 static int read_L0(uint32_t ino, void *buf, size_t size)
 {
     int ret;
@@ -310,29 +183,69 @@ static int read_L3(uint32_t ino, void *buf, size_t size)
     return offset;
 }
 
+static int inode_block_next(struct ext2_inode *inode, int *index, void *buf, size_t count)
+{
+    int ret;
+    int i = *index;
+
+    if (inode->block[i] == 0) {
+        return 0;
+    }
+    if (i < EXT2_BLOCK_L1_INDEX) {
+        ret = read_L0(inode->block[i], buf, count);
+    } else if (i == EXT2_BLOCK_L1_INDEX) {
+        ret = read_L1(inode->block[i], buf, count);
+    } else if (i == EXT2_BLOCK_L2_INDEX) {
+        ret = read_L2(inode->block[i], buf, count);
+    } else if (i == EXT2_BLOCK_L3_INDEX) {
+        ret = read_L3(inode->block[i], buf, count);
+    } else {
+        kernel_panic("EXT2: NEVER REACH!!!\n");
+    }
+    (*index)++;
+    return ret;
+}
+
+static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
+{
+    int index, ret;
+    struct ext2_inode inode;
+    char buf[CONFIG_EXT2_BS];
+    struct ext2_dir_entry *dir_ent;
+
+    ret = read_inode(dir_ino, &inode);
+    if (ret != 0) {
+        log_error("read inode error, errno: %d\n", ret);
+        return 0;
+    }
+
+    index = 0;
+    while (inode_block_next(&inode, &index, buf, CONFIG_EXT2_BS) > 0) {
+        dir_ent = (struct ext2_dir_entry *)buf;
+        while ((void *)dir_ent < (void *)buf + CONFIG_EXT2_BS &&
+            dir_ent->inode != 0 && strncmp(dir_ent->name, name, dir_ent->name_len) != 0) {
+            dir_ent = (void *)dir_ent + dir_ent->rec_len;
+        }
+        if ((void *)dir_ent == (void *)buf + CONFIG_EXT2_BS || dir_ent->inode == 0) {
+            return 0;
+        }
+        return dir_ent->inode;
+    }
+    return 0;
+}
+
 static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
 {
-    int i, ret;
+    int ret;
+    int index = 0;
+    size_t offset = 0;
     struct ext2_inode *inode = f->dentry->inode->priv;
 
-    uint32_t offset = 0;
-    for (i = 0; i < EXT2_N_BLOCKS && inode->block[i] != 0; i++) {
-        if (i < EXT2_BLOCK_L1_INDEX) { // TODO
-            ret = read_L0(inode->block[i], buf+offset, count-offset);
-        } else if (i == EXT2_BLOCK_L1_INDEX) {
-            ret = read_L1(inode->block[i], buf+offset, count-offset);
-        } else if (i == EXT2_BLOCK_L2_INDEX) {
-            ret = read_L2(inode->block[i], buf+offset, count-offset);
-        } else if (i == EXT2_BLOCK_L3_INDEX) {
-            ret = read_L3(inode->block[i], buf+offset, count-offset);
-        } else {
-            kernel_panic("Ext2: NEVER REACH!!!\n");
-        }
-
-        if (ret < 0) {
-            return ret;
-        }
+    while ((ret = inode_block_next(inode, &index, buf + offset, count - offset)) > 0) {
         offset += ret;
+    }
+    if (ret < 0) {
+        return ret;
     }
     return offset;
 }
