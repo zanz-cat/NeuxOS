@@ -188,6 +188,11 @@ void tty_task()
     }
 }
 
+int tty_get_cur()
+{
+    return _tty_current;
+}
+
 void tty_setup()
 {
     int i;
@@ -199,7 +204,3 @@ void tty_setup()
     printk_set_write(tty_write);
 }
 
-int tty_get_cur()
-{
-    return _tty_current;
-}
