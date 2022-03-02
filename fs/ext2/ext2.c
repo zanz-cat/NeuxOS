@@ -15,6 +15,17 @@
 #include "ext2.h"
 
 #define CACHE_SIZE 1000
+#define INO_CNT_PB (CONFIG_EXT2_BS/sizeof(uint32_t))
+
+struct block_iter {
+    const struct ext2_inode *inode;
+    uint32_t *L1;
+    uint32_t *L2;
+    uint32_t *L3;
+    int index;
+    int L2i;
+    int L3i;
+};
 
 static uint32_t part_lba;
 static struct ext2_super_block *s_block;
@@ -26,8 +37,14 @@ static struct inode_ops ext2_inode_ops;
 
 static inline int read_block(uint32_t block, uint32_t count, void *buf, size_t size)
 {
-    return hd_read(part_lba+(CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ)*block, 
-        count*CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ, buf, size);
+    int ret;
+
+    ret = hd_read(part_lba+(CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ)*block, 
+                  count*CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ, buf, size);
+    if (ret < 0) {
+        log_debug("Ext2: read block error, errno: %d\n", ret);
+    }
+    return ret;
 }
 
 static int read_inode(uint32_t ino, struct ext2_inode *inode)
@@ -40,7 +57,7 @@ static int read_inode(uint32_t ino, struct ext2_inode *inode)
     ino = (ino-s_block->first_data_block)%s_block->inodes_per_group;
     ret = read_block(group->inode_table+ino/inodes_per_block, 1, 
                      inode_table, sizeof(inode_table));
-    if (ret != 0) {
+    if (ret < 0) {
         log_error("Ext2: read block error, errno: %d\n", ret);
         return ret;
     }
@@ -55,7 +72,7 @@ static int read_s_block(void)
     struct hd_mbr_part *partition = NULL;
 
     ret = hd_read(0, 1, &mbr, sizeof(struct hd_mbr));
-    if (ret != 0) {
+    if (ret < 0) {
         return ret;
     }
     if (*(uint16_t*)mbr.end_magic != HD_MBR_END_MAGIC) {
@@ -93,125 +110,181 @@ static int read_b_groups(void)
     return read_block(2, blocks, b_groups, size);
 }
 
-static int read_L0(uint32_t ino, void *buf, size_t size)
+static inline void block_iter_init(struct block_iter *iter, const struct ext2_inode *inode)
 {
-    int ret;
-
-    ret = read_block(ino, 1, buf, size);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return ret;
-    }
-    return min(CONFIG_EXT2_BS, size);
+    iter->inode = inode;
+    iter->L1 = NULL;
+    iter->L2 = NULL;
+    iter->L3 = NULL;
+    iter->index = 0;
+    iter->L2i = -1;
+    iter->L3i = -1;
 }
 
-static int read_L1(uint32_t ino, void *buf, size_t size)
+static inline void block_iter_destroy(struct block_iter *iter)
 {
-    int i, ret;
-    uint32_t m, offset;
-    uint8_t block_table[CONFIG_EXT2_BS];
-
-    offset = 0;
-    ret = read_block(ino, 1, block_table, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return ret;
+    if (iter->L1 != NULL) {
+        kfree(iter->L1);
     }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)block_table + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ret = read_L0(m, buf+offset, size-offset);
-        if (ret < 0) {
-            return ret;
-        }
-        offset += ret;
+    if (iter->L2 != NULL) {
+        kfree(iter->L2);
     }
-    return offset;
+    if (iter->L3 != NULL) {
+        kfree(iter->L3);
+    }
 }
 
-static int read_L2(uint32_t ino, void *buf, size_t size)
+static int block_iter_ld_L1(struct block_iter *iter, uint32_t ino)
 {
-    int i, ret;
-    uint32_t m, offset;
-    uint8_t block_table[CONFIG_EXT2_BS];
-
-    offset = 0;
-    ret = read_block(ino, 1, block_table, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return ret;
+    iter->L1 = kmalloc(CONFIG_EXT2_BS);
+    if (iter->L1 == NULL) {
+        return -ENOMEM;
     }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)block_table + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ret = read_L1(m, buf+offset, size-offset);
-        if (ret < 0) {
-            return ret;
-        }
-        offset += ret;
-    }
-    return offset;
+    return read_block(ino, 1, iter->L1, CONFIG_EXT2_BS);
 }
 
-static int read_L3(uint32_t ino, void *buf, size_t size)
+static int block_iter_L1(struct block_iter *iter, void *buf, size_t count)
 {
-    int i, ret;
-    uint32_t m, offset;
-    uint8_t block_table[CONFIG_EXT2_BS];
+    int res, L1i;
 
-    offset = 0;
-    ret = read_block(ino, 1, block_table, CONFIG_EXT2_BS);
-    if (ret != 0) {
-        log_error("Ext2: read block error, errno: %d\n", ret);
-        return ret;
-    }
-    for (i = 0; i < CONFIG_EXT2_BS/sizeof(uint32_t); i++) {
-        m = *(uint32_t *)((void *)block_table + i * sizeof(uint32_t));
-        if (m == 0) {
-            break;
-        }
-        ret = read_L2(m, buf+offset, size-offset);
-        if (ret < 0) {
-            return ret;
-        }
-        offset += ret;
-    }
-    return offset;
-}
-
-static int inode_block_next(struct ext2_inode *inode, int *index, void *buf, size_t count)
-{
-    int ret;
-    int i = *index;
-
-    if (inode->block[i] == 0) {
+    if (iter->inode->block[EXT2_B_L1_IDX] == 0) {
         return 0;
     }
-    if (i < EXT2_BLOCK_L1_INDEX) {
-        ret = read_L0(inode->block[i], buf, count);
-    } else if (i == EXT2_BLOCK_L1_INDEX) {
-        ret = read_L1(inode->block[i], buf, count);
-    } else if (i == EXT2_BLOCK_L2_INDEX) {
-        ret = read_L2(inode->block[i], buf, count);
-    } else if (i == EXT2_BLOCK_L3_INDEX) {
-        ret = read_L3(inode->block[i], buf, count);
-    } else {
-        kernel_panic("EXT2: NEVER REACH!!!\n");
+    if (iter->L1 == NULL) {
+        res = block_iter_ld_L1(iter, iter->inode->block[EXT2_B_L1_IDX]);
+        if (res < 0) {
+            return res;
+        }
     }
-    (*index)++;
-    return ret;
+    L1i = iter->index - EXT2_B_L1_IDX;
+    if (iter->L1[L1i] == 0) {
+        return 0;
+    }
+    return read_block(iter->L1[L1i], 1, buf, count);
+}
+
+static int block_iter_ld_L2(struct block_iter *iter, uint32_t ino)
+{
+    iter->L2 = kmalloc(CONFIG_EXT2_BS);
+    if (iter->L2 == NULL) {
+        return -ENOMEM;
+    }
+    return read_block(ino, 1, iter->L2, CONFIG_EXT2_BS);
+}
+
+static int block_iter_L2(struct block_iter *iter, void *buf, size_t count)
+{
+    int res, L2i, L1i;
+
+    if (iter->inode->block[EXT2_B_L2_IDX] == 0) {
+        return 0;
+    }
+    if (iter->L2 == NULL) {
+        res = block_iter_ld_L2(iter, iter->inode->block[EXT2_B_L2_IDX]);
+        if (res < 0) {
+            return res;
+        }
+    }
+    L2i = (iter->index - EXT2_B_L1_IDX) / INO_CNT_PB;
+    if (iter->L2i != L2i) {
+        if (iter->L2[L2i] == 0) {
+            return 0;
+        }
+        res = block_iter_ld_L1(iter, iter->L2[L2i]);
+        if (res < 0) {
+            return res;
+        }
+        iter->L2i = L2i;
+    }
+    L1i = (iter->index - EXT2_B_L1_IDX) % INO_CNT_PB;
+    if (iter->L1[L1i] == 0) {
+        return 0;
+    }
+    return read_block(iter->L1[L1i], 1, buf, count);
+}
+
+static int block_iter_ld_L3(struct block_iter *iter, uint32_t ino)
+{
+    iter->L3 = kmalloc(CONFIG_EXT2_BS);
+    if (iter->L3 == NULL) {
+        return -ENOMEM;
+    }
+    return read_block(ino, 1, iter->L3, CONFIG_EXT2_BS);
+}
+
+static int block_iter_L3(struct block_iter *iter, void *buf, size_t count)
+{
+    int res, L3i, L2i, L1i;
+
+    if (iter->inode->block[EXT2_B_L3_IDX] == 0) {
+        return 0;
+    }
+    if (iter->L3 == NULL) {
+        res = block_iter_ld_L3(iter, iter->inode->block[EXT2_B_L3_IDX]);
+        if (res < 0) {
+            return res;
+        }
+    }
+    L3i = (iter->index - EXT2_B_L1_IDX) / (INO_CNT_PB * INO_CNT_PB);
+    if (iter->L3i != L3i) {
+        if (iter->L3[L3i] == 0) {
+            return 0;
+        }
+        res = block_iter_ld_L2(iter, iter->L3[L3i]);
+        if (res < 0) {
+            return res;
+        }
+        iter->L3i = L3i;
+    }
+    L2i = (iter->index - EXT2_B_L1_IDX) % (INO_CNT_PB * INO_CNT_PB) / INO_CNT_PB;
+    if (iter->L2i != L2i) {
+        if (iter->L2[L2i] == 0) {
+            return 0;
+        }
+        res = block_iter_ld_L1(iter, iter->L2[L2i]);
+        if (res < 0) {
+            return res;
+        }
+        iter->L2i = L2i;
+    }
+    L1i = (iter->index - EXT2_B_L1_IDX) % (INO_CNT_PB * INO_CNT_PB) % INO_CNT_PB;
+    if (iter->L1[L1i] == 0) {
+        return 0;
+    }
+    return read_block(iter->L1[L1i], 1, buf, count);
+}
+
+static int block_iter_next(struct block_iter *iter, void *buf, size_t count)
+{
+    int res;
+
+    if (iter->index < EXT2_B_L1_IDX) {
+        if (iter->inode->block[iter->index] == 0) {
+            return 0;
+        }
+        res = read_block(iter->inode->block[iter->index], 1, buf, count);
+    } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB) {
+        res = block_iter_L1(iter, buf, count);
+    } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB * INO_CNT_PB) {
+        res = block_iter_L2(iter, buf, count);
+    } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB * INO_CNT_PB * INO_CNT_PB) {
+        res = block_iter_L3(iter, buf, count);
+    } else {
+        log_error("EXT2: NEVER REACH!!!\n");
+        return -EINVAL;
+    }
+    iter->index++;
+    return res;
 }
 
 static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
 {
-    int index, ret;
+    int ret;
+    uint32_t ino = 0;
     struct ext2_inode inode;
     char buf[CONFIG_EXT2_BS];
     struct ext2_dir_entry *dir_ent;
+    struct block_iter iter;
 
     ret = read_inode(dir_ino, &inode);
     if (ret != 0) {
@@ -219,35 +292,35 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
         return 0;
     }
 
-    index = 0;
-    while (inode_block_next(&inode, &index, buf, CONFIG_EXT2_BS) > 0) {
+    block_iter_init(&iter, &inode);
+    while (block_iter_next(&iter, buf, CONFIG_EXT2_BS) > 0) {
         dir_ent = (struct ext2_dir_entry *)buf;
         while ((void *)dir_ent < (void *)buf + CONFIG_EXT2_BS &&
             dir_ent->inode != 0 && strncmp(dir_ent->name, name, dir_ent->name_len) != 0) {
             dir_ent = (void *)dir_ent + dir_ent->rec_len;
         }
         if ((void *)dir_ent == (void *)buf + CONFIG_EXT2_BS || dir_ent->inode == 0) {
-            return 0;
+            break;
         }
-        return dir_ent->inode;
+        ino = dir_ent->inode;
+        break;
     }
-    return 0;
+    block_iter_destroy(&iter);
+    return ino;
 }
 
 static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
 {
     int ret;
-    int index = 0;
     size_t offset = 0;
-    struct ext2_inode *inode = f->dentry->inode->priv;
+    struct block_iter iter;
 
-    while ((ret = inode_block_next(inode, &index, buf + offset, count - offset)) > 0) {
+    block_iter_init(&iter, (struct ext2_inode *)f->dentry->inode->priv);
+    while ((ret = block_iter_next(&iter, buf + offset, count - offset)) > 0) {
         offset += ret;
     }
-    if (ret < 0) {
-        return ret;
-    }
-    return offset;
+    block_iter_destroy(&iter);
+    return ret < 0 ? ret : offset;
 }
 
 static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count)
@@ -357,11 +430,11 @@ void ext2_setup(void)
 
     log_info("setup ext2 fs\n");
     ret = read_s_block();
-    if (ret != 0) {
+    if (ret < 0) {
         kernel_panic("read s_block error, code: %d\n", ret);
     }
     ret = read_b_groups();
-    if (ret != 0) {
+    if (ret < 0) {
         kernel_panic("read block groups error, code: %d\n", ret);
     }
     log_info("ext2 fs has %u blocks in %u groups\n", s_block->blocks_count, groups_count);

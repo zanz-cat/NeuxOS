@@ -12,7 +12,7 @@
 
 #include "tty.h"
 
-extern void F1_handler(void);
+extern void F4_handler(void);
 extern void mm_report(void);
 extern void sched_report(void);
 
@@ -104,7 +104,7 @@ static void tty_in_proc(int fd, uint16_t key)
                 tty_switch(TTY2);
                 break;
             case FLAG_SHIFT_L | F4:
-                F1_handler();
+                F4_handler();
                 break;
             case FLAG_SHIFT_L | F5:
                 mm_report();

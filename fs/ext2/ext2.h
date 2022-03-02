@@ -6,9 +6,9 @@
 #include <fs/file.h>
 
 #define EXT2_N_BLOCKS 15
-#define EXT2_BLOCK_L1_INDEX 12
-#define EXT2_BLOCK_L2_INDEX 13
-#define EXT2_BLOCK_L3_INDEX 14
+#define EXT2_B_L1_IDX 12
+#define EXT2_B_L2_IDX 13
+#define EXT2_B_L3_IDX 14
 
 #define EXT2_MAX_NAME_LEN 255
 

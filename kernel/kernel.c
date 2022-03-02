@@ -121,8 +121,27 @@ void kernel_loop(void)
     }
 }
 
-void F1_handler(void)
+static void open_a_txt()
 {
+    struct file *f = vfs_open("/root/a.txt", 0);
+    if (f == NULL) {
+        log_error("open file error: %d\n", errno);
+        return;
+    }
+    char *buf = kmalloc(f->dentry->inode->size);
+    if (buf == NULL) {
+        log_error("malloc failed\n");
+        vfs_close(f);
+        return;
+    }
+    int ret = vfs_read(f, buf, f->dentry->inode->size);
+    printk("a.txt: %d\n", ret);
+    vfs_close(f);
+}
+void F4_handler(void)
+{
+    open_a_txt();
+    return;
     struct task *task = create_user_task("/bin/nxsh", tty_get_cur());
     if (task == NULL) {
         printk("create user task failed\n");

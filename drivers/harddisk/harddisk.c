@@ -85,7 +85,7 @@ static int do_read_sync(uint8_t count, void *buf, size_t size)
     for (i = 0; i < count; i++) {
         offset += read_one_sector(buf + offset, size - offset);
     }
-    return 0;
+    return offset;
 }
 
 static int do_read_async(uint8_t count, void *buf, size_t size)
@@ -101,7 +101,7 @@ static int do_read_async(uint8_t count, void *buf, size_t size)
         offset += read_one_sector(buf + offset, size - offset);
     }
     enable_irq();
-    return 0;
+    return offset;
 }
 
 int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)

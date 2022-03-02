@@ -300,7 +300,7 @@ static int read_kernel_file(void)
     kernel = kernel_file;
     printf("reading kernel ELF...0");
     for (i = 0; i < EXT2_N_BLOCKS && kernel_ino.block[i] != 0; i++) {
-        if (i < EXT2_BLOCK_L1_INDEX) {
+        if (i < EXT2_B_L1_IDX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, kernel);
             if (ret != 0) {
                 printf("\n");
@@ -309,7 +309,7 @@ static int read_kernel_file(void)
             backspace_num(kernel - kernel_file);
             kernel += CONFIG_EXT2_BS;
             printf("%d", kernel - kernel_file);
-        } else if (i == EXT2_BLOCK_L1_INDEX) {
+        } else if (i == EXT2_B_L1_IDX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
             if (ret != 0) {
                 printf("\n");
@@ -329,7 +329,7 @@ static int read_kernel_file(void)
                 kernel += CONFIG_EXT2_BS;
                 printf("%d", kernel - kernel_file);
             }
-        } else if (i == EXT2_BLOCK_L2_INDEX) {
+        } else if (i == EXT2_B_L2_IDX) {
             ret = ext2_read_block(part, kernel_ino.block[i], 1, buf);
             if (ret != 0) {
                 printf("\n");
@@ -360,7 +360,7 @@ static int read_kernel_file(void)
                     printf("%d", kernel - kernel_file);
                 }
             }
-        } else if (i == EXT2_BLOCK_L3_INDEX) {
+        } else if (i == EXT2_B_L3_IDX) {
             printf("\ntoo large kernel!");
             loader_panic(-ENOMEM);
         } else {

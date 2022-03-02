@@ -115,7 +115,7 @@ void page_fault_handler(uint32_t err_code, uint32_t eip, uint32_t cs, uint32_t e
     RESTORE_STATE();
     return;
 error:
-    fprintk(TTY0,"\n[ERROR] page fault, %s\n"
+    fprintk(TTY0,"[ERROR] page fault, %s\n"
            "> task: %u\n"
            "> exe: %s\n"
            "> eflags: 0x%x\n"
@@ -123,7 +123,7 @@ error:
            "> eip: %p\n"
            "> cr2: %p\n"
            "> r/w: %s\n"
-           "> user: %d\n\n",
+           "> user: %d\n",
            reason, current->pid, current->exe, 
            eflags, cs, eip, cr2, write ? "w" : "r", user);
 
