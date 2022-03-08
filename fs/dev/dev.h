@@ -1,6 +1,7 @@
 #ifndef __FS_DEV__
 #define __FS_DEV__
 
-void dev_setup(void);
+void devfs_setup(void);
+int devfs_mknod(const char *name);
 
 #endif

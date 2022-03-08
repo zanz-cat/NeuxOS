@@ -19,12 +19,13 @@
 
 struct block_iter {
     const struct ext2_inode *inode;
+    uint32_t index;
     uint32_t *L1;
     uint32_t *L2;
     uint32_t *L3;
-    int index;
-    int L2i;
-    int L3i;
+    uint32_t L1i;
+    uint32_t L2i;
+    uint32_t L3i;
 };
 
 static uint32_t part_lba;
@@ -113,12 +114,13 @@ static int read_b_groups(void)
 static inline void block_iter_init(struct block_iter *iter, const struct ext2_inode *inode)
 {
     iter->inode = inode;
+    iter->index = 0;
+    iter->L1i = 0;
+    iter->L2i = 0;
+    iter->L3i = 0;
     iter->L1 = NULL;
     iter->L2 = NULL;
     iter->L3 = NULL;
-    iter->index = 0;
-    iter->L2i = -1;
-    iter->L3i = -1;
 }
 
 static inline void block_iter_destroy(struct block_iter *iter)
@@ -134,124 +136,80 @@ static inline void block_iter_destroy(struct block_iter *iter)
     }
 }
 
-static int block_iter_ld_L1(struct block_iter *iter, uint32_t ino)
+static int block_iter_L1(struct block_iter *iter,
+                         uint32_t idx_ino, uint32_t offset,
+                         void *buf, size_t count)
 {
-    iter->L1 = kmalloc(CONFIG_EXT2_BS);
-    if (iter->L1 == NULL) {
-        return -ENOMEM;
+    int res;
+
+    if (idx_ino == 0) {
+        return 0;
     }
-    return read_block(ino, 1, iter->L1, CONFIG_EXT2_BS);
+    if (iter->L1i != idx_ino) {
+        if (iter->L1 == NULL) {
+            iter->L1 = kmalloc(CONFIG_EXT2_BS);
+            if (iter->L1 == NULL) {
+                return -ENOMEM;
+            }
+        }
+        res = read_block(idx_ino, 1, iter->L1, CONFIG_EXT2_BS);
+        if (res < 0) {
+            return res;
+        }
+    }
+    if (iter->L1[offset] == 0) {
+        return 0;
+    }
+    return read_block(iter->L1[offset], 1, buf, count);
 }
 
-static int block_iter_L1(struct block_iter *iter, void *buf, size_t count)
+static int block_iter_L2(struct block_iter *iter,
+                         uint32_t idx_ino, uint32_t offset,
+                         void *buf, size_t count)
 {
-    int res, L1i;
+    int res;
 
-    if (iter->inode->block[EXT2_B_L1_IDX] == 0) {
+    if (idx_ino == 0) {
         return 0;
     }
-    if (iter->L1 == NULL) {
-        res = block_iter_ld_L1(iter, iter->inode->block[EXT2_B_L1_IDX]);
+    if (iter->L2i != idx_ino) {
+        if (iter->L2 == NULL) {
+            iter->L2 = kmalloc(CONFIG_EXT2_BS);
+            if (iter->L2 == NULL) {
+                return -ENOMEM;
+            }
+        }
+        res = read_block(idx_ino, 1, iter->L2, CONFIG_EXT2_BS);
         if (res < 0) {
             return res;
         }
     }
-    L1i = iter->index - EXT2_B_L1_IDX;
-    if (iter->L1[L1i] == 0) {
-        return 0;
-    }
-    return read_block(iter->L1[L1i], 1, buf, count);
+    return block_iter_L1(iter, offset / INO_CNT_PB, offset % INO_CNT_PB, buf, count);
 }
 
-static int block_iter_ld_L2(struct block_iter *iter, uint32_t ino)
+static int block_iter_L3(struct block_iter *iter,
+                         uint32_t idx_ino, uint32_t offset,
+                         void *buf, size_t count)
 {
-    iter->L2 = kmalloc(CONFIG_EXT2_BS);
-    if (iter->L2 == NULL) {
-        return -ENOMEM;
-    }
-    return read_block(ino, 1, iter->L2, CONFIG_EXT2_BS);
-}
+    int res;
 
-static int block_iter_L2(struct block_iter *iter, void *buf, size_t count)
-{
-    int res, L2i, L1i;
-
-    if (iter->inode->block[EXT2_B_L2_IDX] == 0) {
+    if (idx_ino == 0) {
         return 0;
     }
-    if (iter->L2 == NULL) {
-        res = block_iter_ld_L2(iter, iter->inode->block[EXT2_B_L2_IDX]);
+    if (iter->L3i != idx_ino) {
+        if (iter->L3 == NULL) {
+            iter->L3 = kmalloc(CONFIG_EXT2_BS);
+            if (iter->L3 == NULL) {
+                return -ENOMEM;
+            }
+        }
+        res = read_block(idx_ino, 1, iter->L3, CONFIG_EXT2_BS);
         if (res < 0) {
             return res;
         }
     }
-    L2i = (iter->index - EXT2_B_L1_IDX) / INO_CNT_PB;
-    if (iter->L2i != L2i) {
-        if (iter->L2[L2i] == 0) {
-            return 0;
-        }
-        res = block_iter_ld_L1(iter, iter->L2[L2i]);
-        if (res < 0) {
-            return res;
-        }
-        iter->L2i = L2i;
-    }
-    L1i = (iter->index - EXT2_B_L1_IDX) % INO_CNT_PB;
-    if (iter->L1[L1i] == 0) {
-        return 0;
-    }
-    return read_block(iter->L1[L1i], 1, buf, count);
-}
-
-static int block_iter_ld_L3(struct block_iter *iter, uint32_t ino)
-{
-    iter->L3 = kmalloc(CONFIG_EXT2_BS);
-    if (iter->L3 == NULL) {
-        return -ENOMEM;
-    }
-    return read_block(ino, 1, iter->L3, CONFIG_EXT2_BS);
-}
-
-static int block_iter_L3(struct block_iter *iter, void *buf, size_t count)
-{
-    int res, L3i, L2i, L1i;
-
-    if (iter->inode->block[EXT2_B_L3_IDX] == 0) {
-        return 0;
-    }
-    if (iter->L3 == NULL) {
-        res = block_iter_ld_L3(iter, iter->inode->block[EXT2_B_L3_IDX]);
-        if (res < 0) {
-            return res;
-        }
-    }
-    L3i = (iter->index - EXT2_B_L1_IDX) / (INO_CNT_PB * INO_CNT_PB);
-    if (iter->L3i != L3i) {
-        if (iter->L3[L3i] == 0) {
-            return 0;
-        }
-        res = block_iter_ld_L2(iter, iter->L3[L3i]);
-        if (res < 0) {
-            return res;
-        }
-        iter->L3i = L3i;
-    }
-    L2i = (iter->index - EXT2_B_L1_IDX) % (INO_CNT_PB * INO_CNT_PB) / INO_CNT_PB;
-    if (iter->L2i != L2i) {
-        if (iter->L2[L2i] == 0) {
-            return 0;
-        }
-        res = block_iter_ld_L1(iter, iter->L2[L2i]);
-        if (res < 0) {
-            return res;
-        }
-        iter->L2i = L2i;
-    }
-    L1i = (iter->index - EXT2_B_L1_IDX) % (INO_CNT_PB * INO_CNT_PB) % INO_CNT_PB;
-    if (iter->L1[L1i] == 0) {
-        return 0;
-    }
-    return read_block(iter->L1[L1i], 1, buf, count);
+    return block_iter_L2(iter, offset / (INO_CNT_PB * INO_CNT_PB),
+                         offset % (INO_CNT_PB * INO_CNT_PB), buf, count);
 }
 
 static int block_iter_next(struct block_iter *iter, void *buf, size_t count)
@@ -264,11 +222,16 @@ static int block_iter_next(struct block_iter *iter, void *buf, size_t count)
         }
         res = read_block(iter->inode->block[iter->index], 1, buf, count);
     } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB) {
-        res = block_iter_L1(iter, buf, count);
+        res = block_iter_L1(iter, iter->inode->block[EXT2_B_L1_IDX], 
+                            iter->index - EXT2_B_L1_IDX, buf, count);
     } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB * INO_CNT_PB) {
-        res = block_iter_L2(iter, buf, count);
+        res = block_iter_L2(iter, iter->inode->block[EXT2_B_L2_IDX],
+                            iter->index - (EXT2_B_L1_IDX + INO_CNT_PB),
+                            buf, count);
     } else if (iter->index < EXT2_B_L1_IDX + INO_CNT_PB * INO_CNT_PB * INO_CNT_PB) {
-        res = block_iter_L3(iter, buf, count);
+        res = block_iter_L3(iter, iter->inode->block[EXT2_B_L3_IDX],
+                            iter->index - (EXT2_B_L1_IDX + INO_CNT_PB * INO_CNT_PB),
+                            buf, count);
     } else {
         log_error("EXT2: NEVER REACH!!!\n");
         return -EINVAL;
@@ -376,29 +339,32 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
 
 void ext2_mount_rootfs(struct fs *fs)
 {
+    const char *err = NULL;
+    struct mount *mnt = NULL;
     struct ext2_inode inode;
     int ret = read_inode(EXT2_INO_ROOT, &inode);
     if (ret != 0) {
-        kernel_panic("read root inode error, code: %d\n", ret);
+        err = "read root inode error";
+        goto panic;
     }
 
-    struct mount *mnt = kmalloc(sizeof(struct mount));
+    mnt = kmalloc(sizeof(struct mount));
     if (mnt == NULL) {
-        kernel_panic("no memory for mount\n");
+        err = "no memory for mount";
+        goto panic;
     }
     mnt->fs = fs;
     mnt->dentry = kmalloc(sizeof(struct dentry));
     if (mnt->dentry == NULL) {
-        kfree(mnt);
-        kernel_panic("no memory for root dentry\n");
+        err = "no memory for root dentry";
+        goto panic;
     }
     dentry_init(mnt->dentry);
     mnt->dentry->rc = 1;
     mnt->dentry->inode = kmalloc(sizeof(struct inode));
     if (mnt->dentry->inode == NULL) {
-        kfree(mnt->dentry);
-        kfree(mnt);
-        kernel_panic("no memory for root inode\n");
+        err = "no memory for root inode";
+        goto panic;
     }
     mnt->dentry->inode->ino = EXT2_INO_ROOT;
     mnt->dentry->inode->size = inode.size;
@@ -408,11 +374,20 @@ void ext2_mount_rootfs(struct fs *fs)
 
     ret = vfs_mount("/", mnt);
     if (ret != 0) {
-        kfree(mnt->dentry);
-        kfree(mnt);
-        kernel_panic("mount rootfs error, code: %d\n", ret);
+        err = "mount rootfs error";
+        goto panic;
     }
     log_info("root fs mounted.\n");
+    return;
+
+panic:
+    if (mnt != NULL) {
+        if (mnt->dentry != NULL) {
+            kfree(mnt->dentry);
+        }
+        kfree(mnt);
+    }
+    kernel_panic("err=%s, code=%d\n", err, ret);
 }
 
 void ext2_setup(void)

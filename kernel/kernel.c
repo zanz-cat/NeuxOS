@@ -5,6 +5,7 @@
 #include <drivers/harddisk.h>
 #include <arch/x86.h>
 #include <fs/ext2.h>
+#include <fs/dev.h>
 #include <mm/mm.h>
 #include <mm/kmalloc.h>
 #include <fs/fs.h>
@@ -84,6 +85,7 @@ void kernel_setup()
     hd_setup();
     vfs_setup();
     ext2_setup();
+    devfs_setup();
     sched_setup();
 
     task = create_kernel_task(tty_task, "[ttyd]", TTY0);
@@ -135,13 +137,13 @@ static void open_a_txt()
         return;
     }
     int ret = vfs_read(f, buf, f->dentry->inode->size);
-    printk("a.txt: %d\n", ret);
+    printk("a.txt size=%d, content=...%s\n", ret, buf + f->dentry->inode->size - 16);
     vfs_close(f);
 }
 void F4_handler(void)
 {
-    open_a_txt();
-    return;
+    // open_a_txt();
+    // return;
     struct task *task = create_user_task("/bin/nxsh", tty_get_cur());
     if (task == NULL) {
         printk("create user task failed\n");

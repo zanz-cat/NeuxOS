@@ -82,7 +82,7 @@ static int do_read_sync(uint8_t count, void *buf, size_t size)
     if (wait() != 0) {
         return -ETIMEDOUT;
     }
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < count && offset < size; i++) {
         offset += read_one_sector(buf + offset, size - offset);
     }
     return offset;
