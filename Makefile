@@ -12,8 +12,8 @@ include .config
 endif
 endif
 
-.PHONY: all $(SUBDIRS) $(CLEAN_SUBDIRS) image mount umount run \
-		debug gdb bochsrc config clean-config install disk clean
+.PHONY: all $(SUBDIRS) $(CLEAN_SUBDIRS) image rootfs mount umount \
+		run debug gdb bochsrc config clean-config install disk clean
 
 all: $(SUBDIRS)
 
@@ -47,6 +47,15 @@ disk:
 		dev=`$(SUDO) losetup -f --show -o $$offset --sizelimit $$limit hd.img` && break || sleep 0.5; \
 	done; \
 	$(SUDO) mkfs.ext2 -F -b $(CONFIG_EXT2_BS) $$dev;
+
+rootfs:	mount
+	@echo "Install root fs"
+	mkdir -p $(MOUNTPOINT)/dev
+	@while $(SUDO) mount | grep $(MOUNTPOINT) > /dev/null; \
+	do \
+	    $(SUDO) umount $(MOUNTPOINT); \
+	    dev=`$(SUDO) losetup -l -O name -n -j hd.img` && $(SUDO) losetup -d $$dev; \
+	done
 
 install: $(SUBDIRS) hd.img umount
 	@test -d $(MOUNTPOINT) || mkdir $(MOUNTPOINT)
@@ -98,7 +107,7 @@ umount:
 	    dev=`$(SUDO) losetup -l -O name -n -j hd.img` && $(SUDO) losetup -d $$dev; \
 	done
 
-image: disk install
+image: disk rootfs install
 
 run: hd.img bochsrc
 ifeq ($(Q),qemu)

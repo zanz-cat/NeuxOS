@@ -25,7 +25,7 @@ static LIST_HEAD(running_queue);
 static LIST_HEAD(term_queue);
 static struct task *kernel_loop_task;
 
-struct task *current;
+struct task *current = NULL;
 
 static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
 {

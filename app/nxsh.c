@@ -3,12 +3,23 @@
 #include <unistd.h>
 #include <string.h>
 
+#include <fcntl.h>
+#include <dirent.h>
+
 #define BUF_SIZE 1024
 
 void cmd_proc(const char *cmd)
 {
     if (strcmp(cmd, "ls") == 0) {
         printf("list dir\n");
+        int fd = open("/", 0);
+        off_t base;
+        char buf[BUF_SIZE];
+        if (fd < 0) {
+            printf("No such file or directory\n");
+            return;
+        }
+        getdirentries(fd, buf, BUF_SIZE, &base);
     } else if (strcmp(cmd, "exit") == 0) {
         exit(0);
     } else {

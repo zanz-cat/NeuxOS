@@ -6,6 +6,7 @@
 #include <drivers/monitor.h>
 #include <drivers/keyboard.h>
 
+#include "kernel.h"
 #include "log.h"
 #include "printk.h"
 #include "sched.h"
@@ -193,7 +194,21 @@ int tty_get_cur()
     return _tty_current;
 }
 
-void tty_setup()
+static void tty_mknod(void)
+{
+    int i, ret;
+    char *path = "/dev/ttyS0";
+
+    for (i = TTY0; i < TTYS_COUNT; i++) {
+        ret = vfs_mknod(path);
+        if (ret != 0) {
+            kernel_panic("mknod %s error=%d\n", path, ret);
+        }
+        path[sizeof(path) - 2]++;
+    }
+}
+
+static void tty_monitor_init(void)
 {
     int i;
     for (i = TTY0; i < TTYS_COUNT; i++) {
@@ -201,6 +216,12 @@ void tty_setup()
         monitor_init(&ttys[i].mon, i);
     }
     monitor_switch(NULL, &ttys[TTY0].mon);
+}
+
+void tty_setup()
+{
+    tty_monitor_init();
+    tty_mknod();
     printk_set_write(tty_write);
 }
 

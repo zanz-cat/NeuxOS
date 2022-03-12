@@ -26,7 +26,7 @@ struct dentry_ops {
 };
 
 struct dentry *dentry_lookup(const char *pathname);
-void dentry_free(struct dentry *d);
+void dentry_release(struct dentry *d);
 void dentry_init(struct dentry *d);
 
 #endif

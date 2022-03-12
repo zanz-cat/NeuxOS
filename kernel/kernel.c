@@ -76,7 +76,6 @@ void kernel_setup()
     struct task *task;
 
     set_log_level(DEBUG);
-    tty_setup();
     mm_setup();
     enable_em();
     irq_setup();
@@ -86,6 +85,7 @@ void kernel_setup()
     vfs_setup();
     ext2_setup();
     devfs_setup();
+    tty_setup();
     sched_setup();
 
     task = create_kernel_task(tty_task, "[ttyd]", TTY0);

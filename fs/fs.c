@@ -1,5 +1,6 @@
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <neuxos.h>
 #include <mm/kmalloc.h>
@@ -31,4 +32,18 @@ struct mount *vfs_umount(const char *mountpoint)
     struct mount *res = target->mnt;
     target->mnt = NULL;
     return res;
+}
+
+int vfs_mknod(const char *path)
+{
+    char copy[MAX_PATH_LEN] = {0};
+    struct dentry dent;
+
+    strcpy(copy, path);
+    struct dentry *dir = dentry_lookup(dirname(copy));
+    if (dir == NULL) {
+        return -ENOENT;
+    }
+    strcpy(dent.name, basename(copy));
+    return dir->inode->ops->create(dir->inode, &dent, 0);
 }

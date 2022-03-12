@@ -22,14 +22,14 @@ struct file *vfs_open(const char *pathname, int flags)
     }
     struct mount *mnt = mount_search(d);
     if (mnt == NULL) {
-        dentry_free(d);
+        dentry_release(d);
         errno = -EPERM;
         return NULL;
     }
 
     struct file *f = kmalloc(sizeof(struct file));
     if (f == NULL) {
-        dentry_free(d);
+        dentry_release(d);
         errno = -ENOMEM;
         return NULL;
     }
@@ -57,7 +57,7 @@ int vfs_close(struct file *f)
         return 0;
     }
     f->ops->close(f);
-    dentry_free(f->dentry);
+    dentry_release(f->dentry);
     kfree(f);
     return 0;
 }

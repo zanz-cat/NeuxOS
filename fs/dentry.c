@@ -49,7 +49,7 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 
     int ret = dir->inode->ops->lookup(dir->inode, dentry);
     if (ret != 0) {
-        dentry_free(dentry);
+        dentry_release(dentry);
         errno = -ENOENT;
         return NULL;
     }
@@ -75,14 +75,14 @@ struct dentry *dentry_lookup(const char *pathname)
     return __dentry_lookup(&rootfs, &s);
 }
 
-void dentry_free(struct dentry *d)
+void dentry_release(struct dentry *d)
 {
     d->rc--;
     if (d->rc != 0) {
         return;
     }
     if (d->parent != NULL) {
-        dentry_free(d->parent);
+        dentry_release(d->parent);
     }
     kfree(d);
 }

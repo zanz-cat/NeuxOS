@@ -80,6 +80,5 @@ panic:
 
 void devfs_setup(void)
 {
-    return;
     devfs_mount();
 }
