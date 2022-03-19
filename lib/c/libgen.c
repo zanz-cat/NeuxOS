@@ -25,5 +25,5 @@ char *basename(char *path)
     if (i == -1) {
         return path;
     }
-    return path + i;
+    return path + i + 1;
 }

@@ -65,7 +65,7 @@ struct dentry *dentry_lookup(const char *pathname)
         errno = -EINVAL;
         return NULL;
     }
-    strncpy(buf, pathname, MAX_PATH_LEN);
+    strcpy(buf, pathname);
     s = buf;
     dname = strsep(&s, PATH_SEP);
     if (strcmp(rootfs.name, dname) != 0) {

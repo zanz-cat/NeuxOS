@@ -1,3 +1,6 @@
+#include <errno.h>
+#include <sys/stat.h>
+
 #include <include/syscall.h>
 
 #include "clock.h"
@@ -12,12 +15,12 @@ static void sys_exit(int status)
     task_term(current);
 }
 
-static int sys_write(int fd, const void *buf, size_t nbytes)
+static ssize_t sys_write(int fd, const void *buf, size_t nbytes)
 {
     return tty_write(current->tty, (char *)buf, nbytes);
 }
 
-static int sys_read(int fd, void *buf, size_t nbytes)
+static ssize_t sys_read(int fd, void *buf, size_t nbytes)
 {
     return tty_read(fd, buf, nbytes);
 }
@@ -27,9 +30,73 @@ static void sys_delay(int us)
     delay(us);
 }
 
+static int sys_open(const char *pathname, int flags)
+{
+    int i;
+    int fd = -1;
+
+    for (i = 0; i < NR_TASK_FILES; i++) {
+        if (current->files[i] == NULL) {
+            fd = i;
+            break;
+        }
+    }
+    if (fd == -1) {
+        return -1;
+    }
+    current->files[fd] = vfs_open(pathname, flags);
+    if (current->files[fd] == NULL) {
+        return -1;
+    }
+    return fd;
+}
+
+static int sys_close(int fd)
+{
+    if (current->files[fd] == NULL) {
+        return -1;
+    }
+    return vfs_close(current->files[fd]);
+}
+
+static ssize_t sys_getdents(struct sys_getdents_args *args)
+{
+    int i, ret;
+    ssize_t n;
+    struct file *f = NULL;
+
+    if (args->fd < 0 || args->fd >= NR_TASK_FILES) {
+        return -EINVAL;
+    }
+    f = current->files[args->fd];
+    if (f == NULL) {
+        return -ENOENT;
+    }
+    if (!(F_INO(f)->mode & __S_IFDIR)) {
+        return -ENOTDIR;
+    }
+
+    n = 0;
+    for (i = 0; i < (args->nbytes / sizeof(struct dirent)); i++) {
+        ret = vfs_readdir(f, (struct dirent *)args->buf + i);
+        if (ret == -EOF) {
+            return 0;
+        }
+        if (ret != 0) {
+            return ret;
+        }
+        n += sizeof(struct dirent);
+    }
+    *args->basep += (off_t)n;
+    return n;
+}
+
 void *syscall_handler_table[] = {
     [SYSCALL_EXIT] = sys_exit,
     [SYSCALL_READ] = sys_read,
     [SYSCALL_WRITE] = sys_write,
     [SYSCALL_DELAY] = sys_delay,
+    [SYSCALL_OPEN] = sys_open,
+    [SYSCALL_CLOSE] = sys_close,
+    [SYSCALL_GETDENTS] = sys_getdents,
 };

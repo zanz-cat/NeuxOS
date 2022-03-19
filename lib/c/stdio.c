@@ -286,3 +286,8 @@ int sprintf(char *buf, const char *fmt, ...)
     va_end(args);
     return len;
 }
+
+int putchar(int c)
+{
+    return write(0, &c, 1);
+}

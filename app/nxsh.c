@@ -11,15 +11,31 @@
 void cmd_proc(const char *cmd)
 {
     if (strcmp(cmd, "ls") == 0) {
-        printf("list dir\n");
-        int fd = open("/", 0);
-        off_t base;
-        char buf[BUF_SIZE];
+        int fd = open("/dev", 0);
+        off_t base = 0;
+        ssize_t ret;
+        struct dirent dent;
         if (fd < 0) {
             printf("No such file or directory\n");
             return;
         }
-        getdirentries(fd, buf, BUF_SIZE, &base);
+        while (1) {
+            ret = getdirentries(fd, (char *)&dent, sizeof(struct dirent), &base);
+            if (ret > 0) {
+                printf("%s  ", dent.d_name);
+                continue;
+            }
+            if (ret == 0) {
+                printf("\n");
+                return;
+            }
+            printf("getdirentries error=%d\n", ret);
+            return;
+        }
+        ret = close(fd);
+        if (ret != 0) {
+            printf("close error=%d\n", ret);
+        }
     } else if (strcmp(cmd, "exit") == 0) {
         exit(0);
     } else {

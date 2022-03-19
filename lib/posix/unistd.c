@@ -18,7 +18,7 @@ ssize_t write(int fd, const void *buf, size_t n)
         "int %4\n\t"
         :
         :"i"(SYSCALL_WRITE), "m"(fd), "p"(buf), "m"(n), "i"(IRQ_EX_SYSCALL)
-        :"%eax", "%ebx");
+        :"%eax", "%ebx", "%ecx", "%edx");
 }
 
 ssize_t read(int fd, void *buf, size_t n)
@@ -30,7 +30,7 @@ ssize_t read(int fd, void *buf, size_t n)
         "int %4\n\t"
         :
         :"i"(SYSCALL_READ), "m"(fd), "p"(buf), "m"(n), "i"(IRQ_EX_SYSCALL)
-        :"%eax", "%ebx");
+        :"%eax", "%ebx", "%ecx", "%edx");
 }
 
 int usleep(useconds_t useconds)

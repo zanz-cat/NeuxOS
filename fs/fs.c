@@ -36,14 +36,16 @@ struct mount *vfs_umount(const char *mountpoint)
 
 int vfs_mknod(const char *path)
 {
-    char copy[MAX_PATH_LEN] = {0};
+    char dname[MAX_PATH_LEN] = {0};
+    char fname[MAX_PATH_LEN] = {0};
     struct dentry dent;
 
-    strcpy(copy, path);
-    struct dentry *dir = dentry_lookup(dirname(copy));
+    strcpy(dname, path);
+    strcpy(fname, path);
+    struct dentry *dir = dentry_lookup(dirname(dname));
     if (dir == NULL) {
         return -ENOENT;
     }
-    strcpy(dent.name, basename(copy));
+    strcpy(dent.name, basename(fname));
     return dir->inode->ops->create(dir->inode, &dent, 0);
 }

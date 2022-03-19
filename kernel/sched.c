@@ -71,13 +71,13 @@ static void user_task_launcher(void)
         log_error("open file %s error: %d\n", current->exe, errno);
         task_term(current);
     }
-    char *buf = kmalloc(current->f_exe->dentry->inode->size);
+    char *buf = kmalloc(F_INO(current->f_exe)->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
         vfs_close(current->f_exe);
         task_term(current);
     }
-    int ret = vfs_read(current->f_exe, buf, current->f_exe->dentry->inode->size);
+    int ret = vfs_read(current->f_exe, buf, F_INO(current->f_exe)->size);
     vfs_close(current->f_exe);
     if (ret < 0) {
         log_error("read error: %d\n", ret);

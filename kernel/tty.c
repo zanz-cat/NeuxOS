@@ -129,7 +129,7 @@ static void tty_do_read(int fd)
     keyboard_read(tty_in_proc, fd);
 }
 
-int tty_write(int fd, char *buf, size_t n)
+ssize_t tty_write(int fd, char *buf, size_t n)
 {
     int i;
 
@@ -139,7 +139,7 @@ int tty_write(int fd, char *buf, size_t n)
     return i;
 }
 
-int tty_read(int fd, char *buf, size_t n)
+ssize_t tty_read(int fd, char *buf, size_t n)
 {
     int i, ret;
 

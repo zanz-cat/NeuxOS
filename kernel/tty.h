@@ -15,8 +15,8 @@ enum tty_op {
 
 void tty_setup();
 void tty_task();
-int tty_write(int fd, char *buf, size_t n);
-int tty_read(int fd, char *buf, size_t n);
+ssize_t tty_write(int fd, char *buf, size_t n);
+ssize_t tty_read(int fd, char *buf, size_t n);
 int tty_color(int fd, enum tty_op op, uint8_t *color);
 int tty_get_cur();
 

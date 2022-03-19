@@ -94,8 +94,13 @@ void *kmalloc(size_t size)
 void kfree(void *ptr)
 {
     uint32_t i;
-    struct heap_block *block = container_of(ptr, struct heap_block, data);
-
+    struct heap_block *block = NULL;
+    
+    if (ptr == NULL) {
+        return;
+    }
+    
+    block = container_of(ptr, struct heap_block, data);
     obtain_lock(&lock);
     for (i = (uint32_t)block & PAGE_MASK;
          i < ALIGN_CEIL(BLOCK_END(block), PAGE_SIZE);

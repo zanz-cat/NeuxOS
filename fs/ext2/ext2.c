@@ -212,7 +212,7 @@ static int block_iter_L3(struct block_iter *iter,
                          offset % (INO_CNT_PB * INO_CNT_PB), buf, count);
 }
 
-static int block_iter_next(struct block_iter *iter, void *buf, size_t count)
+static int block_read_iter(struct block_iter *iter, void *buf, size_t count)
 {
     int res;
 
@@ -256,7 +256,7 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
     }
 
     block_iter_init(&iter, &inode);
-    while (block_iter_next(&iter, buf, CONFIG_EXT2_BS) > 0) {
+    while (block_read_iter(&iter, buf, CONFIG_EXT2_BS) > 0) {
         dir_ent = (struct ext2_dir_entry *)buf;
         while ((void *)dir_ent < (void *)buf + CONFIG_EXT2_BS &&
             dir_ent->inode != 0 && strncmp(dir_ent->name, name, dir_ent->name_len) != 0) {
@@ -278,8 +278,8 @@ static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
     size_t offset = 0;
     struct block_iter iter;
 
-    block_iter_init(&iter, (struct ext2_inode *)f->dentry->inode->priv);
-    while ((ret = block_iter_next(&iter, buf + offset, count - offset)) > 0) {
+    block_iter_init(&iter, (struct ext2_inode *)F_INO(f)->priv);
+    while ((ret = block_read_iter(&iter, buf + offset, count - offset)) > 0) {
         offset += ret;
     }
     block_iter_destroy(&iter);
@@ -293,7 +293,26 @@ static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count)
 
 static int ext2_f_close(struct file *f)
 {
-    kfree(f->dentry->inode->priv);
+    kfree(F_INO(f)->priv);
+    return 0;
+}
+
+static int ext2_f_readdir(struct file *f, struct dirent *dent)
+{
+    struct ext2_dir_entry *ext2_dent = NULL;
+    
+    ext2_dent = f->buf + f->off;
+    dent->d_ino = ext2_dent->inode;
+    dent->d_off = 0;
+    dent->d_type = ext2_dent->file_type;
+    dent->d_reclen = ext2_dent->rec_len;
+    if (ext2_dent->name_len > MAX_PATH_LEN) {
+        return -EINVAL;
+    }
+    strncpy(dent->d_name, ext2_dent->name, ext2_dent->name_len);
+    dent->d_name[ext2_dent->name_len] = '\0';
+    f->off += ext2_dent->rec_len;
+
     return 0;
 }
 
@@ -327,6 +346,7 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
     }
 
     inode->ino = ino;
+    inode->mode = ext2_ino->mode;
     inode->size = ext2_ino->size;
     inode->ops = &ext2_inode_ops;
     inode->priv = ext2_ino;
@@ -339,10 +359,18 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
 
 void ext2_mount_rootfs(struct fs *fs)
 {
+    int ret;
     const char *err = NULL;
     struct mount *mnt = NULL;
-    struct ext2_inode inode;
-    int ret = read_inode(EXT2_INO_ROOT, &inode);
+    struct ext2_inode *ext2_inode = NULL;
+
+    ext2_inode = kmalloc(sizeof(struct ext2_inode));
+    if (ext2_inode == NULL) {
+        err = "no memory ext2_inode";
+        goto panic;
+    }
+
+    ret = read_inode(EXT2_INO_ROOT, ext2_inode);
     if (ret != 0) {
         err = "read root inode error";
         goto panic;
@@ -367,8 +395,10 @@ void ext2_mount_rootfs(struct fs *fs)
         goto panic;
     }
     mnt->dentry->inode->ino = EXT2_INO_ROOT;
-    mnt->dentry->inode->size = inode.size;
+    mnt->dentry->inode->mode = ext2_inode->mode;
+    mnt->dentry->inode->size = ext2_inode->size;
     mnt->dentry->inode->ops = &ext2_inode_ops;
+    mnt->dentry->inode->priv = ext2_inode;
     LIST_HEAD_INIT(&mnt->dentry->inode->dentry);
     LIST_ADD(&mnt->dentry->inode->dentry, &mnt->dentry->alias);
 
@@ -383,10 +413,12 @@ void ext2_mount_rootfs(struct fs *fs)
 panic:
     if (mnt != NULL) {
         if (mnt->dentry != NULL) {
-            kfree(mnt->dentry);
+            kfree(mnt->dentry->inode);
         }
-        kfree(mnt);
+        kfree(mnt->dentry);
     }
+    kfree(mnt);
+    kfree(ext2_inode);
     kernel_panic("err=%s, code=%d\n", err, ret);
 }
 
@@ -398,6 +430,7 @@ void ext2_setup(void)
         .ops = {},
         .f_ops = {
             .read = ext2_f_read,
+            .readdir = ext2_f_readdir,
             .write = ext2_f_write,
             .close = ext2_f_close,
         },

@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #include <drivers/keyboard.h>
 #include <drivers/harddisk.h>
@@ -130,14 +131,14 @@ static void open_a_txt()
         log_error("open file error: %d\n", errno);
         return;
     }
-    char *buf = kmalloc(f->dentry->inode->size);
+    char *buf = kmalloc(F_INO(f)->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
         vfs_close(f);
         return;
     }
-    int ret = vfs_read(f, buf, f->dentry->inode->size);
-    printk("a.txt size=%d, content=...%s\n", ret, buf + f->dentry->inode->size - 16);
+    int ret = vfs_read(f, buf, F_INO(f)->size);
+    printk("a.txt size=%d, content=...%s\n", ret, buf + F_INO(f)->size - 16);
     vfs_close(f);
 }
 void F4_handler(void)
