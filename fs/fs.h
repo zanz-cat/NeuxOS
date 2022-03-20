@@ -17,6 +17,7 @@ struct fs_ops {
 struct fs {
     char name[FS_NAME_LEN];
     struct fs_ops ops;
+    struct inode_ops i_ops;
     struct file_ops f_ops;
 };
 

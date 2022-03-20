@@ -1,7 +1,7 @@
 #include <stdbool.h>
 
 #include <config.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 #include <kernel/kernel.h>
 #include <kernel/lock.h>
 #include <kernel/memory.h>

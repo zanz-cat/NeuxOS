@@ -9,7 +9,7 @@
 #include <drivers/monitor.h>
 #include <mm/mm.h>
 #include <kernel/memory.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 #include <fs/ext2.h>
 
 #define HD_TIMEOUT 100000

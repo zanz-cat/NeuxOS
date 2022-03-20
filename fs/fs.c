@@ -7,18 +7,30 @@
 
 #include "fs.h"
 
+#define dent_accsr(d) ((d)->mnt == NULL ? (d) : ((d)->mnt->dentry))
+
 void vfs_setup(void)
 {
 }
 
 int vfs_mount(const char *mountpoint, struct mount *mount)
 {
-    struct dentry *d = dentry_lookup(mountpoint);
-    if (d == NULL) {
+    struct dentry *dent = dentry_lookup(mountpoint);
+    if (dent == NULL) {
         return -ENOENT;
     }
-    mount->dentry->parent = d;
-    d->mnt = mount;
+
+    if (dent->mnt != NULL) {
+        LIST_DEL(&dent->mnt->dentry->child); // delete from parent's subdirs
+        dentry_release(dent->mnt->dentry);
+    }
+
+    dent->mnt = mount;
+    mount->dentry->parent = dentry_obtain(dent);
+    if (dent->parent != NULL) {
+        LIST_ADD(&dent->parent->subdirs, &dentry_obtain(mount->dentry)->child);
+    }
+
     return 0;
 }
 
@@ -29,9 +41,11 @@ struct mount *vfs_umount(const char *mountpoint)
         errno = -ENOENT;
         return NULL;
     }
-    struct mount *res = target->mnt;
+    struct mount *mnt = target->mnt;
     target->mnt = NULL;
-    return res;
+    dentry_release(mnt->dentry);
+    dentry_release(mnt->dentry->parent);
+    return mnt;
 }
 
 int vfs_mknod(const char *path)
@@ -47,5 +61,5 @@ int vfs_mknod(const char *path)
         return -ENOENT;
     }
     strcpy(dent.name, basename(fname));
-    return dir->inode->ops->create(dir->inode, &dent, 0);
+    return dent_accsr(dir)->inode->ops->create(dent_accsr(dir)->inode, &dent, 0);
 }

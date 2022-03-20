@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <misc/misc.h>
+#include <lib/misc.h>
 
 #define PRINTF_BUF_SIZE 1024
 

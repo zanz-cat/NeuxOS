@@ -1,7 +1,7 @@
 #ifndef __LIB_LIST_H__
 #define __LIB_LIST_H__
 
-#include <misc/misc.h>
+#include <lib/misc.h>
 
 struct list_head {
     struct list_head *prev;

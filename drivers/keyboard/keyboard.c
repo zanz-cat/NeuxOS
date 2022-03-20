@@ -96,7 +96,7 @@ void keyboard_read(void (*handler)(int, uint16_t), int fd)
         uint8_t pausebrk_scode[] = {0xe1, 0x1d, 0x45,
                                 0xe1, 0x9d, 0xc5};
         int is_pausebrk = 1;
-        for (int i = 1; i<6; i++) {
+        for (int i = 1; i < 6; i++) {
             if (get_byte_from_kbuf() != pausebrk_scode[i]) {
                 is_pausebrk = 0;
                 break;

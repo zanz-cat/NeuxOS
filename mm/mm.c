@@ -3,8 +3,8 @@
 #include <string.h>
 
 #include <config.h>
-#include <misc/misc.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
+#include <lib/misc.h>
 #include <kernel/log.h>
 #include <kernel/kernel.h>
 #include <kernel/printk.h>
@@ -123,9 +123,9 @@ error:
            "> eip: %p\n"
            "> cr2: %p\n"
            "> r/w: %s\n"
-           "> user: %d\n\n",
+           "> user: %s\n\n",
            reason, current->pid, current->exe, 
-           eflags, cs, eip, cr2, write ? "w" : "r", user);
+           eflags, cs, eip, cr2, write ? "w" : "r", user ? "1" : "0");
 
     task_term(current);
     task_sched();
@@ -134,7 +134,7 @@ error:
 
 void mm_setup(void)
 {
-    log_info("setup memory management\n");
+    log_info("setup memory\n");
     log_info("page size %u bytes\n", PAGE_SIZE);
     init_page();
     init_heap();

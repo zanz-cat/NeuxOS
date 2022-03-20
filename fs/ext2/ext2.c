@@ -9,7 +9,7 @@
 #include <mm/kmalloc.h>
 #include <drivers/harddisk.h>
 #include <lib/list.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 #include <fs/fs.h>
 
 #include "ext2.h"
@@ -34,7 +34,28 @@ static struct ext2_block_group *b_groups;
 static uint32_t groups_count;
 static uint32_t inodes_per_block = CONFIG_EXT2_BS/sizeof(struct ext2_inode);
 static LIST_HEAD(inode_cache);
-static struct inode_ops ext2_inode_ops;
+
+static int ext2_i_create(struct inode *dir, struct dentry *dentry, int mode);
+static int ext2_i_lookup(struct inode *dir, struct dentry *dentry);
+static ssize_t ext2_f_read(struct file *f, void *buf, size_t count);
+static int ext2_f_readdir(struct file *f, struct dirent *dent);
+static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count);
+static int ext2_f_close(struct file *f);
+
+static struct fs ext2_fs = {
+    .name = "ext2",
+    .ops = {},
+    .i_ops = {
+        .create = ext2_i_create,
+        .lookup = ext2_i_lookup,
+    },
+    .f_ops = {
+        .read = ext2_f_read,
+        .readdir = ext2_f_readdir,
+        .write = ext2_f_write,
+        .close = ext2_f_close,
+    },
+};
 
 static inline int read_block(uint32_t block, uint32_t count, void *buf, size_t size)
 {
@@ -299,8 +320,23 @@ static int ext2_f_close(struct file *f)
 
 static int ext2_f_readdir(struct file *f, struct dirent *dent)
 {
-    struct ext2_dir_entry *ext2_dent = NULL;
+    int ret;
+    struct ext2_dir_entry *ext2_dent;
     
+    if (f->buf == NULL) {
+        f->buf = kmalloc(F_INO(f)->size);
+        if (f->buf == NULL) {
+            return -ENOMEM;
+        }
+        ret = ext2_f_read(f, f->buf, F_INO(f)->size);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    if (f->off >= F_INO(f)->size) {
+        return -EOF;
+    }
+
     ext2_dent = f->buf + f->off;
     dent->d_ino = ext2_dent->inode;
     dent->d_off = 0;
@@ -316,12 +352,12 @@ static int ext2_f_readdir(struct file *f, struct dirent *dent)
     return 0;
 }
 
-int ext2_inode_create(struct inode *dir, struct dentry *dentry, int mode)
+static int ext2_i_create(struct inode *dir, struct dentry *dentry, int mode)
 {
     return 0;
 }
 
-static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
+static int ext2_i_lookup(struct inode *dir, struct dentry *dentry)
 {
     uint32_t ino = search_in_dir(dir->ino, dentry->name);
     if (ino == 0) {
@@ -348,7 +384,7 @@ static int ext2_inode_lookup(struct inode *dir, struct dentry *dentry)
     inode->ino = ino;
     inode->mode = ext2_ino->mode;
     inode->size = ext2_ino->size;
-    inode->ops = &ext2_inode_ops;
+    inode->ops = &ext2_fs.i_ops;
     inode->priv = ext2_ino;
     inode->dentry.prev = &inode->dentry;
     inode->dentry.next = &inode->dentry;
@@ -397,7 +433,7 @@ void ext2_mount_rootfs(struct fs *fs)
     mnt->dentry->inode->ino = EXT2_INO_ROOT;
     mnt->dentry->inode->mode = ext2_inode->mode;
     mnt->dentry->inode->size = ext2_inode->size;
-    mnt->dentry->inode->ops = &ext2_inode_ops;
+    mnt->dentry->inode->ops = &fs->i_ops;
     mnt->dentry->inode->priv = ext2_inode;
     LIST_HEAD_INIT(&mnt->dentry->inode->dentry);
     LIST_ADD(&mnt->dentry->inode->dentry, &mnt->dentry->alias);
@@ -425,16 +461,6 @@ panic:
 void ext2_setup(void)
 {
     int ret;
-    static struct fs ext2_fs = {
-        .name = "EXT2",
-        .ops = {},
-        .f_ops = {
-            .read = ext2_f_read,
-            .readdir = ext2_f_readdir,
-            .write = ext2_f_write,
-            .close = ext2_f_close,
-        },
-    };
 
     log_info("setup ext2 fs\n");
     ret = read_s_block();
@@ -449,8 +475,3 @@ void ext2_setup(void)
 
     ext2_mount_rootfs(&ext2_fs);
 }
-
-static struct inode_ops ext2_inode_ops = {
-    .create = ext2_inode_create,
-    .lookup = ext2_inode_lookup,
-};

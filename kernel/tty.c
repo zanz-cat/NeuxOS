@@ -204,7 +204,7 @@ static void tty_mknod(void)
         if (ret != 0) {
             kernel_panic("mknod %s error=%d\n", path, ret);
         }
-        path[sizeof(path) - 2]++;
+        path[strlen(path) - 1]++;
     }
 }
 

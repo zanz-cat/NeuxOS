@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <misc/misc.h>
+#include <lib/misc.h>
 #include <syscall.h>
 
 #include <unistd.h>

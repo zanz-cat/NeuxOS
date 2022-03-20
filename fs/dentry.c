@@ -18,14 +18,10 @@ static struct dentry rootfs = {
     .subdirs = { .prev = &rootfs.subdirs, .next = &rootfs.subdirs },
 };
 
-static inline struct dentry *dentry_obtain(struct dentry *d)
-{
-    d->rc++;
-    return d;
-}
-
 static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 {
+    struct list_head *child;
+
     if (dir->mnt != NULL) {
         return __dentry_lookup(dir->mnt->dentry, token);
     }
@@ -35,6 +31,13 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
         return dir;
     }
 
+    LIST_FOREACH(&dir->subdirs, child) {
+        struct dentry *d = container_of(child, struct dentry, child);
+        if (strcmp(d->name, dname) == 0) {
+            return dentry_obtain(d);
+        }
+    }
+
     struct dentry *dentry = kmalloc(sizeof(struct dentry));
     if (dentry == NULL) {
         errno = -ENOMEM;
@@ -42,10 +45,6 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
     }
     dentry_init(dentry);
     strncpy(dentry->name, dname, DNAME_MAX_LEN);
-    dentry->rc = 1;
-    dentry->inode = NULL;
-    dentry->mnt = NULL;
-    dentry->parent = dentry_obtain(dir);
 
     int ret = dir->inode->ops->lookup(dir->inode, dentry);
     if (ret != 0) {
@@ -53,6 +52,11 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
         errno = -ENOENT;
         return NULL;
     }
+
+    dentry->mnt = dir->mnt;
+    dentry->parent = dentry_obtain(dir);
+    LIST_ADD(&dir->subdirs, &dentry_obtain(dentry)->child);
+
     return __dentry_lookup(dentry, token);
 }
 
@@ -77,19 +81,21 @@ struct dentry *dentry_lookup(const char *pathname)
 
 void dentry_release(struct dentry *d)
 {
+    if (d == NULL) {
+        return;
+    }
+
     d->rc--;
     if (d->rc != 0) {
         return;
     }
-    if (d->parent != NULL) {
-        dentry_release(d->parent);
-    }
+    dentry_release(d->parent);
     kfree(d);
 }
 
 void dentry_init(struct dentry *d)
 {
-    d->rc = 0;
+    d->rc = 1;
     d->inode = NULL;
     d->parent = NULL;
     d->mnt = NULL;

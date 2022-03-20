@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include <misc/misc.h>
+#include <lib/misc.h>
 #include <config.h>
 #include <fs/ext2.h>
 #include <kernel/clock.h>

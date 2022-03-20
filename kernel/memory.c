@@ -1,7 +1,7 @@
 #include <stddef.h>
 
 #include <arch/x86.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 
 #include "memory.h"
 

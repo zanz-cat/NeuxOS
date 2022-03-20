@@ -12,7 +12,7 @@
 #include <mm/kmalloc.h>
 #include <drivers/io.h>
 #include <lib/list.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 
 #include "harddisk.h"
 

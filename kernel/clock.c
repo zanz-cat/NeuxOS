@@ -2,7 +2,7 @@
 
 #include <drivers/io.h>
 #include <drivers/i8259a.h>
-#include <misc/misc.h>
+#include <lib/misc.h>
 
 #include "log.h"
 #include "sched.h"
