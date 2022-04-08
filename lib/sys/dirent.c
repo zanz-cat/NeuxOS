@@ -1,13 +1,12 @@
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include <syscall.h>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-
 ssize_t getdirentries(int fd, char *buf, size_t nbytes, off_t *basep)
 {
+    ssize_t ret = 0;
     struct sys_getdents_args args = {
         .fd = fd,
         .buf = buf,
@@ -15,12 +14,15 @@ ssize_t getdirentries(int fd, char *buf, size_t nbytes, off_t *basep)
         .basep = basep,
     };
 
-    asm("movl %0, %%eax\n\t"
-        "movl %1, %%ebx\n\t"
-        "int %2\n\t"
-        :
+    asm("movl %1, %%eax\n\t"
+        "movl %2, %%ebx\n\t"
+        "int %3\n\t"
+        :"+a"(ret)
         :"i"(SYSCALL_GETDENTS), "p"(&args), "i"(IRQ_EX_SYSCALL)
-        :"%eax", "%ebx");
+        :"%ebx");
+    if (ret < 0) {
+        errno = ret;
+        return -1;
+    }
+    return ret;
 }
-
-#pragma GCC diagnostic pop

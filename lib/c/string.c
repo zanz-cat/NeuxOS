@@ -1,6 +1,8 @@
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "lib/misc.h"
 
-#include <errno.h>
 #include <string.h>
 
 size_t strlen(const char *s)
@@ -137,16 +139,19 @@ char *strsep(char **sp, const char *delim)
 
 char *strerror(int errnum)
 {
-    int i = errnum < 0 ? (-errnum) : errnum;
     static char *errmsg[] = {
         [EPERM] = "Operation not permitted",
         [ENOENT] = "No such file or directory",
         [EINVAL] = "Invalid argument",
         [ENOTSUP] = "Operation not supported",
     };
+    static char unknown[16]; 
 
-    if (i < arraylen(errmsg)) {
+    int i = abs(errnum);
+    if (i < arraylen(errmsg) && errmsg[i] != NULL) {
         return errmsg[i];
     }
-    return NULL;
+    
+    sprintf(unknown, "errno=%d", -i);
+    return unknown;
 }

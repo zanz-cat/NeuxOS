@@ -380,7 +380,7 @@ static int ext2_i_lookup(struct inode *dir, struct dentry *dentry)
         kfree(ext2_ino);
         return -ENOMEM;
     }
-
+                                                                                                                    
     inode->ino = ino;
     inode->mode = ext2_ino->mode;
     inode->size = ext2_ino->size;

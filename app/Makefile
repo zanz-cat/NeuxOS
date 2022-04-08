@@ -12,8 +12,8 @@ all: $(BINS)
 
 $(BINS): %:%.c
 	test -d bin || mkdir bin
-	$(CC) $(CFLAGS) -o bin/$@ $^ ../lib/c/libc.a ../lib/posix/libposix.a \
-	../lib/neuxos/libneuxos.a
+	$(CC) $(CFLAGS) -o bin/$@ $^ ../lib/posix/libposix.a \
+	../lib/sys/libsys.a ../lib/c/libc.a
 
 clean:
 	rm -f $(BINS)

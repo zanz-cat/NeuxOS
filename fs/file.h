@@ -5,11 +5,13 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 
 struct file_ops;
 
 struct file {
     volatile uint16_t rc;
+    mode_t f_mode;
     off_t off;
     struct dentry *dentry;
     struct file_ops *ops;

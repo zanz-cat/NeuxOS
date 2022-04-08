@@ -73,7 +73,6 @@ static int devfs_i_create(struct inode *dir, struct dentry *dent, int mode)
 
 static int devfs_i_lookup(struct inode *dir, struct dentry *dent)
 {
-    int i;
     struct list_head *node;
     struct dev_inode *dinode;
 

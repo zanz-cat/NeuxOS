@@ -21,6 +21,7 @@ static struct dentry rootfs = {
 static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 {
     struct list_head *child;
+    struct dentry *dent;
 
     if (dir->mnt != NULL) {
         return __dentry_lookup(dir->mnt->dentry, token);
@@ -34,30 +35,32 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
     LIST_FOREACH(&dir->subdirs, child) {
         struct dentry *d = container_of(child, struct dentry, child);
         if (strcmp(d->name, dname) == 0) {
-            return dentry_obtain(d);
+            dent = dentry_obtain(d);
+            goto lookup_subdir;
         }
     }
 
-    struct dentry *dentry = kmalloc(sizeof(struct dentry));
-    if (dentry == NULL) {
+    dent = kmalloc(sizeof(struct dentry));
+    if (dent == NULL) {
         errno = -ENOMEM;
         return NULL;
     }
-    dentry_init(dentry);
-    strncpy(dentry->name, dname, DNAME_MAX_LEN);
+    dentry_init(dent);
+    strncpy(dent->name, dname, DNAME_MAX_LEN);
 
-    int ret = dir->inode->ops->lookup(dir->inode, dentry);
+    int ret = dir->inode->ops->lookup(dir->inode, dent);
     if (ret != 0) {
-        dentry_release(dentry);
+        dentry_release(dent);
         errno = -ENOENT;
         return NULL;
     }
 
-    dentry->mnt = dir->mnt;
-    dentry->parent = dentry_obtain(dir);
-    LIST_ADD(&dir->subdirs, &dentry_obtain(dentry)->child);
+    dent->mnt = dir->mnt;
+    dent->parent = dentry_obtain(dir);
+    LIST_ADD(&dir->subdirs, &dentry_obtain(dent)->child);
 
-    return __dentry_lookup(dentry, token);
+lookup_subdir:
+    return __dentry_lookup(dent, token);
 }
 
 struct dentry *dentry_lookup(const char *pathname)

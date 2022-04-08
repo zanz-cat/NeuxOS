@@ -18,7 +18,7 @@ irq_ex_syscall:
     call [syscall_handler_table + 4*eax] ; sizeof(void *) == 4
     add esp, 4*3 ; free arguments
 
-    mov [esp+4*11], eax ; return value
+    mov [esp+4*11], eax ; modify eax in memory saved by pusha as return value
 
     RESTORE_STATE
     iret

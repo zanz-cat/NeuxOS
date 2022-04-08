@@ -1,18 +1,22 @@
-#include <fcntl.h>
+#include <errno.h>
 #include <syscall.h>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
+#include <fcntl.h>
 
 int open(const char *pathname, int flags, ...)
 {
-    asm("movl %0, %%eax\n\t"
-        "movl %1, %%ebx\n\t"
-        "movl %2, %%ecx\n\t"
-        "int %3\n\t"
-        :
-        :"i"(SYSCALL_OPEN), "p"(pathname), "m"(flags), "i"(IRQ_EX_SYSCALL)
-        :"%eax", "%ebx", "%ecx");
-}
+    int ret = 0;
 
-#pragma GCC diagnostic pop
+    asm("movl %1, %%eax\n\t"
+        "movl %2, %%ebx\n\t"
+        "movl %3, %%ecx\n\t"
+        "int %4\n\t"
+        :"+a"(ret)
+        :"i"(SYSCALL_OPEN), "p"(pathname), "m"(flags), "i"(IRQ_EX_SYSCALL)
+        :"%ebx", "%ecx");
+    if (ret < 0) {
+        errno = ret;
+        return -1;
+    }
+    return ret;
+}

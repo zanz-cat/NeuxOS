@@ -12,6 +12,8 @@
 #define SYSCALL_OPEN 4
 #define SYSCALL_CLOSE 5
 #define SYSCALL_GETDENTS 6
+#define SYSCALL_STAT 7
+#define SYSCALL_ACCESS 8
 
 struct sys_getdents_args {
     int fd;

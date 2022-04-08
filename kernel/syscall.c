@@ -42,21 +42,27 @@ static int sys_open(const char *pathname, int flags)
         }
     }
     if (fd == -1) {
-        return -1;
+        return -EMFILE;
     }
     current->files[fd] = vfs_open(pathname, flags);
     if (current->files[fd] == NULL) {
-        return -1;
+        return errno;
     }
     return fd;
 }
 
 static int sys_close(int fd)
 {
+    int ret;
+
     if (current->files[fd] == NULL) {
         return -1;
     }
-    return vfs_close(current->files[fd]);
+    ret = vfs_close(current->files[fd]);
+    if (ret == 0) {
+        current->files[fd] = NULL;
+    }
+    return ret;
 }
 
 static ssize_t sys_getdents(struct sys_getdents_args *args)
@@ -91,6 +97,16 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
     return n;
 }
 
+static int sys_stat(int fd, struct stat *st)
+{
+    return 0;
+}
+
+static int sys_access(int fd)
+{
+    return 0;
+}
+
 void *syscall_handler_table[] = {
     [SYSCALL_EXIT] = sys_exit,
     [SYSCALL_READ] = sys_read,
@@ -99,4 +115,6 @@ void *syscall_handler_table[] = {
     [SYSCALL_OPEN] = sys_open,
     [SYSCALL_CLOSE] = sys_close,
     [SYSCALL_GETDENTS] = sys_getdents,
+    [SYSCALL_STAT] = sys_stat,
+    [SYSCALL_ACCESS] = sys_access,
 };

@@ -4,7 +4,7 @@ include ../../common.mk
 
 CFLAGS += -I$(ROOTDIR)/include
 
-all: libneuxos.a
+all: libsys.a
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $^
@@ -12,8 +12,8 @@ $(OBJS): %.o:%.c
 $(ASMOBJS): %_S.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
-libneuxos.a: $(ASMOBJS) $(OBJS)
+libsys.a: $(ASMOBJS) $(OBJS)
 	ar cr $@ $^
 
 clean:
-	rm -f $(ASMOBJS) $(OBJS) libneuxos.a
+	rm -f $(ASMOBJS) $(OBJS) libsys.a
