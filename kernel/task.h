@@ -37,6 +37,8 @@ struct task {
     char exe[MAX_PATH_LEN];
     struct file *f_exe;
     struct tss tss;
+    void *stack0;
+    void *stack3;
     uint32_t delay; // us
     struct file *files[NR_TASK_FILES];
     struct list_head list;

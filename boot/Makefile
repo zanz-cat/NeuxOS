@@ -1,4 +1,4 @@
-include ../common.mk
+include ../vars.mk
 include ../.config
 
 EXCLUDEDIRS:=

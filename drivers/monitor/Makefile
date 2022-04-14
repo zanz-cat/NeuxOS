@@ -1,6 +1,6 @@
 CURDIR:=$(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 OUTDIR?=$(CURDIR)
-include ../../common.mk
+include ../../vars.mk
 OBJS:=$(patsubst %.c,$(OUTDIR)/%.o, $(SOURCE))
 
 .PHONY: all

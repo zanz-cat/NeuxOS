@@ -1,6 +1,6 @@
 export EXTRA_CFLAGS=-DNO_PAGE
 CURDIR:=$(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-include ../../common.mk
+include ../../vars.mk
 include ../../.config
 
 .PHONY: all clean

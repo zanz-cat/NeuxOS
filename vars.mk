@@ -20,8 +20,10 @@ LIBDIR:=$(ROOTDIR)/lib
 DRIVERSDIR:=$(ROOTDIR)/drivers
 FSDIR:=$(ROOTDIR)/fs
 MMDIR:=$(ROOTDIR)/mm
+ARCHDIR:=$(ROOTDIR)/arch
 
 LIBOBJS:=$(wildcard $(LIBDIR)/*.o) $(LIBDIR)/c/libc.a $(LIBDIR)/posix/libposix.a
 DRIVEROBJS:=$(wildcard $(DRIVERSDIR)/*.o) $(wildcard $(DRIVERSDIR)/*/*.o)
 FSOBJS:=$(wildcard $(FSDIR)/*.o) $(wildcard $(FSDIR)/*/*.o)
 MMOBJS:=$(wildcard $(MMDIR)/*.o) $(wildcard $(MMDIR)/*/*.o)
+ARCHOBJS:=$(wildcard $(ARCHDIR)/*.o) $(wildcard $(ARCHDIR)/*/*.o)

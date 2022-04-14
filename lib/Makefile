@@ -1,4 +1,4 @@
-include ../common.mk
+include ../vars.mk
 
 EXCLUDEDIRS:=
 SUBDIRS:=$(shell find . -maxdepth 1 -type d)

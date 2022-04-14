@@ -1,5 +1,5 @@
-include common.mk
-SUBDIRS:=lib drivers boot fs mm kernel app
+include vars.mk
+SUBDIRS:=lib arch drivers boot fs mm kernel app
 CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 MOUNTPOINT:=$(ROOTDIR)/rootfs
 SUDO:=sudo

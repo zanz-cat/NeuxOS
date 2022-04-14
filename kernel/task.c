@@ -21,6 +21,8 @@ static int init_kernel_task(struct task *task, void *text)
     }
     memset(s0, 0, STACK0_SIZE);
 
+    task->stack0 = PTR_ADD(s0, STACK0_SIZE);
+
     /* init TSS */
     task->tss.prev = 0;
     task->tss.esp0 = (uint32_t)PTR_ADD(s0, STACK0_SIZE);
@@ -68,6 +70,8 @@ static int init_user_task(struct task *task)
         return -ENOMEM;
     }
     memset(s0, 0, STACK0_SIZE);
+
+    task->stack0 = PTR_ADD(s0, STACK0_SIZE);
 
     /* init TSS */
     task->tss.prev = 0;
