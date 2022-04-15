@@ -24,9 +24,8 @@ struct inode_ops {
     void (*release)(struct inode *inode);
 };
 
-static inline inode_init(struct inode *inode,
-            unsigned long ino, uint16_t mode,
-            size_t size, struct inode_ops *ops)
+static inline void inode_init(struct inode *inode, unsigned long ino,
+                              uint16_t mode, size_t size, struct inode_ops *ops)
 {
     LIST_HEAD_INIT(&inode->dent);
     inode->ino = ino;

@@ -109,7 +109,7 @@ static const char *map_page(uint32_t cr2)
 void page_fault_handler(uint32_t err_code, uint32_t eip, uint32_t cs, uint32_t eflags)
 {
     int ret;
-    uint32_t cr2, cr3, page, tpage, i;
+    uint32_t cr2;
     const char *reason;
     bool write, user;
     void *buf[MAX_BACKTRACE_SIZE];
