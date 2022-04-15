@@ -23,7 +23,8 @@ struct fs {
 
 struct mount {
     struct fs *fs;
-    struct dentry *dentry;
+    struct dentry *dent;
+    struct mount *override;
 };
 
 void vfs_setup(void);

@@ -24,7 +24,7 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
     struct dentry *dent;
 
     if (dir->mnt != NULL) {
-        return __dentry_lookup(dir->mnt->dentry, token);
+        return __dentry_lookup(dir->mnt->dent, token);
     }
 
     char *dname = strsep(token, PATH_SEP);

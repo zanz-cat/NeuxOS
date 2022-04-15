@@ -7,7 +7,7 @@
 
 #include "fs.h"
 
-#define dent_accsr(d) ((d)->mnt == NULL ? (d) : ((d)->mnt->dentry))
+#define dent_accsr(d) ((d)->mnt == NULL ? (d) : ((d)->mnt->dent))
 
 void vfs_setup(void)
 {
@@ -15,36 +15,37 @@ void vfs_setup(void)
 
 int vfs_mount(const char *mountpoint, struct mount *mount)
 {
-    struct dentry *dent = dentry_lookup(mountpoint);
-    if (dent == NULL) {
+    struct dentry *mp = dentry_lookup(mountpoint);
+    if (mp == NULL) {
         return -ENOENT;
     }
 
-    if (dent->mnt != NULL) {
-        LIST_DEL(&dent->mnt->dentry->child); // delete from parent's subdirs
-        dentry_release(dent->mnt->dentry);
+    if (mp->mnt != NULL) {
+        LIST_DEL(&mp->mnt->dent->child); // delete from parent's subdirs
+        mount->override = mp->mnt;
     }
 
-    dent->mnt = mount;
-    mount->dentry->parent = dentry_obtain(dent);
-    if (dent->parent != NULL) {
-        LIST_ADD(&dent->parent->subdirs, &dentry_obtain(mount->dentry)->child);
+    mp->mnt = mount;
+    mount->dent->parent = dentry_obtain(mp);
+    if (mp->parent != NULL) {
+        LIST_ADD(&mp->parent->subdirs, &dentry_obtain(mount->dent)->child);
     }
+    strcpy(mount->dent->name, mp->name);
 
     return 0;
 }
 
 struct mount *vfs_umount(const char *mountpoint)
 {
-    struct dentry *target = dentry_lookup(mountpoint);
-    if (target == NULL) {
+    struct dentry *mp = dentry_lookup(mountpoint);
+    if (mp == NULL) {
         errno = -ENOENT;
         return NULL;
     }
-    struct mount *mnt = target->mnt;
-    target->mnt = NULL;
-    dentry_release(mnt->dentry);
-    dentry_release(mnt->dentry->parent);
+    struct mount *mnt = mp->mnt;
+    mp->mnt = mnt->override;
+    dentry_release(mnt->dent);
+    dentry_release(mnt->dent->parent);
     return mnt;
 }
 

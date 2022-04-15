@@ -78,7 +78,7 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
     if (f == NULL) {
         return -ENOENT;
     }
-    if (!(F_INO(f)->mode & __S_IFDIR)) {
+    if (!(F_INO(f)->mode & S_IFDIR)) {
         return -ENOTDIR;
     }
 

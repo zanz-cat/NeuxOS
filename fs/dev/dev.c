@@ -145,23 +145,21 @@ static void devfs_mount(void)
         goto panic;
     }
     mnt->fs = &devfs;
-    mnt->dentry = kmalloc(sizeof(struct dentry));
-    if (mnt->dentry == NULL) {
+    mnt->override = NULL;
+    mnt->dent = kmalloc(sizeof(struct dentry));
+    if (mnt->dent == NULL) {
         err = "no memory for devfs dentry";
         goto panic;
     }
-    dentry_init(mnt->dentry);
-    mnt->dentry->rc = 1;
-    mnt->dentry->inode = kmalloc(sizeof(struct inode));
-    if (mnt->dentry->inode == NULL) {
+    dentry_init(mnt->dent);
+    mnt->dent->rc = 1;
+    mnt->dent->inode = kmalloc(sizeof(struct inode));
+    if (mnt->dent->inode == NULL) {
         err = "no memory for devfs inode";
         goto panic;
     }
-    mnt->dentry->inode->ino = 0;
-    mnt->dentry->inode->size = 0;
-    mnt->dentry->inode->ops = &devfs.i_ops;
-    LIST_HEAD_INIT(&mnt->dentry->inode->dentry);
-    LIST_ADD(&mnt->dentry->inode->dentry, &mnt->dentry->alias);
+    inode_init(mnt->dent->inode, 0, S_IFDIR, 0, &devfs.i_ops);
+    LIST_ADD(&mnt->dent->inode->dent, &mnt->dent->alias);
 
     ret = vfs_mount("/dev", mnt);
     if (ret != 0) {
@@ -173,8 +171,8 @@ static void devfs_mount(void)
 
 panic:
     if (mnt != NULL) {
-        if (mnt->dentry != NULL) {
-            kfree(mnt->dentry);
+        if (mnt->dent != NULL) {
+            kfree(mnt->dent);
         }
         kfree(mnt);
     }

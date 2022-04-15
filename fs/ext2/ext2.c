@@ -389,9 +389,9 @@ static int ext2_i_lookup(struct inode *dir, struct dentry *dent)
     inode->size = ext2_ino->size;
     inode->ops = &ext2_fs.i_ops;
     inode->priv = ext2_ino;
-    inode->dentry.prev = &inode->dentry;
-    inode->dentry.next = &inode->dentry;
-    LIST_ADD(&inode->dentry, &dent->alias);
+    inode->dent.prev = &inode->dent;
+    inode->dent.next = &inode->dent;
+    LIST_ADD(&inode->dent, &dent->alias);
     dent->inode = inode;
     return 0;
 }
@@ -427,25 +427,22 @@ void ext2_mount_rootfs(struct fs *fs)
         goto panic;
     }
     mnt->fs = fs;
-    mnt->dentry = kmalloc(sizeof(struct dentry));
-    if (mnt->dentry == NULL) {
+    mnt->dent = kmalloc(sizeof(struct dentry));
+    if (mnt->dent == NULL) {
         err = "no memory for root dentry";
         goto panic;
     }
-    dentry_init(mnt->dentry);
-    mnt->dentry->rc = 1;
-    mnt->dentry->inode = kmalloc(sizeof(struct inode));
-    if (mnt->dentry->inode == NULL) {
+    dentry_init(mnt->dent);
+    mnt->dent->rc = 1;
+    mnt->dent->inode = kmalloc(sizeof(struct inode));
+    if (mnt->dent->inode == NULL) {
         err = "no memory for root inode";
         goto panic;
     }
-    mnt->dentry->inode->ino = EXT2_INO_ROOT;
-    mnt->dentry->inode->mode = ext2_inode->mode;
-    mnt->dentry->inode->size = ext2_inode->size;
-    mnt->dentry->inode->ops = &fs->i_ops;
-    mnt->dentry->inode->priv = ext2_inode;
-    LIST_HEAD_INIT(&mnt->dentry->inode->dentry);
-    LIST_ADD(&mnt->dentry->inode->dentry, &mnt->dentry->alias);
+    inode_init(mnt->dent->inode, EXT2_INO_ROOT, ext2_inode->mode,
+               ext2_inode->size, &fs->i_ops);
+    mnt->dent->inode->priv = ext2_inode;
+    LIST_ADD(&mnt->dent->inode->dent, &mnt->dent->alias);
 
     ret = vfs_mount("/", mnt);
     if (ret != 0) {
@@ -457,10 +454,10 @@ void ext2_mount_rootfs(struct fs *fs)
 
 panic:
     if (mnt != NULL) {
-        if (mnt->dentry != NULL) {
-            kfree(mnt->dentry->inode);
+        if (mnt->dent != NULL) {
+            kfree(mnt->dent->inode);
         }
-        kfree(mnt->dentry);
+        kfree(mnt->dent);
     }
     kfree(mnt);
     kfree(ext2_inode);
