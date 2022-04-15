@@ -21,7 +21,7 @@ struct heap_block {
 #define IN_SAME_PAGE(a1,a2) (((uint32_t)(a1) & PAGE_MASK) == ((uint32_t)(a2) & PAGE_MASK))
 
 static struct heap_block *heap;
-static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
+static struct simplock lock = SIMPLOCK_INITIALIZER;
 
 static void *search_interspace(const struct heap_block *block, size_t size, size_t align)
 {
@@ -61,12 +61,12 @@ void *kmemalign(size_t alignment, size_t size)
         return NULL;
     }
 
-    obtain_lock(&lock);
+    simplock_obtain(&lock);
     for (block = heap; (new_block = search_interspace(block, size, alignment)) == NULL &&
          block->next != heap; block = block->next);
  
     if (new_block == NULL) {
-        release_lock(&lock);
+        simplock_release(&lock);
         return NULL;
     }
 
@@ -81,7 +81,7 @@ void *kmemalign(size_t alignment, size_t size)
          i += PAGE_SIZE) {
         alloc_page_x(phy_addr(i));
     }
-    release_lock(&lock);
+    simplock_release(&lock);
 
     return (void *)new_block->data;
 }
@@ -101,7 +101,7 @@ void kfree(void *ptr)
     }
     
     block = container_of(ptr, struct heap_block, data);
-    obtain_lock(&lock);
+    simplock_obtain(&lock);
     for (i = (uint32_t)block & PAGE_MASK;
          i < ALIGN_CEIL(BLOCK_END(block), PAGE_SIZE);
          i += PAGE_SIZE) {
@@ -111,7 +111,7 @@ void kfree(void *ptr)
     block->next->prev = block->prev;
     block->prev = NULL;
     block->next = NULL;
-    release_lock(&lock);
+    simplock_release(&lock);
 }
 
 void init_heap(void)

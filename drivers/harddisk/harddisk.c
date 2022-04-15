@@ -19,7 +19,7 @@
 #define HD_TIMEOUT 10000
 
 static LIST_HEAD(wait_queue);
-static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
+static struct simplock lock = SIMPLOCK_INITIALIZER;
 
 static void hd_irq_handler(void)
 {
@@ -114,7 +114,7 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
         return -EINVAL;
     }
 
-    obtain_lock(&lock);
+    simplock_obtain(&lock);
     for (i = 0; i < HD_TIMEOUT; i++) {
         status = in_byte(ATA_PORT_STATUS);
         if (!(status & ATA_STATUS_BUSY)) {
@@ -136,7 +136,7 @@ int hd_read(uint32_t sector, uint8_t count, void *buf, size_t size)
     res = (eflags() & EFLAGS_IF) ? do_read_async(count, buf, size) : do_read_sync(count, buf, size);
 
 out:
-    release_lock(&lock);
+    simplock_release(&lock);
     return res;
 }
 

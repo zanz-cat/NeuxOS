@@ -1,7 +1,7 @@
 #include "sched.h"
 #include "lock.h"
 
-void obtain_lock(struct sample_lock *lock)
+void simplock_obtain(struct simplock *lock)
 {
     while (lock->owners > 0) {
         if (eflags() & EFLAGS_IF) {
@@ -11,7 +11,7 @@ void obtain_lock(struct sample_lock *lock)
     lock->owners++;
 }
 
-void release_lock(struct sample_lock *lock)
+void simplock_release(struct simplock *lock)
 {
     lock->owners--;
 }

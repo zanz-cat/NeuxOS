@@ -6,7 +6,7 @@
 
 #include "log.h"
 
-static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
+static struct simplock lock = SIMPLOCK_INITIALIZER;
 static enum log_level sys_level = INFO;
 static const char* log_level_name[] = {
     [DEBUG] = "DEBUG",
@@ -27,7 +27,7 @@ static int _log(enum log_level level, const char *fmt, va_list args)
     if (level > FATAL) {
         return -1;
     }
-    obtain_lock(&lock);
+    simplock_obtain(&lock);
     ret1 = fprintk(TTY0, "[%s] ", log_level_name[level]);
     if (ret1 < 0) {
         goto out;
@@ -35,7 +35,7 @@ static int _log(enum log_level level, const char *fmt, va_list args)
     ret2 = vfprintk(TTY0, fmt, args);
 
 out:
-    release_lock(&lock);
+    simplock_release(&lock);
     if (ret1 < 0) {
         return ret1;
     } else if (ret2 < 0) {

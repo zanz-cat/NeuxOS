@@ -3,13 +3,17 @@
 
 #include <stdint.h>
 
-struct sample_lock {
+/**
+ * @brief A simple lock for kernel
+ * 
+ */
+struct simplock {
     uint32_t owners;
 };
 
-#define SAMPLE_LOCK_INITIALIZER {.owners = 0}
+#define SIMPLOCK_INITIALIZER {.owners = 0}
 
-void obtain_lock(struct sample_lock *lock);
-void release_lock(struct sample_lock *lock);
+void simplock_obtain(struct simplock *lock);
+void simplock_release(struct simplock *lock);
 
 #endif
