@@ -12,6 +12,7 @@ static struct dentry rootfs = {
     .inode = NULL,
     .rc = 1,
     .mnt = NULL,
+    .lock = SIMPLOCK_INITIALIZER,
     .parent = NULL,
     .alias = { .prev = &rootfs.alias, .next = &rootfs.alias },
     .child = { .prev = &rootfs.child, .next = &rootfs.child },
@@ -32,6 +33,8 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
         return dir;
     }
 
+    simplock_obtain(&dir->lock);
+
     LIST_FOREACH(&dir->subdirs, child) {
         struct dentry *d = container_of(child, struct dentry, child);
         if (strcmp(d->name, dname) == 0) {
@@ -40,26 +43,31 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
         }
     }
 
+    // found it
     dent = kmalloc(sizeof(struct dentry));
     if (dent == NULL) {
         errno = -ENOMEM;
-        return NULL;
+        goto out;
     }
     dentry_init(dent);
     strncpy(dent->name, dname, DNAME_MAX_LEN);
-
     int ret = dir->inode->ops->lookup(dir->inode, dent);
     if (ret != 0) {
-        dentry_release(dent);
         errno = -ENOENT;
-        return NULL;
+        kfree(dent); // no reference to anything, safe to free
+        dent = NULL;
+        goto out;
     }
-
     dent->mnt = dir->mnt;
     dent->parent = dentry_obtain(dir);
     LIST_ADD(&dir->subdirs, &dentry_obtain(dent)->child);
 
+out:
+    simplock_release(&dir->lock);
+    return dent;
+
 lookup_subdir:
+    simplock_release(&dir->lock);
     return __dentry_lookup(dent, token);
 }
 
@@ -103,6 +111,7 @@ void dentry_init(struct dentry *d)
     d->inode = NULL;
     d->parent = NULL;
     d->mnt = NULL;
+    simplock_init(&d->lock);
     LIST_HEAD_INIT(&d->child);
     LIST_HEAD_INIT(&d->subdirs);
     LIST_HEAD_INIT(&d->alias);

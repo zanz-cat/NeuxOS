@@ -267,10 +267,11 @@ static int block_read_iter(struct block_iter *iter, void *buf, size_t count)
 static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
 {
     int ret;
+    size_t len;
     uint32_t ino = 0;
     struct ext2_inode inode;
     char buf[CONFIG_EXT2_BS];
-    struct ext2_dir_entry *dir_ent;
+    struct ext2_dir_entry *dirent;
     struct block_iter iter;
 
     ret = read_inode(dir_ino, &inode);
@@ -279,17 +280,18 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
         return 0;
     }
 
+    len = strlen(name);
     block_iter_init(&iter, &inode);
     while (block_read_iter(&iter, buf, CONFIG_EXT2_BS) > 0) {
-        dir_ent = (struct ext2_dir_entry *)buf;
-        while ((void *)dir_ent < (void *)buf + CONFIG_EXT2_BS &&
-            dir_ent->inode != 0 && strncmp(dir_ent->name, name, dir_ent->name_len) != 0) {
-            dir_ent = (void *)dir_ent + dir_ent->rec_len;
+        dirent = (struct ext2_dir_entry *)buf;
+        while ((void *)dirent < (void *)buf + CONFIG_EXT2_BS && dirent->inode != 0 &&
+            dirent->name_len != len && strncmp(dirent->name, name, len) != 0) {
+            dirent = (void *)dirent + dirent->rec_len;
         }
-        if ((void *)dir_ent == (void *)buf + CONFIG_EXT2_BS || dir_ent->inode == 0) {
+        if ((void *)dirent == (void *)buf + CONFIG_EXT2_BS || dirent->inode == 0) {
             break;
         }
-        ino = dir_ent->inode;
+        ino = dirent->inode;
         break;
     }
     block_iter_destroy(&iter);

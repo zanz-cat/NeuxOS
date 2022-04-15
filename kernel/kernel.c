@@ -124,7 +124,7 @@ void kernel_loop(void)
     }
 }
 
-static void open_a_txt()
+static void __attribute__((unused)) open_a_txt()
 {
     struct file *f = vfs_open("/root/a.txt", 0);
     if (f == NULL) {
@@ -141,6 +141,7 @@ static void open_a_txt()
     printk("a.txt size=%d, content=...%s\n", ret, buf + F_INO(f)->size - 16);
     vfs_close(f);
 }
+
 void F4_handler(void)
 {
     // open_a_txt();

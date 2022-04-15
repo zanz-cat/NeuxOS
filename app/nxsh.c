@@ -30,6 +30,22 @@ static struct {
     .base = "",
 };
 
+static void nxsh_perror(const char *cmd, const char *msg, ...)
+{
+    int ret;
+    char buf[255];
+    va_list args;
+
+    ret = sprintf(buf, "-nxsh: %s: ", cmd);
+    if (ret < 0) {
+        return;
+    }
+    va_start(args, msg);
+    (void)vsprintf(buf + ret, msg, args);
+    va_end(args);
+    printf(buf);
+}
+
 static int list_one(const char *name)
 {
     int fd;
@@ -63,17 +79,17 @@ static int list_one(const char *name)
             printf("\n");
             break;
         }
-        printf("ls: cannot list '%s': %s\n", path, strerror(errno));
+        printf("ls: cannot list '%s': %s\n", name, strerror(errno));
         break;
     }
     if (close(fd) != 0) {
-        printf("ls: cannot close '%s': %s\n", path, strerror(errno));
+        printf("ls: cannot close '%s': %s\n", name, strerror(errno));
         return -1;
     }
     return ret == 0 ? 0 : -1;
 
 error:
-    printf("ls: cannot access '%s': %s\n", path, strerror(errno));
+    printf("ls: cannot access '%s': %s\n", name, strerror(errno));
     return -1;
 }
 
@@ -128,7 +144,10 @@ static int cmd_chg_workdir(int argc, char *argv[])
         sprintf(buf, "%s" PATH_SEP "%s", cwd.path, argv[0]);
         path = buf;
     }
-    // stat(argv[0], st)
+    if (access(path, F_OK) != 0) {
+        nxsh_perror("cd", "%s: %s\n", argv[0], strerror(errno));
+        return -1;
+    }
     if (rootdir(path)) {
         strcpy(cwd.path, "");
         strcpy(cwd.base, "");
@@ -148,7 +167,7 @@ int cmd_proc(const char *cmd, int argc, char *argv[])
         }
         return cmdlist[i].func(argc, argv);
     }
-    printf("-nxsh %s: command not found\n", cmd);
+    nxsh_perror(cmd, "command not found\n");
     return -1;
 }
 

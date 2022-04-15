@@ -13,6 +13,7 @@ struct simplock {
 
 #define SIMPLOCK_INITIALIZER {.owners = 0}
 
+void simplock_init(struct simplock *lock);
 void simplock_obtain(struct simplock *lock);
 void simplock_release(struct simplock *lock);
 

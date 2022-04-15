@@ -27,9 +27,6 @@ int vfs_mount(const char *mountpoint, struct mount *mount)
 
     mp->mnt = mount;
     mount->dent->parent = dentry_obtain(mp);
-    if (mp->parent != NULL) {
-        LIST_ADD(&mp->parent->subdirs, &dentry_obtain(mount->dent)->child);
-    }
     strcpy(mount->dent->name, mp->name);
 
     return 0;

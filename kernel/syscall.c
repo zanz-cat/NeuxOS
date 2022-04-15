@@ -8,6 +8,7 @@
 #include "tty.h"
 #include "sched.h"
 #include "log.h"
+#include "fs/fs.h"
 
 static void sys_exit(int status)
 {
@@ -99,11 +100,30 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
 
 static int sys_stat(int fd, struct stat *st)
 {
+    struct file *f;
+
+    f = current->files[fd];
+    if (f == NULL) {
+        return -1;
+    }
+    st->st_mode = f->f_mode;
+    st->st_ino = F_INO(f)->ino;
+    st->st_size = F_INO(f)->size;
     return 0;
 }
 
-static int sys_access(int fd)
+static int sys_access(const char *pathname, int mode)
 {
+    struct dentry *dent;
+
+    if (mode != F_OK) {
+        return -ENOTSUP;
+    }
+    dent = dentry_lookup(pathname);
+    if (dent == NULL) {
+        return -ENOENT;
+    }
+    dentry_release(dent);
     return 0;
 }
 

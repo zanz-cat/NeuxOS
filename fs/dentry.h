@@ -5,6 +5,7 @@
 
 #include <lib/list.h>
 
+#include <kernel/lock.h>
 #include "inode.h"
 #include "fs/fs.h"
 
@@ -16,6 +17,7 @@ struct dentry {
     struct inode *inode;
     struct dentry *parent;
     struct mount *mnt;
+    struct simplock lock;
     struct list_head child;
     struct list_head subdirs;
     struct list_head alias;

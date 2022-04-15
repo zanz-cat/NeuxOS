@@ -287,6 +287,18 @@ int sprintf(char *buf, const char *fmt, ...)
     return len;
 }
 
+int vprintf(const char *fmt, va_list ap)
+{
+    int len;
+    char buf[PRINTF_BUF_SIZE];
+
+    len = vsprintf(buf, fmt, ap);
+    if (len < 0) {
+        return len;
+    }
+    return write(0, buf, len);
+}
+
 int putchar(int c)
 {
     return write(0, &c, 1);
