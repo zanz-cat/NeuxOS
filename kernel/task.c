@@ -89,7 +89,7 @@ static int init_user_task(struct task *task)
     task->tss.edx = 0;
     task->tss.ebx = 0;
     task->tss.ebp = (uint32_t)PTR_ADD(s0, STACK0_SIZE);
-    task->tss.esp = task->tss.ebp - sizeof(struct stack_content);
+    task->tss.esp = task->tss.ebp - sizeof(struct jmp_stack_frame); // stack space reserved for jmp to userspace
     task->tss.esi = 0;
     task->tss.edi = 0;
     task->tss.es = SELECTOR_KERNEL_DS;

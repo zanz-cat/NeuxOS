@@ -45,7 +45,7 @@ struct task {
     struct list_head running;
 } __attribute__((packed));
 
-struct stack_content {
+struct jmp_stack_frame {
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;

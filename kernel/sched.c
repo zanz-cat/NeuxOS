@@ -64,7 +64,7 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
 static void user_task_launcher(void)
 {
     uint32_t ebp;
-    struct stack_content *stack;
+    struct jmp_stack_frame *sf;
 
     current->f_exe = vfs_open(current->exe, 0);
     if (current->f_exe == NULL) {
@@ -93,12 +93,12 @@ static void user_task_launcher(void)
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);
-    stack = (void *)(*(uint32_t *)ebp - sizeof(struct stack_content));
-    stack->ss = SELECTOR_USER_DS;
-    stack->esp = CONFIG_KERNEL_VM_OFFSET;
-    stack->eflags = INITIAL_EFLAGS;
-    stack->cs = SELECTOR_USER_CS;
-    stack->eip = entry_point;
+    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by init_user_task
+    sf->ss = SELECTOR_USER_DS;
+    sf->esp = CONFIG_KERNEL_VM_OFFSET;  // stack bottom, no limit for user stack size
+    sf->eflags = INITIAL_EFLAGS;
+    sf->cs = SELECTOR_USER_CS;
+    sf->eip = entry_point;
     asm("leave\n\t"
         "mov %0, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
