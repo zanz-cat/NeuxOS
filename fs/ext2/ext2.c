@@ -37,6 +37,8 @@ static LIST_HEAD(inode_cache);
 
 static int ext2_i_create(struct inode *dir, struct dentry *dentry, int mode);
 static int ext2_i_lookup(struct inode *dir, struct dentry *dentry);
+static void ext2_i_release(struct inode *inode);
+
 static ssize_t ext2_f_read(struct file *f, void *buf, size_t count);
 static int ext2_f_readdir(struct file *f, struct dirent *dent);
 static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count);
@@ -48,6 +50,7 @@ static struct fs ext2_fs = {
     .i_ops = {
         .create = ext2_i_create,
         .lookup = ext2_i_lookup,
+        .release = ext2_i_release,
     },
     .f_ops = {
         .read = ext2_f_read,
@@ -314,7 +317,7 @@ static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count)
 
 static int ext2_f_close(struct file *f)
 {
-    kfree(F_INO(f)->priv);
+    kfree(f->buf);
     return 0;
 }
 
@@ -352,14 +355,14 @@ static int ext2_f_readdir(struct file *f, struct dirent *dent)
     return 0;
 }
 
-static int ext2_i_create(struct inode *dir, struct dentry *dentry, int mode)
+static int ext2_i_create(struct inode *dir, struct dentry *dent, int mode)
 {
     return 0;
 }
 
-static int ext2_i_lookup(struct inode *dir, struct dentry *dentry)
+static int ext2_i_lookup(struct inode *dir, struct dentry *dent)
 {
-    uint32_t ino = search_in_dir(dir->ino, dentry->name);
+    uint32_t ino = search_in_dir(dir->ino, dent->name);
     if (ino == 0) {
         return -ENOENT;
     }
@@ -388,9 +391,15 @@ static int ext2_i_lookup(struct inode *dir, struct dentry *dentry)
     inode->priv = ext2_ino;
     inode->dentry.prev = &inode->dentry;
     inode->dentry.next = &inode->dentry;
-    LIST_ADD(&inode->dentry, &dentry->alias);
-    dentry->inode = inode;
+    LIST_ADD(&inode->dentry, &dent->alias);
+    dent->inode = inode;
     return 0;
+}
+
+static void ext2_i_release(struct inode *inode)
+{
+    kfree(inode->priv);
+    kfree(inode);
 }
 
 void ext2_mount_rootfs(struct fs *fs)
@@ -443,7 +452,7 @@ void ext2_mount_rootfs(struct fs *fs)
         err = "mount rootfs error";
         goto panic;
     }
-    log_info("root fs mounted.\n");
+    log_info("rootfs mounted.\n");
     return;
 
 panic:

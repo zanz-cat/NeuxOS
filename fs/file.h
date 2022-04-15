@@ -13,12 +13,12 @@ struct file {
     volatile uint16_t rc;
     mode_t f_mode;
     off_t off;
-    struct dentry *dentry;
+    struct dentry *dent;
     struct file_ops *ops;
     void *buf;
 };
 
-#define F_INO(f) ((f)->dentry->inode)
+#define F_INO(f) ((f)->dent->inode)
 
 struct file_ops {
     ssize_t (*read)(struct file *f, void *buf, size_t count);

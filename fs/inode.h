@@ -19,8 +19,9 @@ struct inode {
 };
 
 struct inode_ops {
-    int (*create)(struct inode *dir, struct dentry *dentry, int mode);
-    int (*lookup)(struct inode *dir, struct dentry *dentry);
+    int (*create)(struct inode *dir, struct dentry *dent, int mode);
+    int (*lookup)(struct inode *dir, struct dentry *dent);
+    void (*release)(struct inode *inode);
 };
 
 #endif

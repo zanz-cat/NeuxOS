@@ -24,6 +24,8 @@ static struct bitmap *bitmap;
 
 static int devfs_i_create(struct inode *dir, struct dentry *dent, int mode);
 static int devfs_i_lookup(struct inode *dir, struct dentry *dent);
+static void devfs_i_release(struct inode *inode);
+
 static ssize_t devfs_f_read(struct file *f, void *buf, size_t count);
 static int devfs_f_readdir(struct file *f, struct dirent *dent);
 static ssize_t devfs_f_write(struct file *f, const void *buf, size_t count);
@@ -34,6 +36,7 @@ static struct fs devfs = {
     .i_ops = {
         .create = devfs_i_create,
         .lookup = devfs_i_lookup,
+        .release = devfs_i_release,
     },
     .f_ops = {
         .read = devfs_f_read,
@@ -84,6 +87,11 @@ static int devfs_i_lookup(struct inode *dir, struct dentry *dent)
         }
     }
     return -ENOENT;
+}
+
+static void devfs_i_release(struct inode *inode)
+{
+    // nop
 }
 
 static ssize_t devfs_f_read(struct file *f, void *buf, size_t count)
@@ -160,7 +168,7 @@ static void devfs_mount(void)
         err = "mount devfs error";
         goto panic;
     }
-    log_info("dev fs mounted.\n");
+    log_info("devfs mounted.\n");
     return;
 
 panic:

@@ -92,6 +92,7 @@ void dentry_release(struct dentry *d)
     if (d->rc != 0) {
         return;
     }
+    d->inode->ops->release(d->inode);
     dentry_release(d->parent);
     kfree(d);
 }

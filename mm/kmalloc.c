@@ -94,7 +94,7 @@ void *kmalloc(size_t size)
 void kfree(void *ptr)
 {
     uint32_t i;
-    struct heap_block *block = NULL;
+    struct heap_block *block;
     
     if (ptr == NULL) {
         return;

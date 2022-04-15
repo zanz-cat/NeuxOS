@@ -42,10 +42,23 @@ struct file *vfs_open(const char *pathname, int flags)
     }
     f->rc = 1;
     f->off = 0;
-    f->dentry = d;
+    f->dent = d;
     f->ops = &mnt->fs->f_ops;
     f->buf = NULL;
     return f;
+}
+
+int vfs_close(struct file *f)
+{
+    f->rc--;
+    if (f->rc != 0) {
+        return 0;
+    }
+    dentry_release(f->dent); // FIXME
+    op_assert(f->ops->close);
+    f->ops->close(f);
+    kfree(f);
+    return 0;
 }
 
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
@@ -62,20 +75,6 @@ ssize_t vfs_read(struct file *f, void *buf, size_t count)
 
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
-    return 0;
-}
-
-int vfs_close(struct file *f)
-{
-    f->rc--;
-    if (f->rc != 0) {
-        return 0;
-    }
-    op_assert(f->ops->close);
-    f->ops->close(f);
-    dentry_release(f->dentry);
-    kfree(f->buf);
-    kfree(f);
     return 0;
 }
 

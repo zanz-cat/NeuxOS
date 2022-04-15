@@ -49,7 +49,7 @@ disk:
 	$(SUDO) mkfs.ext2 -F -b $(CONFIG_EXT2_BS) $$dev;
 
 rootfs:	mount
-	@echo "Install root fs"
+	@echo "Install rootfs"
 	mkdir -p $(MOUNTPOINT)/dev
 	@while $(SUDO) mount | grep $(MOUNTPOINT) > /dev/null; \
 	do \
