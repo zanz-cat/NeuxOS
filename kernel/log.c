@@ -2,9 +2,11 @@
 
 #include <kernel/tty.h>
 #include <kernel/printk.h>
+#include <kernel/lock.h>
 
 #include "log.h"
 
+static struct sample_lock lock = SAMPLE_LOCK_INITIALIZER;
 static enum log_level sys_level = INFO;
 static const char* log_level_name[] = {
     [DEBUG] = "DEBUG",
@@ -16,7 +18,7 @@ static const char* log_level_name[] = {
 
 static int _log(enum log_level level, const char *fmt, va_list args)
 {
-    int ret;
+    int ret1, ret2;
 
     if (level < sys_level) {
         return 0;
@@ -25,11 +27,21 @@ static int _log(enum log_level level, const char *fmt, va_list args)
     if (level > FATAL) {
         return -1;
     }
-    ret = fprintk(TTY0, "[%s] ", log_level_name[level]);
-    if (ret < 0) {
-        return ret;
+    obtain_lock(&lock);
+    ret1 = fprintk(TTY0, "[%s] ", log_level_name[level]);
+    if (ret1 < 0) {
+        goto out;
     }
-    return vfprintk(TTY0, fmt, args);
+    ret2 = vfprintk(TTY0, fmt, args);
+
+out:
+    release_lock(&lock);
+    if (ret1 < 0) {
+        return ret1;
+    } else if (ret2 < 0) {
+        return ret2;
+    }
+    return ret1 + ret2;
 }
 
 int set_log_level(enum log_level level)

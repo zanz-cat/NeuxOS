@@ -137,11 +137,17 @@ char *strsep(char **sp, const char *delim)
 	return s;
 }
 
+int startswith(const char *a, const char *b)
+{
+    return strncmp(a, b, strlen(b)) == 0;
+}
+
 char *strerror(int errnum)
 {
     static char *errmsg[] = {
         [EPERM] = "Operation not permitted",
         [ENOENT] = "No such file or directory",
+        [ENOTDIR] = "Not a directory",
         [EINVAL] = "Invalid argument",
         [ENOTSUP] = "Operation not supported",
     };

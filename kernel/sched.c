@@ -88,7 +88,7 @@ static void user_task_launcher(void)
     ret = load_elf(buf, 0, &entry_point);
     kfree(buf);
     if (ret < 0) {
-        log_error("load elf error: %d\n", ret);
+        log_error("load elf[%s] error: %s\n", current->exe, strerror(ret));
         task_term(current);
     }
 
