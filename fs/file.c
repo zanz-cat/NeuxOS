@@ -54,7 +54,7 @@ int vfs_close(struct file *f)
     if (f->rc != 0) {
         return 0;
     }
-    dentry_release(f->dent); // FIXME
+    dentry_release(f->dent);
     op_assert(f->ops->close);
     f->ops->close(f);
     kfree(f);

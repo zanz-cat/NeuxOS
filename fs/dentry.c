@@ -34,15 +34,13 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
     }
 
     simplock_obtain(&dir->lock);
-
     LIST_FOREACH(&dir->subdirs, child) {
         struct dentry *d = container_of(child, struct dentry, child);
         if (strcmp(d->name, dname) == 0) {
             dent = dentry_obtain(d);
-            goto lookup_subdir;
+            goto out;
         }
     }
-
     // found it
     dent = kmalloc(sizeof(struct dentry));
     if (dent == NULL) {
@@ -64,11 +62,7 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 
 out:
     simplock_release(&dir->lock);
-    return dent;
-
-lookup_subdir:
-    simplock_release(&dir->lock);
-    return __dentry_lookup(dent, token);
+    return dent == NULL ? NULL : __dentry_lookup(dent, token);
 }
 
 struct dentry *dentry_lookup(const char *pathname)
@@ -96,12 +90,18 @@ void dentry_release(struct dentry *d)
         return;
     }
 
+    simplock_obtain(&d->lock);
     d->rc--;
     if (d->rc != 0) {
+        simplock_release(&d->lock);
         return;
     }
+
     d->inode->ops->release(d->inode);
-    dentry_release(d->parent);
+    LIST_DEL(&d->child);
+    dentry_release(d->parent);  // d->parent == mount, 释放了mount
+
+    simplock_release(&d->lock);
     kfree(d);
 }
 

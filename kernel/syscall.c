@@ -70,7 +70,7 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
 {
     int i, ret;
     ssize_t n;
-    struct file *f = NULL;
+    struct file *f;
 
     if (args->fd < 0 || args->fd >= NR_TASK_FILES) {
         return -EINVAL;

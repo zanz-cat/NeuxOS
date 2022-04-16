@@ -285,7 +285,7 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
     while (block_read_iter(&iter, buf, CONFIG_EXT2_BS) > 0) {
         dirent = (struct ext2_dir_entry *)buf;
         while ((void *)dirent < (void *)buf + CONFIG_EXT2_BS && dirent->inode != 0 &&
-            dirent->name_len != len && strncmp(dirent->name, name, len) != 0) {
+            !(dirent->name_len == len && strncmp(dirent->name, name, len) == 0)) {
             dirent = (void *)dirent + dirent->rec_len;
         }
         if ((void *)dirent == (void *)buf + CONFIG_EXT2_BS || dirent->inode == 0) {
