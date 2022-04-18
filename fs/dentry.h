@@ -27,13 +27,8 @@ struct dentry_ops {
 
 };
 
-static inline struct dentry *dentry_obtain(struct dentry *d)
-{
-    d->rc++;
-    return d;
-}
-
-struct dentry *dentry_lookup(const char *pathname);
+struct dentry *dentry_lookup(struct dentry *dir, char **token);
+struct dentry *dentry_obtain(struct dentry *d);
 void dentry_release(struct dentry *d);
 void dentry_init(struct dentry *d);
 

@@ -22,7 +22,7 @@ static struct mount *mount_search(struct dentry *dentry)
 
 struct file *vfs_open(const char *pathname, int flags)
 {
-    struct dentry *d = dentry_lookup(pathname);
+    struct dentry *d = vfs_lookup(pathname);
     if (d == NULL) {
         errno = -ENOENT;
         return NULL;

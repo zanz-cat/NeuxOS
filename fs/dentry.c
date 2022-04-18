@@ -7,26 +7,10 @@
 
 #include "dentry.h"
 
-static struct dentry rootfs = {
-    .name = "",
-    .inode = NULL,
-    .rc = 1,
-    .mnt = NULL,
-    .lock = SIMPLOCK_INITIALIZER,
-    .parent = NULL,
-    .alias = { .prev = &rootfs.alias, .next = &rootfs.alias },
-    .child = { .prev = &rootfs.child, .next = &rootfs.child },
-    .subdirs = { .prev = &rootfs.subdirs, .next = &rootfs.subdirs },
-};
-
-static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
+struct dentry *dentry_lookup(struct dentry *dir, char **token)
 {
     struct list_head *child;
     struct dentry *dent;
-
-    if (dir->mnt != NULL) {
-        return __dentry_lookup(dir->mnt->dent, token);
-    }
 
     char *dname = strsep(token, PATH_SEP);
     if (dname == NULL || strlen(dname) == 0) {
@@ -62,26 +46,13 @@ static struct dentry *__dentry_lookup(struct dentry *dir, char **token)
 
 out:
     simplock_release(&dir->lock);
-    return dent == NULL ? NULL : __dentry_lookup(dent, token);
+    return dent == NULL ? NULL : dentry_lookup(dent, token);
 }
 
-struct dentry *dentry_lookup(const char *pathname)
+struct dentry *dentry_obtain(struct dentry *d)
 {
-    char *s, *dname;
-    char buf[MAX_PATH_LEN];
-
-    if (pathname == NULL) {
-        errno = -EINVAL;
-        return NULL;
-    }
-    strcpy(buf, pathname);
-    s = buf;
-    dname = strsep(&s, PATH_SEP);
-    if (strcmp(rootfs.name, dname) != 0) {
-        errno = -ENOENT;
-        return NULL;
-    }
-    return __dentry_lookup(&rootfs, &s);
+    d->rc++;
+    return d;
 }
 
 void dentry_release(struct dentry *d)
@@ -98,8 +69,11 @@ void dentry_release(struct dentry *d)
     }
 
     d->inode->ops->release(d->inode);
-    LIST_DEL(&d->child);
-    dentry_release(d->parent);  // d->parent == mount, 释放了mount
+    if (d->parent != NULL) {
+        LIST_DEL(&d->child);
+        dentry_release(d->parent);
+        d->parent = NULL;
+    }
 
     simplock_release(&d->lock);
     kfree(d);

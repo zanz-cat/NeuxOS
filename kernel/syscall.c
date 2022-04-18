@@ -119,7 +119,7 @@ static int sys_access(const char *pathname, int mode)
     if (mode != F_OK) {
         return -ENOTSUP;
     }
-    dent = dentry_lookup(pathname);
+    dent = vfs_lookup(pathname);
     if (dent == NULL) {
         return -ENOENT;
     }

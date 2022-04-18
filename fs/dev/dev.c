@@ -145,7 +145,7 @@ static void devfs_mount(void)
         goto panic;
     }
     mnt->fs = &devfs;
-    mnt->override = NULL;
+    mnt->prev = NULL;
     mnt->dent = kmalloc(sizeof(struct dentry));
     if (mnt->dent == NULL) {
         err = "no memory for devfs dentry";
@@ -153,6 +153,7 @@ static void devfs_mount(void)
     }
     dentry_init(mnt->dent);
     mnt->dent->rc = 1;
+    mnt->dent->mnt = mnt;
     mnt->dent->inode = kmalloc(sizeof(struct inode));
     if (mnt->dent->inode == NULL) {
         err = "no memory for devfs inode";

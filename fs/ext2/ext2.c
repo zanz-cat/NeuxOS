@@ -436,6 +436,7 @@ void ext2_mount_rootfs(struct fs *fs)
     }
     dentry_init(mnt->dent);
     mnt->dent->rc = 1;
+    mnt->dent->mnt = mnt;
     mnt->dent->inode = kmalloc(sizeof(struct inode));
     if (mnt->dent->inode == NULL) {
         err = "no memory for root inode";

@@ -79,17 +79,17 @@ static int list_one(const char *name)
             printf("\n");
             break;
         }
-        printf("ls: cannot list '%s': %s\n", name, strerror(errno));
+        printf("ls: cannot list '%s': %s\n", path, strerror(errno));
         break;
     }
     if (close(fd) != 0) {
-        printf("ls: cannot close '%s': %s\n", name, strerror(errno));
+        printf("ls: cannot close '%s': %s\n", path, strerror(errno));
         return -1;
     }
     return ret == 0 ? 0 : -1;
 
 error:
-    printf("ls: cannot access '%s': %s\n", name, strerror(errno));
+    printf("ls: cannot access '%s': %s\n", path, strerror(errno));
     return -1;
 }
 

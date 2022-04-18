@@ -150,6 +150,7 @@ char *strerror(int errnum)
         [ENOTDIR] = "Not a directory",
         [EINVAL] = "Invalid argument",
         [ENOTSUP] = "Operation not supported",
+        [ETIMEDOUT] = "Connection timed out",
     };
     static char unknown[16]; 
 
@@ -160,4 +161,17 @@ char *strerror(int errnum)
     
     sprintf(unknown, "errno=%d", -i);
     return unknown;
+}
+
+char *trim(char *s)
+{
+    char *h, *t;
+
+    for (t = s + strlen(s) - 1; *t == ' ' && t >= h; t--) {
+        *t = '\0';
+    }
+    for (h = s; *h == ' ' && h <= t; h++) {
+        *h = '\0';
+    }
+    return h;
 }

@@ -3,4 +3,6 @@
 
 int startswith(const char *a, const char *b);
 
+char *trim(char *s);
+
 #endif
