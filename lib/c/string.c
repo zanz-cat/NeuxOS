@@ -150,6 +150,7 @@ char *strerror(int errnum)
         [ENOTDIR] = "Not a directory",
         [EINVAL] = "Invalid argument",
         [ENOTSUP] = "Operation not supported",
+        [ENAMETOOLONG] = "File name too long",
         [ETIMEDOUT] = "Connection timed out",
         [ENOBUFS] = "No buffer space available",
     };

@@ -11,41 +11,45 @@ __extension__({ \
     } \
 })
 
-static struct mount *mount_search(struct dentry *dentry)
+static struct mount *dentry_mnt(struct dentry *dentry)
 {
-    struct dentry *d = dentry;
-    while (d != NULL && d->mnt == NULL) {
-        d = d->parent;
+    struct dentry *dent = dentry;
+    while (dent != NULL && dent->mnt == NULL) {
+        dent = dent->parent;
     }
-    return d == NULL ? NULL : d->mnt;
+    return dent == NULL ? NULL : dent->mnt;
 }
 
 struct file *vfs_open(const char *pathname, int flags)
 {
-    struct dentry *d = vfs_lookup(pathname);
-    if (d == NULL) {
+    struct dentry *dent = NULL;
+    
+    dent = vfs_lookup(pathname);
+    if (dent == NULL) {
         errno = -ENOENT;
-        return NULL;
+        goto error;
     }
-    struct mount *mnt = mount_search(d);
+    struct mount *mnt = dentry_mnt(dent);
     if (mnt == NULL) {
-        dentry_release(d);
         errno = -EPERM;
-        return NULL;
+        goto error;
     }
 
     struct file *f = kmalloc(sizeof(struct file));
     if (f == NULL) {
-        dentry_release(d);
         errno = -ENOMEM;
-        return NULL;
+        goto error;
     }
     f->rc = 1;
     f->off = 0;
-    f->dent = d;
+    f->dent = dent;
     f->ops = &mnt->fs->f_ops;
     f->buf = NULL;
     return f;
+
+error:
+    dentry_release(dent);
+    return NULL;
 }
 
 int vfs_close(struct file *f)

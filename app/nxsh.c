@@ -22,7 +22,6 @@ struct nxsh_cmd {
 };
 
 static struct nxsh_cmd cmdlist[];
-static char cwd[NAME_MAX];
 
 static void nxsh_perror(const char *cmd, const char *msg, ...)
 {
@@ -40,22 +39,12 @@ static void nxsh_perror(const char *cmd, const char *msg, ...)
     printf(buf);
 }
 
-static int list_one(const char *path)
+static int list_dir(const char *path, int fd)
 {
-    int fd;
-    off_t base = 0;
     ssize_t ret;
+    off_t base = 0;
     struct stat st;
     struct dirent dent;
-
-    ret = stat(path, &st);
-    if (ret != 0) {
-        goto error;
-    }
-    fd = open(path, 0);
-    if (fd < 0) {
-        goto error;
-    }
 
     while (1) {
         ret = getdirentries(fd, (char *)&dent, sizeof(struct dirent), &base);
@@ -67,18 +56,44 @@ static int list_one(const char *path)
             printf("\n");
             break;
         }
-        printf("ls: cannot list '%s': %s\n", path, strerror(errno));
         break;
     }
-    if (close(fd) != 0) {
+    return ret == 0 ? 0 : -1;
+}
+
+static int list_file(const char *path, int fd)
+{
+    printf("%s\n", path);
+    return 0;
+}
+
+static int list_dent(const char *path)
+{
+    int ret;
+    int fd = -1;
+    struct stat st;
+
+    fd = open(path, 0);
+    if (fd < 0) {
+        goto access_err;
+    }
+    ret = fstat(fd, &st);
+    if (ret != 0) {
+        goto access_err;
+    }
+    ret = (st.st_mode & S_IFDIR) ? list_dir(path, fd) : list_file(path, fd);
+    if (ret != 0) {
+        printf("ls: cannot list '%s': %s\n", path, strerror(errno));
+    }
+    goto out;
+
+access_err:
+    printf("ls: cannot access '%s': %s\n", path, strerror(errno));
+out:
+    if (fd >= 0 && close(fd) != 0) {
         printf("ls: cannot close '%s': %s\n", path, strerror(errno));
-        return -1;
     }
     return ret == 0 ? 0 : -1;
-
-error:
-    printf("ls: cannot access '%s': %s\n", path, strerror(errno));
-    return -1;
 }
 
 static int cmd_list(int argc, char *argv[])
@@ -86,7 +101,7 @@ static int cmd_list(int argc, char *argv[])
     int i, ret, res;
 
     if (argc == 0) {
-        return list_one(".");
+        return list_dent(".");
     }
 
     ret = 0;
@@ -94,7 +109,7 @@ static int cmd_list(int argc, char *argv[])
         if (argc > 1) {
             printf("%s:\n", argv[i]);
         }
-        res = list_one(argv[i]);
+        res = list_dent(argv[i]);
         if (res != 0) {
             ret = res;
         }
@@ -117,7 +132,7 @@ static int cmd_pwd(int argc, char *argv[])
     printf("%s\n", buf);
 }
 
-static int cmd_chg_workdir(int argc, char *argv[])
+static int cmd_chdir(int argc, char *argv[])
 {
     char *path;
 
@@ -125,9 +140,6 @@ static int cmd_chg_workdir(int argc, char *argv[])
         return 0;
     }
     path = argv[0];
-    if (access(path, F_OK) != 0) {
-        goto error;
-    }
     if (chdir(path) != 0) {
         goto error;
     }
@@ -166,13 +178,21 @@ static int input_proc(char *in)
 }
 
 #define PS1 "[liwei@NeuxOS %s]$ "
+static void print_PS1(void)
+{
+    char path[MAX_PATH_LEN];
+
+    getcwd(path, MAX_PATH_LEN);
+    printf(PS1, strcmp(path, PATH_SEP) == 0 ? PATH_SEP : basename(path));
+}
+
 int main(int argc, char *argv[])
 {
     char buf[BUF_SIZE];
     int i = 0;
     char ch;
 
-    printf(PS1, cwd);
+    print_PS1();
     while (1) {
         ssize_t n = read(0, &ch, 1);
         if (n < 0) {
@@ -193,7 +213,7 @@ int main(int argc, char *argv[])
                 if (strlen(buf) != 0) {
                     input_proc(buf);
                 }
-                printf(PS1, cwd);
+                print_PS1();
                 i = 0;
                 break;
             case '\b':
@@ -217,6 +237,6 @@ static struct nxsh_cmd cmdlist[] = {
     {"ls", cmd_list},
     {"exit", cmd_exit},
     {"pwd", cmd_pwd},
-    {"cd", cmd_chg_workdir},
+    {"cd", cmd_chdir},
     {NULL, NULL}
 };

@@ -10,18 +10,25 @@
 struct dentry *dentry_lookup(struct dentry *dir, char **token)
 {
     struct list_head *child;
-    struct dentry *dent;
+    struct dentry *dent, *subdent;
 
     char *dname = strsep(token, PATH_SEP);
     if (dname == NULL || strlen(dname) == 0) {
-        return dir;
+        return dentry_obtain(dir);
+    }
+
+    if (strcmp(dname, ".") == 0) {
+        return dentry_obtain(dir);
+    }
+    if (strcmp(dname, "..") == 0) {
+        return dir->parent == NULL ? dentry_obtain(dir) : dentry_lookup(dir->parent, token);
     }
 
     simplock_obtain(&dir->lock);
     LIST_FOREACH(&dir->subdirs, child) {
-        struct dentry *d = container_of(child, struct dentry, child);
-        if (strcmp(d->name, dname) == 0) {
-            dent = dentry_obtain(d);
+        subdent = container_of(child, struct dentry, child);
+        if (strcmp(subdent->name, dname) == 0) {
+            dent = dentry_obtain(subdent);
             goto out;
         }
     }
@@ -49,34 +56,34 @@ out:
     return dent == NULL ? NULL : dentry_lookup(dent, token);
 }
 
-struct dentry *dentry_obtain(struct dentry *d)
+struct dentry *dentry_obtain(struct dentry *dent)
 {
-    d->rc++;
-    return d;
+    dent->rc++;
+    return dent;
 }
 
-void dentry_release(struct dentry *d)
+void dentry_release(struct dentry *dent)
 {
-    if (d == NULL) {
+    if (dent == NULL) {
         return;
     }
 
-    simplock_obtain(&d->lock);
-    d->rc--;
-    if (d->rc != 0) {
-        simplock_release(&d->lock);
+    simplock_obtain(&dent->lock);
+    dent->rc--;
+    if (dent->rc != 0) {
+        simplock_release(&dent->lock);
         return;
     }
 
-    d->inode->ops->release(d->inode);
-    if (d->parent != NULL) {
-        LIST_DEL(&d->child);
-        dentry_release(d->parent);
-        d->parent = NULL;
+    dent->inode->ops->release(dent->inode);
+    if (dent->parent != NULL) {
+        LIST_DEL(&dent->child);
+        dentry_release(dent->parent);
+        dent->parent = NULL;
     }
 
-    simplock_release(&d->lock);
-    kfree(d);
+    simplock_release(&dent->lock);
+    kfree(dent);
 }
 
 static const char *_search(const struct dentry *dent, char **pbuf, char *end)
@@ -120,14 +127,14 @@ int dentry_abspath(const struct dentry *dent, char *buf, size_t size)
     return 0;
 }
 
-void dentry_init(struct dentry *d)
+void dentry_init(struct dentry *dent)
 {
-    d->rc = 1;
-    d->inode = NULL;
-    d->parent = NULL;
-    d->mnt = NULL;
-    simplock_init(&d->lock);
-    LIST_HEAD_INIT(&d->child);
-    LIST_HEAD_INIT(&d->subdirs);
-    LIST_HEAD_INIT(&d->alias);
+    dent->rc = 1;
+    dent->inode = NULL;
+    dent->parent = NULL;
+    dent->mnt = NULL;
+    simplock_init(&dent->lock);
+    LIST_HEAD_INIT(&dent->child);
+    LIST_HEAD_INIT(&dent->subdirs);
+    LIST_HEAD_INIT(&dent->alias);
 }

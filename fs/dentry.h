@@ -28,9 +28,9 @@ struct dentry_ops {
 };
 
 struct dentry *dentry_lookup(struct dentry *dir, char **token);
-struct dentry *dentry_obtain(struct dentry *d);
-void dentry_release(struct dentry *d);
-void dentry_init(struct dentry *d);
+struct dentry *dentry_obtain(struct dentry *dent);
+void dentry_release(struct dentry *dent);
+void dentry_init(struct dentry *dent);
 
 int dentry_abspath(const struct dentry *dent, char *buf, size_t size);
 

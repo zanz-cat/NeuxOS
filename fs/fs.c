@@ -5,6 +5,7 @@
 #include <stringex.h>
 #include <neuxos.h>
 #include <mm/kmalloc.h>
+#include <kernel/sched.h>
 
 #include "fs.h"
 
@@ -105,21 +106,29 @@ struct mount *vfs_umount(const char *mountpoint)
 
 struct dentry *vfs_lookup(const char *pathname)
 {
-    char *s, *dname;
     char buf[MAX_PATH_LEN];
+    struct dentry *dent, *from;
+    char *token = buf;
 
     if (pathname == NULL) {
         errno = -EINVAL;
         return NULL;
     }
-    strcpy(buf, pathname);
-    s = buf;
-    dname = strsep(&s, PATH_SEP);
-    if (strcmp(rootfs->name, dname) != 0) {
-        errno = -ENOENT;
+    if (strlen(pathname) >= MAX_PATH_LEN) {
+        errno = -ENAMETOOLONG;
         return NULL;
     }
-    return dentry_lookup(rootfs, &s);
+
+    strcpy(buf, pathname);
+    if (startswith(token, PATH_SEP)) {
+        from = dentry_obtain(rootfs);
+        (void)strsep(&token, PATH_SEP);
+    } else {
+        from = dentry_obtain(current->cwd->dent);
+    }
+    dent = dentry_lookup(from, &token);
+    dentry_release(from);
+    return dent;
 }
 
 int vfs_mknod(const char *path)

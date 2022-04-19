@@ -139,7 +139,7 @@ int task_getcwd(const struct task *task, char *buf, size_t size)
     }
     dentry_release(dent);
     if (strlen(buf) == 0) {
-        buf[0] = PATH_SEP[0];
+        sprintf(buf, PATH_SEP);
     }
     return 0;
 }
