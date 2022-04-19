@@ -11,7 +11,6 @@ struct file_ops;
 
 struct file {
     volatile uint16_t rc;
-    mode_t f_mode;
     off_t off;
     struct dentry *dent;
     struct file_ops *ops;

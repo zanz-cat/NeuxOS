@@ -79,6 +79,47 @@ void dentry_release(struct dentry *d)
     kfree(d);
 }
 
+static const char *_search(const struct dentry *dent, char **pbuf, char *end)
+{
+    const char *p;
+
+    if (dent == NULL) {
+        return NULL;
+    }
+
+    p = _search(dent->parent, pbuf, end);
+    if (errno != 0) {
+        return NULL;
+    }
+    if (p == NULL) {
+        return dent->name;
+    }
+
+    if (*pbuf + strlen(p) + 1 >= end) {
+        errno = -ENOMEM;
+        return NULL;
+    }
+    *pbuf += sprintf(*pbuf, "%s" PATH_SEP, p);
+    return dent->name;
+}
+
+int dentry_abspath(const struct dentry *dent, char *buf, size_t size)
+{
+    const char *p;
+    char *pbuf = buf;
+
+    errno = 0;
+    p = _search(dent, &pbuf, buf + size);
+    if (errno != 0) {
+        return errno;
+    }
+    if (pbuf + strlen(p) + 1 >= buf + size) {
+        return -ENOMEM;
+    }
+    strcpy(pbuf, p);
+    return 0;
+}
+
 void dentry_init(struct dentry *d)
 {
     d->rc = 1;

@@ -112,6 +112,7 @@ uint32_t task_start(struct task *task)
     if (task->type == TASK_TYPE_USER) {
         task->tss.eip = (uint32_t)user_task_launcher;
     }
+    task->state = TASK_STATE_RUNNING;
     log_debug("start task, pid: %d, exe: %s\n", task->pid, task->exe);
 
     LIST_ADD(&task_list, &task->list);

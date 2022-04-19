@@ -72,7 +72,11 @@ struct mount *vfs_umount(const char *mountpoint)
         }
         dent = rootfs;
         mnt = dent->mnt;
-        rootfs = dent->mnt->prev;
+        if (dent->mnt->prev == NULL) {
+            rootfs = NULL;
+        } else {
+            rootfs = dent->mnt->prev->dent;
+        }
         dentry_release(dent);
         return mnt;
     }

@@ -35,6 +35,7 @@ struct task {
     uint64_t ticks;
     int tty;
     char exe[MAX_PATH_LEN];
+    struct file *cwd;
     struct file *f_exe;
     struct tss tss;
     void *stack0;
@@ -56,5 +57,7 @@ struct jmp_stack_frame {
 struct task *create_kernel_task(void *text, const char *exe, int tty);
 struct task *create_user_task(const char *exe, int tty);
 int destroy_task(struct task *task);
+int task_getcwd(const struct task *task, char *buf, size_t size);
+int task_chdir(struct task *task, const char *path);
 
 #endif

@@ -22,13 +22,7 @@ struct nxsh_cmd {
 };
 
 static struct nxsh_cmd cmdlist[];
-static struct {
-    char path[NAME_MAX];
-    char base[NAME_MAX];
-} cwd = {
-    .path = "",
-    .base = "",
-};
+static char cwd[NAME_MAX];
 
 static void nxsh_perror(const char *cmd, const char *msg, ...)
 {
@@ -46,20 +40,14 @@ static void nxsh_perror(const char *cmd, const char *msg, ...)
     printf(buf);
 }
 
-static int list_one(const char *name)
+static int list_one(const char *path)
 {
     int fd;
     off_t base = 0;
     ssize_t ret;
     struct stat st;
     struct dirent dent;
-    char buf[NAME_MAX];
-    const char *path = name;
 
-    if (!startswith(name, PATH_SEP)) {
-        sprintf(buf, "%s" PATH_SEP "%s", cwd.path, name);
-        path = buf;
-    }
     ret = stat(path, &st);
     if (ret != 0) {
         goto error;
@@ -98,7 +86,7 @@ static int cmd_list(int argc, char *argv[])
     int i, ret, res;
 
     if (argc == 0) {
-        return list_one(cwd.path);
+        return list_one(".");
     }
 
     ret = 0;
@@ -122,40 +110,31 @@ static int cmd_exit(int argc, char *argv[])
 
 static int cmd_pwd(int argc, char *argv[])
 {
-    printf("%s\n", strlen(cwd.path) == 0 ? PATH_SEP : cwd.path);
-}
-
-static bool rootdir(const char *s)
-{
-    return strlen(s) == 1 && s[0] == PATH_SEP[0];
+    char buf[MAX_PATH_LEN];
+    if (getcwd(buf, MAX_PATH_LEN) == NULL) {
+        return -1;
+    }
+    printf("%s\n", buf);
 }
 
 static int cmd_chg_workdir(int argc, char *argv[])
 {
     char *path;
-    char buf[NAME_MAX];
 
     if (argc == 0) {
         return 0;
     }
-
     path = argv[0];
-    if (!startswith(argv[0], PATH_SEP)) {
-        sprintf(buf, "%s" PATH_SEP "%s", cwd.path, argv[0]);
-        path = buf;
-    }
     if (access(path, F_OK) != 0) {
-        nxsh_perror("cd", "%s: %s\n", argv[0], strerror(errno));
-        return -1;
+        goto error;
     }
-    if (rootdir(path)) {
-        strcpy(cwd.path, "");
-        strcpy(cwd.base, "");
-    } else {
-        strcpy(cwd.path, path);
-        strcpy(cwd.base, basename(path));
+    if (chdir(path) != 0) {
+        goto error;
     }
     return 0;
+error:
+    nxsh_perror("cd", "%s: %s\n", argv[0], strerror(errno));
+    return -1;
 }
 
 int cmd_proc(const char *cmd, int argc, char *argv[])
@@ -193,7 +172,7 @@ int main(int argc, char *argv[])
     int i = 0;
     char ch;
 
-    printf(PS1, cwd.base);
+    printf(PS1, cwd);
     while (1) {
         ssize_t n = read(0, &ch, 1);
         if (n < 0) {
@@ -214,7 +193,7 @@ int main(int argc, char *argv[])
                 if (strlen(buf) != 0) {
                     input_proc(buf);
                 }
-                printf(PS1, cwd.base);
+                printf(PS1, cwd);
                 i = 0;
                 break;
             case '\b':

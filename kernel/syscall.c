@@ -1,3 +1,4 @@
+#include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
 
@@ -106,7 +107,7 @@ static int sys_stat(int fd, struct stat *st)
     if (f == NULL) {
         return -1;
     }
-    st->st_mode = f->f_mode;
+    st->st_mode = F_INO(f)->mode;
     st->st_ino = F_INO(f)->ino;
     st->st_size = F_INO(f)->size;
     return 0;
@@ -127,6 +128,16 @@ static int sys_access(const char *pathname, int mode)
     return 0;
 }
 
+static int sys_getcwd(char *buf, size_t size)
+{
+    return task_getcwd(current, buf, size);
+}
+
+static int sys_chdir(const char *path)
+{
+    return task_chdir(current, path);
+}
+
 void *syscall_handler_table[] = {
     [SYSCALL_EXIT] = sys_exit,
     [SYSCALL_READ] = sys_read,
@@ -137,4 +148,6 @@ void *syscall_handler_table[] = {
     [SYSCALL_GETDENTS] = sys_getdents,
     [SYSCALL_STAT] = sys_stat,
     [SYSCALL_ACCESS] = sys_access,
+    [SYSCALL_GETCWD] = sys_getcwd,
+    [SYSCALL_CHDIR] = sys_chdir,
 };
