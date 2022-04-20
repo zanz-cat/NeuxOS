@@ -11,17 +11,18 @@ __extension__({ \
     } \
 })
 
-static struct mount *dentry_mnt(struct dentry *dentry)
+static struct mount *dentry_mnt(struct dentry *dent)
 {
-    struct dentry *dent = dentry;
-    while (dent != NULL && dent->mnt == NULL) {
-        dent = dent->parent;
+    struct dentry *p = dent;
+    while (p != NULL && p->mnt == NULL) {
+        p = p->parent;
     }
-    return dent == NULL ? NULL : dent->mnt;
+    return p == NULL ? NULL : p->mnt;
 }
 
 struct file *vfs_open(const char *pathname, int flags)
 {
+    struct mount *mnt;
     struct dentry *dent = NULL;
     
     dent = vfs_lookup(pathname);
@@ -29,7 +30,7 @@ struct file *vfs_open(const char *pathname, int flags)
         errno = -ENOENT;
         goto error;
     }
-    struct mount *mnt = dentry_mnt(dent);
+    mnt = dentry_mnt(dent);
     if (mnt == NULL) {
         errno = -EPERM;
         goto error;

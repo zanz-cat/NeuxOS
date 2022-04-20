@@ -149,6 +149,23 @@ error:
     return -1;
 }
 
+static int cmd_realpath(int argc, char *argv[])
+{
+    char resolved[MAX_PATH_LEN];
+
+    if (argc == 0) {
+        nxsh_perror("realpath", "missing operand\n");
+        return -1;
+    }
+
+    if (realpath(argv[0], resolved) == NULL) {
+        nxsh_perror("realpath", "%s: %s\n", argv[0], strerror(errno));
+        return -1;
+    }
+    printf("%s\n", resolved);
+    return 0;
+}
+
 int cmd_proc(const char *cmd, int argc, char *argv[])
 {
     int i;
@@ -238,5 +255,6 @@ static struct nxsh_cmd cmdlist[] = {
     {"exit", cmd_exit},
     {"pwd", cmd_pwd},
     {"cd", cmd_chdir},
+    {"realpath", cmd_realpath},
     {NULL, NULL}
 };

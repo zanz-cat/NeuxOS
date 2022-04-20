@@ -15,7 +15,7 @@ int fstat(int fd, struct stat *st)
         "movl %3, %%ecx\n\t"
         "int %4\n\t"
         :"+a"(ret)
-        :"i"(SYSCALL_STAT), "m"(fd), "p"(st), "i"(IRQ_EX_SYSCALL)
+        :"i"(SYSCALL_FSTAT), "m"(fd), "p"(st), "i"(IRQ_EX_SYSCALL)
         :"%ebx", "%ecx");
     if (ret < 0) {
         errno = ret;
@@ -26,13 +26,18 @@ int fstat(int fd, struct stat *st)
 
 int stat(const char *pathname, struct stat *st)
 {
-    int fd, ret;
+    int ret = 0;
 
-    fd = open(pathname, 0);
-    if (fd == -1) {
+    asm("movl %1, %%eax\n\t"
+        "movl %2, %%ebx\n\t"
+        "movl %3, %%ecx\n\t"
+        "int %4\n\t"
+        :"+a"(ret)
+        :"i"(SYSCALL_STAT), "p"(pathname), "p"(st), "i"(IRQ_EX_SYSCALL)
+        :"%ebx", "%ecx");
+    if (ret < 0) {
+        errno = ret;
         return -1;
     }
-    ret = fstat(fd, st);
-    close(fd);
     return ret;
 }

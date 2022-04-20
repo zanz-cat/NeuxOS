@@ -99,17 +99,31 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
     return n;
 }
 
-static int sys_stat(int fd, struct stat *st)
+static int sys_fstat(int fd, struct stat *st)
 {
-    struct file *f;
+    struct file *file;
 
-    f = current->files[fd];
-    if (f == NULL) {
+    file = current->files[fd];
+    if (file == NULL) {
         return -1;
     }
-    st->st_mode = F_INO(f)->mode;
-    st->st_ino = F_INO(f)->ino;
-    st->st_size = F_INO(f)->size;
+    st->st_mode = F_INO(file)->mode;
+    st->st_ino = F_INO(file)->ino;
+    st->st_size = F_INO(file)->size;
+    return 0;
+}
+
+static int sys_stat(const char *pathname, struct stat *st)
+{
+    struct file *file;
+
+    file = vfs_open(pathname, F_OK);
+    if (file == NULL) {
+        return errno;
+    }
+    st->st_mode = F_INO(file)->mode;
+    st->st_ino = F_INO(file)->ino;
+    st->st_size = F_INO(file)->size;
     return 0;
 }
 
@@ -146,6 +160,7 @@ void *syscall_handler_table[] = {
     [SYSCALL_OPEN] = sys_open,
     [SYSCALL_CLOSE] = sys_close,
     [SYSCALL_GETDENTS] = sys_getdents,
+    [SYSCALL_FSTAT] = sys_fstat,
     [SYSCALL_STAT] = sys_stat,
     [SYSCALL_ACCESS] = sys_access,
     [SYSCALL_GETCWD] = sys_getcwd,

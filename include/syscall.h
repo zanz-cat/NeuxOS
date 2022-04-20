@@ -12,10 +12,11 @@
 #define SYSCALL_OPEN 4
 #define SYSCALL_CLOSE 5
 #define SYSCALL_GETDENTS 6
-#define SYSCALL_STAT 7
-#define SYSCALL_ACCESS 8
-#define SYSCALL_GETCWD 9
-#define SYSCALL_CHDIR 10
+#define SYSCALL_FSTAT 7
+#define SYSCALL_STAT 8
+#define SYSCALL_ACCESS 9
+#define SYSCALL_GETCWD 10
+#define SYSCALL_CHDIR 11
 
 struct sys_getdents_args {
     int fd;
