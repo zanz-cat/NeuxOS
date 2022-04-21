@@ -206,12 +206,12 @@ static int read_kernel_file(void)
     if (ret != 0) {
         return ERR_READ_MBR;
     }
-    for (i = 0; i < arraylen(mbr.DPT); i++) {
+    for (i = 0; i < array_size(mbr.DPT); i++) {
         if (mbr.DPT[i].boot == PART_BOOTABLE) {
             break;
         }
     }
-    if (i == arraylen(mbr.DPT)) {
+    if (i == array_size(mbr.DPT)) {
         return ERR_NO_BOOTABLE_PART;
     }
     part = &mbr.DPT[i];

@@ -49,7 +49,7 @@ struct share_data {
         _len; \
     })
 
-#define arraylen(a) (sizeof(a)/sizeof(a[0]))
+#define array_size(a) (sizeof(a)/sizeof(a[0]))
 
 #define PTR_DIFF(ptr1, ptr2) \
     ((uint32_t)(ptr1) - (uint32_t)(ptr2))

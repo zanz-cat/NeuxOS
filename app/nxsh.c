@@ -13,8 +13,9 @@
 #include <neuxos.h>
 #include <stringex.h>
 
-#define BUF_SIZE 1024
+#define CMDLINE_MAX 64
 #define ARGC_MAX 32
+#define HISTORY_MAX 32
 
 struct nxsh_cmd {
     const char *name;
@@ -22,6 +23,87 @@ struct nxsh_cmd {
 };
 
 static struct nxsh_cmd cmdlist[];
+
+struct nxsh_history {
+    char cmdlines[HISTORY_MAX][CMDLINE_MAX];
+    int head;
+    int tail;
+    int cursor;
+};
+static struct nxsh_history history = {
+    .head = HISTORY_MAX - 1,
+    .tail = HISTORY_MAX - 1,
+    .cursor = 0,
+};
+
+struct nxsh_cmdbuf {
+    char cmdline[CMDLINE_MAX];
+    int cursor;
+};
+
+static void cmdbuf_clear(struct nxsh_cmdbuf *buf)
+{
+    int i;
+
+    for (i = 0; i < buf->cursor; i++) {
+        printf("\b");
+    }
+    buf->cursor = 0;
+}
+
+#define HIST_NI(i) (((i) + 1) % HISTORY_MAX)
+#define HIST_PI(i) (((i) - 1 + HISTORY_MAX) % HISTORY_MAX)
+
+static void history_append(const char *cmdline)
+{
+    history.head = HIST_NI(history.head);
+    if (history.head == history.tail) {
+        history.tail = HIST_NI(history.tail);
+    }
+    strcpy(history.cmdlines[history.head], cmdline);
+    history.cursor = HIST_NI(history.head);
+}
+
+static const char *history_prev(void)
+{
+    if (HIST_PI(history.cursor) == history.tail) {
+        return history.cmdlines[history.cursor];
+    }
+    history.cursor = HIST_PI(history.cursor);
+    return history.cmdlines[history.cursor];
+}
+
+static const char *history_next(void)
+{
+    if (history.cursor == HIST_NI(history.head)) {
+        return "";
+    }
+    history.cursor = HIST_NI(history.cursor);
+    return history.cmdlines[history.cursor];
+}
+
+static void history_clear(void)
+{
+    history.head = HISTORY_MAX - 1;
+    history.tail = HISTORY_MAX - 1;
+    history.cursor = 0;
+}
+
+static int cmd_history(int argc, char *argv[])
+{
+    int i, j;
+
+    if (argc == 0) {
+        for (i = HIST_NI(history.tail), j = 0; i != HIST_NI(history.head); i = HIST_NI(i), j++) {
+            printf("  %d  %s\n", j + 1, history.cmdlines[i]);
+        }
+        return 0;
+    }
+    if (strcmp(argv[0], "-c") == 0) {
+        history_clear();
+    }
+    return 0;
+}
 
 static void nxsh_perror(const char *cmd, const char *msg, ...)
 {
@@ -203,45 +285,120 @@ static void print_PS1(void)
     printf(PS1, strcmp(path, PATH_SEP) == 0 ? PATH_SEP : basename(path));
 }
 
-int main(int argc, char *argv[])
+static void nxsh_ctrl_up(struct nxsh_cmdbuf *buf)
 {
-    char buf[BUF_SIZE];
-    int i = 0;
+    cmdbuf_clear(buf);
+    strcpy(buf->cmdline, history_prev());
+    buf->cursor = strlen(buf->cmdline);
+    printf(buf->cmdline);
+}
+
+static void nxsh_ctrl_down(struct nxsh_cmdbuf *buf)
+{
+    cmdbuf_clear(buf);
+    strcpy(buf->cmdline, history_next());
+    buf->cursor = strlen(buf->cmdline);
+    printf(buf->cmdline);
+}
+
+static void nxsh_ctrl_left(void)
+{
+
+}
+
+static void nxsh_ctrl_right(void)
+{
+
+}
+
+static int ctrl(struct nxsh_cmdbuf *buf)
+{
+    int ret;
     char ch;
 
+    ret = getchar();
+    if (ret == EOF) {
+        return EOF;
+    }
+    ch = (char)ret;
+    if (ch != '[') {
+        return ch;
+    }
+    ret = getchar();
+    if (ret == EOF) {
+        return EOF;
+    }
+    ch = (char)ret;
+    switch (ch) {
+        case 'A':
+            nxsh_ctrl_up(buf);
+            break;
+        case 'B':
+            nxsh_ctrl_down(buf);
+            break;
+        case 'C':
+            nxsh_ctrl_left();
+            break;
+        case 'D':
+            nxsh_ctrl_right();
+            break;
+        default:
+            return ret;
+            break;
+    }
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    int ret;
+    char ch;
+    struct nxsh_cmdbuf buf = {
+        .cursor = 0
+    };
+
     print_PS1();
-    while (1) {
-        ssize_t n = read(0, &ch, 1);
-        if (n < 0) {
-            printf("read error: %s\n", strerror(errno));
-            return -1;
-        }
-    
-        if (i == 0 && ch == '\b') {
-            continue;
-        }
-        if ((i == BUF_SIZE - 1) && (ch != '\b' && ch != '\n')) {
-            continue;
-        }
-        printf("%c", ch);
+    while ((ret = getchar()) != EOF) {    
+        ch = (char)ret;
         switch (ch) {
+            case '\033':
+                ret = ctrl(&buf);
+                if (ret < 0) {
+                    goto eof_error;
+                } else if (ret > 0) {
+                    // invalid ctrl, print
+                    putchar((char)ret);
+                }
+                break;
             case '\n':
-                buf[i] = '\0';
-                if (strlen(buf) != 0) {
-                    input_proc(buf);
+                putchar(ch);
+                buf.cmdline[buf.cursor] = '\0';
+                if (strlen(buf.cmdline) != 0) {
+                    history_append(buf.cmdline);
+                    input_proc(buf.cmdline);
                 }
                 print_PS1();
-                i = 0;
+                buf.cursor = 0;
                 break;
             case '\b':
-                buf[--i] = '\0';
+                if (buf.cursor == 0) {
+                    break;
+                }
+                putchar(ch);
+                buf.cmdline[--buf.cursor] = '\0';
                 break;
             default:
-                buf[i++] = ch;
+                if (buf.cursor < CMDLINE_MAX - 1) {
+                    putchar(ch);
+                    buf.cmdline[buf.cursor++] = ch;
+                }
                 break;
         }
     }
-    return 0;
+
+eof_error:
+    printf("getchar error: %s\n", strerror(errno));
+    return -1;
 }
 
 void _start(void)
@@ -256,5 +413,6 @@ static struct nxsh_cmd cmdlist[] = {
     {"pwd", cmd_pwd},
     {"cd", cmd_chdir},
     {"realpath", cmd_realpath},
+    {"history", cmd_history},
     {NULL, NULL}
 };

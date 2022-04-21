@@ -1,7 +1,5 @@
-#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
-#include "lib/misc.h"
 
 #include <string.h>
 
@@ -140,29 +138,6 @@ char *strsep(char **sp, const char *delim)
 int startswith(const char *a, const char *b)
 {
     return strncmp(a, b, strlen(b)) == 0;
-}
-
-char *strerror(int errnum)
-{
-    static char *errmsg[] = {
-        [EPERM] = "Operation not permitted",
-        [ENOENT] = "No such file or directory",
-        [ENOTDIR] = "Not a directory",
-        [EINVAL] = "Invalid argument",
-        [ENOTSUP] = "Operation not supported",
-        [ENAMETOOLONG] = "File name too long",
-        [ETIMEDOUT] = "Connection timed out",
-        [ENOBUFS] = "No buffer space available",
-    };
-    static char unknown[16]; 
-
-    int i = abs(errnum);
-    if (i < arraylen(errmsg) && errmsg[i] != NULL) {
-        return errmsg[i];
-    }
-    
-    sprintf(unknown, "errno=%d", -i);
-    return unknown;
 }
 
 char *trim(char *s)

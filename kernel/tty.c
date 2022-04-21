@@ -71,6 +71,12 @@ static void tty_switch(int fd)
     _tty_current = fd;
 }
 
+static void putctrl(int fd)
+{
+    iobuf_put(&ttys[fd].in, '\033');
+    iobuf_put(&ttys[fd].in, '[');
+}
+
 static void tty_in_proc(int fd, uint16_t key)
 {
     if (fd < TTY0 || fd > TTY_MAX) {
@@ -110,6 +116,13 @@ static void tty_in_proc(int fd, uint16_t key)
             case FLAG_SHIFT_L | F5:
                 mm_report();
                 sched_report();
+                break;
+            case UP:
+            case DOWN:
+            case LEFT:
+            case RIGHT:
+                putctrl(fd);
+                iobuf_put(&ttys[fd].in, 'A' + (key - UP));
                 break;
             default:
                 break;
