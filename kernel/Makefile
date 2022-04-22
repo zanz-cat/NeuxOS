@@ -8,7 +8,7 @@ all: $(ASMOBJS) $(OBJS) kernel.elf
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $^
 
-$(ASMOBJS): %_S.o:%.S
+$(ASMOBJS): %.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
 kernel.elf: $(OBJS) $(ASMOBJS) $(DRIVEROBJS) $(FSOBJS) $(LIBOBJS) $(MMOBJS) $(ARCHOBJS)

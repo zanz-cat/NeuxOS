@@ -5,7 +5,7 @@ include ../../.config
 
 .PHONY: all clean
 
-ALLOBJS:=$(OBJS) $(DRIVERSDIR)/io_S.o monitor.o $(LIBOBJS)
+ALLOBJS:=$(OBJS) $(DRIVERSDIR)/io.o monitor.o $(LIBOBJS)
 
 all: monitor.o mbr.bin boot.bin loader.bin loader.elf
 

@@ -10,7 +10,7 @@ CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 
 all: $(ASMOBJS) $(SUBDIRS)
 
-$(ASMOBJS): %_S.o:%.S
+$(ASMOBJS): %.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
 clean: $(CLEAN_SUBDIRS)

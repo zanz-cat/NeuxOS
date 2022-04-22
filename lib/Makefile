@@ -10,19 +10,22 @@ CLEAN_SUBDIRS:=$(addprefix _clean_,$(SUBDIRS))
 
 CFLAGS += -I$(ROOTDIR)/include
 
-all: $(ASMOBJS) $(OBJS) $(SUBDIRS)
+all: $(ASMOBJS) $(OBJS) $(SUBDIRS) libc.a
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $^
 
-$(ASMOBJS): %_S.o:%.S
+$(ASMOBJS): %.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
 clean: $(CLEAN_SUBDIRS)
-	rm -f $(OBJS) $(ASMOBJS)
+	rm -f $(OBJS) $(ASMOBJS) libc.a
 
 $(SUBDIRS):
 	$(MAKE) -C $@
+
+libc.a: $(ASMOBJS) $(OBJS) $(SUBDIRS)
+	ar cr $@ $(ASMOBJS) $(OBJS) */*.o
 
 $(CLEAN_SUBDIRS):
 	$(MAKE) -C $(patsubst _clean_%,%,$@) clean

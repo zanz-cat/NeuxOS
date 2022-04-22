@@ -4,16 +4,13 @@ include ../../vars.mk
 
 CFLAGS += -I$(ROOTDIR)/include
 
-all: libsys.a
+all: $(ASMOBJS) $(OBJS)
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $^
 
-$(ASMOBJS): %_S.o:%.S
+$(ASMOBJS): %.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
-libsys.a: $(ASMOBJS) $(OBJS)
-	ar cr $@ $^
-
 clean:
-	rm -f $(ASMOBJS) $(OBJS) libsys.a
+	rm -f $(ASMOBJS) $(OBJS)

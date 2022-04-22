@@ -4,16 +4,13 @@ include ../../vars.mk
 
 CFLAGS += -I$(ROOTDIR)/include
 
-all: libposix.a
+all: $(ASMOBJS) $(OBJS)
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) -o $@ $^
 
-$(ASMOBJS): %_S.o:%.S
+$(ASMOBJS): %.o:%.S
 	nasm $(ASMFLAGS) -f elf -o $@ $^
 
-libposix.a: $(ASMOBJS) $(OBJS)
-	ar cr $@ $^
-
 clean:
-	rm -f $(ASMOBJS) $(OBJS) libposix.a
+	rm -f $(ASMOBJS) $(OBJS)

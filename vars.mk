@@ -14,7 +14,7 @@ LDFLAGS:=-m elf_i386
 SOURCE:=$(wildcard *.c)
 OBJS:=$(patsubst %.c,%.o, $(SOURCE))
 ASMSOURCE:=$(wildcard *.S)
-ASMOBJS:=$(patsubst %.S,%_S.o, $(ASMSOURCE))
+ASMOBJS:=$(patsubst %.S,%.o, $(ASMSOURCE))
 
 LIBDIR:=$(ROOTDIR)/lib
 DRIVERSDIR:=$(ROOTDIR)/drivers
@@ -22,7 +22,7 @@ FSDIR:=$(ROOTDIR)/fs
 MMDIR:=$(ROOTDIR)/mm
 ARCHDIR:=$(ROOTDIR)/arch
 
-LIBOBJS:=$(wildcard $(LIBDIR)/*.o) $(LIBDIR)/c/libc.a $(LIBDIR)/posix/libposix.a
+LIBOBJS:=$(wildcard $(LIBDIR)/*.o) $(LIBDIR)/libc.a
 DRIVEROBJS:=$(wildcard $(DRIVERSDIR)/*.o) $(wildcard $(DRIVERSDIR)/*/*.o)
 FSOBJS:=$(wildcard $(FSDIR)/*.o) $(wildcard $(FSDIR)/*/*.o)
 MMOBJS:=$(wildcard $(MMDIR)/*.o) $(wildcard $(MMDIR)/*/*.o)

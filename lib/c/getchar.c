@@ -12,8 +12,3 @@ int getchar(void)
     }
     return (int)ch;
 }
-
-int putchar(int c)
-{
-    return write(0, &c, 1);
-}
