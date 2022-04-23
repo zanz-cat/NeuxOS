@@ -50,9 +50,6 @@ struct ktask {
 struct utask {
     struct task base;
     struct file *exe;
-    struct file *stdin;
-    struct file *stdout;
-    struct file *stderr;
 };
 
 static inline struct ktask *kern_task(struct task *task)
@@ -67,8 +64,13 @@ static inline struct utask *user_task(struct task *task)
 
 static inline const char *task_name(struct task *task)
 {
-    return task->type == TASK_T_KERN ? kern_task(task)->name :
-           user_task(task)->exe->dent->name;
+    if (task->type == TASK_T_KERN) {
+        return kern_task(task)->name;
+    }
+    if (user_task(task)->exe == NULL || user_task(task)->exe->dent == NULL) {
+        return "null";
+    }
+    return user_task(task)->exe->dent->name;
 }
 
 struct jmp_stack_frame {
@@ -80,7 +82,8 @@ struct jmp_stack_frame {
 } __attribute__((packed));
 
 struct task *create_kernel_task(const char *exe, void *text);
-struct task *create_user_task(const char *exe, int tty);
+struct task *create_user_task(const char *exe, struct file *stdin,
+                              struct file *stdout, struct file *stderr);
 int destroy_task(struct task *task);
 
 int task_getcwd(const struct task *task, char *buf, size_t size);

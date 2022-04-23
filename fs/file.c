@@ -22,6 +22,7 @@ static struct mount *dentry_mnt(struct dentry *dent)
 
 struct file *vfs_open(const char *pathname, int flags)
 {
+    struct file *pfile;
     struct mount *mnt;
     struct dentry *dent = NULL;
     
@@ -36,55 +37,56 @@ struct file *vfs_open(const char *pathname, int flags)
         goto error;
     }
 
-    struct file *f = kmalloc(sizeof(struct file));
-    if (f == NULL) {
+    pfile = kmalloc(sizeof(struct file));
+    if (pfile == NULL) {
         errno = -ENOMEM;
         goto error;
     }
-    f->rc = 1;
-    f->off = 0;
-    f->dent = dent;
-    f->ops = &mnt->fs->f_ops;
-    f->buf = NULL;
-    return f;
+    pfile->rc = 1;
+    pfile->off = 0;
+    pfile->dent = dent;
+    pfile->ops = &mnt->fs->f_ops;
+    pfile->buf = NULL;
+    return pfile;
 
 error:
     dentry_release(dent);
     return NULL;
 }
 
-int vfs_close(struct file *f)
+int vfs_close(struct file *pfile)
 {
-    f->rc--;
-    if (f->rc != 0) {
+    pfile->rc--;
+    if (pfile->rc != 0) {
         return 0;
     }
-    dentry_release(f->dent);
-    op_assert(f->ops->close);
-    f->ops->close(f);
-    kfree(f);
+    dentry_release(pfile->dent);
+    op_assert(pfile->ops->close);
+    pfile->ops->close(pfile);
+    kfree(pfile);
     return 0;
 }
 
-ssize_t vfs_read(struct file *f, void *buf, size_t count)
+ssize_t vfs_read(struct file *pfile, void *buf, size_t count)
 {
-    op_assert(f->ops->read);
+    op_assert(pfile->ops->read);
 
-    ssize_t ret = f->ops->read(f, buf, count);
+    ssize_t ret = pfile->ops->read(pfile, buf, count);
     if (ret < 0) {
         return ret;
     }
-    f->off += ret;
+    pfile->off += ret;
     return ret;
 }
 
-ssize_t vfs_write(struct file *f, const void *buf, size_t count)
+ssize_t vfs_write(struct file *pfile, const void *buf, size_t count)
 {
-    return 0;
+    op_assert(pfile->ops->write);
+    return pfile->ops->write(pfile, buf, count);
 }
 
-int vfs_readdir(struct file *f, struct dirent *dent)
+int vfs_readdir(struct file *pfile, struct dirent *dent)
 {
-    op_assert(f->ops->readdir);
-    return f->ops->readdir(f, dent);
+    op_assert(pfile->ops->readdir);
+    return pfile->ops->readdir(pfile, dent);
 }

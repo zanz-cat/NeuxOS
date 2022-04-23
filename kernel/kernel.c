@@ -75,6 +75,7 @@ void enable_em(void)
 void kernel_setup()
 {
     struct task *task;
+    struct file *stdin, *stdout;
 
     set_log_level(DEBUG);
     mm_setup();
@@ -95,13 +96,15 @@ void kernel_setup()
     }
     task_start(task);
 
-    task = create_user_task("/bin/init", TTY0);
+    task = create_user_task("/bin/init", NULL, NULL, NULL);
     if (task == NULL) {
         kernel_panic("create init task failed\n");
     }
     task_start(task);
 
-    task = create_user_task("/bin/nxsh", TTY0);
+    stdin = vfs_open("/dev/ttyS0", R_OK);
+    stdout = vfs_open("/dev/ttyS0", W_OK);
+    task = create_user_task("/bin/nxsh", stdin, stdout, NULL);
     if (task == NULL) {
         kernel_panic("create nxsh task failed\n");
     }
@@ -126,31 +129,20 @@ void kernel_loop(void)
 
 static void __attribute__((unused)) open_a_txt()
 {
-    struct file *f = vfs_open("/root/a.txt", 0);
-    if (f == NULL) {
+    struct inode *pinode;
+    struct file *pfile = vfs_open("/root/a.txt", 0);
+    if (pfile == NULL) {
         log_error("open file error: %d\n", errno);
         return;
     }
-    char *buf = kmalloc(F_INO(f)->size);
+    pinode = pfile->dent->inode;
+    char *buf = kmalloc(pinode->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
-        vfs_close(f);
+        vfs_close(pfile);
         return;
     }
-    int ret = vfs_read(f, buf, F_INO(f)->size);
-    printk("a.txt size=%d, content=...%s\n", ret, buf + F_INO(f)->size - 16);
-    vfs_close(f);
-}
-
-void F4_handler(void)
-{
-    // open_a_txt();
-    // return;
-    struct task *task = create_user_task("/bin/nxsh", tty_get_cur());
-    if (task == NULL) {
-        printk("create user task failed\n");
-        return;
-    }
-    task_start(task);
-    return;
+    int ret = vfs_read(pfile, buf, pinode->size);
+    printk("a.txt size=%d, content=...%s\n", ret, buf + pinode->size - 16);
+    vfs_close(pfile);
 }

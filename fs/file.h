@@ -17,19 +17,17 @@ struct file {
     void *buf;
 };
 
-#define F_INO(f) ((f)->dent->inode)
-
 struct file_ops {
-    ssize_t (*read)(struct file *f, void *buf, size_t count);
-    int (*readdir)(struct file *f, struct dirent *dent);
-    ssize_t (*write)(struct file *f, const void *buf, size_t count);
-    int (*close)(struct file *f);
+    ssize_t (*read)(struct file *pfile, void *buf, size_t count);
+    int (*readdir)(struct file *pfile, struct dirent *dent);
+    ssize_t (*write)(struct file *pfile, const void *buf, size_t count);
+    int (*close)(struct file *pfile);
 };
 
 struct file *vfs_open(const char *pathname, int flags);
-ssize_t vfs_read(struct file *f, void *buf, size_t count);
-ssize_t vfs_write(struct file *f, const void *buf, size_t count);
-int vfs_close(struct file *f);
-int vfs_readdir(struct file *f, struct dirent *dent);
+ssize_t vfs_read(struct file *pfile, void *buf, size_t count);
+ssize_t vfs_write(struct file *pfile, const void *buf, size_t count);
+int vfs_close(struct file *pfile);
+int vfs_readdir(struct file *pfile, struct dirent *dent);
 
 #endif

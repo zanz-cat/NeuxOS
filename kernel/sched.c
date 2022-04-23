@@ -64,19 +64,21 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
 static void user_task_bootloader(const char *exe)
 {
     uint32_t ebp;
+    struct inode *pinode;
     struct jmp_stack_frame *sf;
 
     user_task(current)->exe = vfs_open(exe, 0);
     if (user_task(current)->exe == NULL) {
-        log_error("open file %s error: %d\n", task_name(current), errno);
+        log_error("open file %s error: %d\n", exe, errno);
         task_term(current);
     }
-    char *buf = kmalloc(F_INO(user_task(current)->exe)->size);
+    pinode = user_task(current)->exe->dent->inode;
+    char *buf = kmalloc(pinode->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
         task_term(current);
     }
-    int ret = vfs_read(user_task(current)->exe, buf, F_INO(user_task(current)->exe)->size);
+    int ret = vfs_read(user_task(current)->exe, buf, pinode->size);
     if (ret < 0) {
         log_error("read error: %d\n", ret);
         kfree(buf);
@@ -86,7 +88,7 @@ static void user_task_bootloader(const char *exe)
     ret = load_elf(buf, 0, &entry_point);
     kfree(buf);
     if (ret < 0) {
-        log_error("load elf[%s] error: %s\n", task_name(current), strerror(ret));
+        log_error("load elf[%s] error: %s\n", exe, strerror(ret));
         task_term(current);
     }
 

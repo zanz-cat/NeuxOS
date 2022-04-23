@@ -9,7 +9,7 @@
 
 #define PRINTFK_BUF_SIZE 1024
 
-static int default_write(int fd, char *buf, size_t n)
+static int default_write(int fd, const char *buf, size_t n)
 {
     static struct monitor _mon;
     static struct monitor *mon = NULL;
@@ -26,9 +26,9 @@ static int default_write(int fd, char *buf, size_t n)
     return i;
 }
 
-static int (*_write_func)(int, char *, size_t) = default_write;
+static int (*_write_func)(int, const char *, size_t) = default_write;
 
-void printk_set_write(int (*writer)(int, char *, size_t))
+void printk_set_write(int (*writer)(int, const char *, size_t))
 {
     _write_func = writer;
 }

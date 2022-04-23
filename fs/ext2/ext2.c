@@ -39,10 +39,10 @@ static int ext2_i_create(struct inode *dir, struct dentry *dentry, int mode);
 static int ext2_i_lookup(struct inode *dir, struct dentry *dentry);
 static void ext2_i_release(struct inode *inode);
 
-static ssize_t ext2_f_read(struct file *f, void *buf, size_t count);
-static int ext2_f_readdir(struct file *f, struct dirent *dent);
-static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count);
-static int ext2_f_close(struct file *f);
+static ssize_t ext2_f_read(struct file *pfile, void *buf, size_t count);
+static int ext2_f_readdir(struct file *pfile, struct dirent *dent);
+static ssize_t ext2_f_write(struct file *pfile, const void *buf, size_t count);
+static int ext2_f_close(struct file *pfile);
 
 static struct fs ext2_fs = {
     .name = "ext2",
@@ -298,13 +298,13 @@ static uint32_t search_in_dir(uint32_t dir_ino, const char *name)
     return ino;
 }
 
-static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
+static ssize_t ext2_f_read(struct file *pfile, void *buf, size_t count)
 {
     int ret;
     size_t offset = 0;
     struct block_iter iter;
 
-    block_iter_init(&iter, (struct ext2_inode *)F_INO(f)->priv);
+    block_iter_init(&iter, (struct ext2_inode *)(pfile->dent->inode->priv));
     while ((ret = block_read_iter(&iter, buf + offset, count - offset)) > 0) {
         offset += ret;
     }
@@ -312,37 +312,38 @@ static ssize_t ext2_f_read(struct file *f, void *buf, size_t count)
     return ret < 0 ? ret : offset;
 }
 
-static ssize_t ext2_f_write(struct file *f, const void *buf, size_t count)
+static ssize_t ext2_f_write(struct file *pfile, const void *buf, size_t count)
 {
     return 0;
 }
 
-static int ext2_f_close(struct file *f)
+static int ext2_f_close(struct file *pfile)
 {
-    kfree(f->buf);
+    kfree(pfile->buf);
     return 0;
 }
 
-static int ext2_f_readdir(struct file *f, struct dirent *dent)
+static int ext2_f_readdir(struct file *pfile, struct dirent *dent)
 {
     int ret;
+    struct inode *pinode = pfile->dent->inode;
     struct ext2_dir_entry *ext2_dent;
     
-    if (f->buf == NULL) {
-        f->buf = kmalloc(F_INO(f)->size);
-        if (f->buf == NULL) {
+    if (pfile->buf == NULL) {
+        pfile->buf = kmalloc(pinode->size);
+        if (pfile->buf == NULL) {
             return -ENOMEM;
         }
-        ret = ext2_f_read(f, f->buf, F_INO(f)->size);
+        ret = ext2_f_read(pfile, pfile->buf, pinode->size);
         if (ret < 0) {
             return ret;
         }
     }
-    if (f->off >= F_INO(f)->size) {
+    if (pfile->off >= pinode->size) {
         return -EOF;
     }
 
-    ext2_dent = f->buf + f->off;
+    ext2_dent = pfile->buf + pfile->off;
     dent->d_ino = ext2_dent->inode;
     dent->d_off = 0;
     dent->d_type = ext2_dent->file_type;
@@ -352,7 +353,7 @@ static int ext2_f_readdir(struct file *f, struct dirent *dent)
     }
     strncpy(dent->d_name, ext2_dent->name, ext2_dent->name_len);
     dent->d_name[ext2_dent->name_len] = '\0';
-    f->off += ext2_dent->rec_len;
+    pfile->off += ext2_dent->rec_len;
 
     return 0;
 }

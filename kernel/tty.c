@@ -13,7 +13,6 @@
 
 #include "tty.h"
 
-extern void F4_handler(void);
 extern void mm_report(void);
 extern void sched_report(void);
 
@@ -111,7 +110,6 @@ static void tty_in_proc(int fd, uint16_t key)
                 tty_switch(TTY2);
                 break;
             case FLAG_SHIFT_L | F4:
-                F4_handler();
                 break;
             case FLAG_SHIFT_L | F5:
                 mm_report();
@@ -142,7 +140,7 @@ static void tty_do_read(int fd)
     keyboard_read(tty_in_proc, fd);
 }
 
-ssize_t tty_write(int fd, char *buf, size_t n)
+ssize_t tty_write(int fd, const char *buf, size_t n)
 {
     int i;
 

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <arch/x86.h>
 #include <mm/mm.h>
@@ -55,7 +56,7 @@ static int init_tss(struct task *task, void *s0, void *text)
     return 0;
 }
 
-static struct task *_create_task(void *text, const char *workdir, int tty, uint8_t type)
+static struct task *_create_task(void *text, const char *workdir, uint8_t type)
 {
     int ret;
     void *s0 = NULL;
@@ -105,7 +106,7 @@ struct task *create_kernel_task(const char *exe, void *text)
         return NULL;
     }
 
-    task = _create_task(text, "/", -1, TASK_T_KERN);
+    task = _create_task(text, "/", TASK_T_KERN);
     if (task == NULL) {
         return NULL;
     }
@@ -113,11 +114,12 @@ struct task *create_kernel_task(const char *exe, void *text)
     return task;
 }
 
-struct task *create_user_task(const char *exe, int tty)
+struct task *create_user_task(const char *exe, struct file *stdin,
+                              struct file *stdout, struct file *stderr)
 {
     struct task *task;
 
-    task = _create_task(NULL, "/", tty, TASK_T_USER);
+    task = _create_task(NULL, "/", TASK_T_USER);
     if (task == NULL) {
         return NULL;
     }
@@ -129,19 +131,25 @@ struct task *create_user_task(const char *exe, int tty)
     *((uint32_t *)task->tss.esp) = task->tss.esp + sizeof(char *);
     task->tss.esp -= sizeof(void *); // dummy return address
 
-    user_task(task)->stdin = NULL;
-    user_task(task)->stdout = NULL;
-    user_task(task)->stderr = NULL;
+    task->files[STDIN_FILENO] = stdin;
+    task->files[STDOUT_FILENO] = stdout;
+    task->files[STDERR_FILENO] = stderr == NULL ? stdout : stderr;
     return task;
 }
 
 int destroy_task(struct task *task)
 {
+    int fd;
     uninstall_tss(task->tss_sel);
     kfree(PTR_SUB((void *)task->tss.esp0, STACK0_SIZE));
     if (is_user(task)) {
         free_user_page((void *)task->tss.cr3);
         vfs_close(user_task(task)->exe);
+    }
+    for (fd = 0; fd < NR_TASK_FILES; fd++) {
+        if (task->files[fd] != NULL) {
+            vfs_close(task->files[fd]);
+        }
     }
     vfs_close(task->cwd);
     kfree(task);
@@ -175,7 +183,7 @@ int task_chdir(struct task *task, const char *path)
         return errno;
     }
 
-    if (!(F_INO(dir)->mode & S_IFDIR)) {
+    if (!(dir->dent->inode->mode & S_IFDIR)) {
         vfs_close(dir);
         return -ENOTDIR;
     }

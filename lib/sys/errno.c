@@ -20,6 +20,7 @@ char *strerror(int errnum)
         [EINVAL] = "Invalid argument",
         [ENOTSUP] = "Operation not supported",
         [ENAMETOOLONG] = "File name too long",
+        [EBADFD] = "File descriptor in bad state",
         [ETIMEDOUT] = "Connection timed out",
         [ENOBUFS] = "No buffer space available",
     };

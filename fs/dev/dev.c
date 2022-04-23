@@ -26,10 +26,10 @@ static int devfs_i_create(struct inode *dir, struct dentry *dent, int mode);
 static int devfs_i_lookup(struct inode *dir, struct dentry *dent);
 static void devfs_i_release(struct inode *inode);
 
-static ssize_t devfs_f_read(struct file *f, void *buf, size_t count);
-static int devfs_f_readdir(struct file *f, struct dirent *dent);
-static ssize_t devfs_f_write(struct file *f, const void *buf, size_t count);
-static int devfs_f_close(struct file *f);
+static ssize_t devfs_f_read(struct file *pfile, void *buf, size_t count);
+static int devfs_f_readdir(struct file *pfile, struct dirent *dent);
+static ssize_t devfs_f_write(struct file *pfile, const void *buf, size_t count);
+static int devfs_f_close(struct file *pfile);
 static struct fs devfs = {
     .name = "devfs",
     .ops = {},
@@ -94,41 +94,43 @@ static void devfs_i_release(struct inode *inode)
     // nop
 }
 
-static ssize_t devfs_f_read(struct file *f, void *buf, size_t count)
+static ssize_t devfs_f_read(struct file *pfile, void *buf, size_t count)
 {
     return 0;
 }
 
-static int devfs_f_readdir(struct file *f, struct dirent *dent)
+static int devfs_f_readdir(struct file *pfile, struct dirent *dent)
 {
     struct dev_inode *dinode;
 
-    if (f->buf == NULL) {
-        f->buf = devlist.next;
+    if (pfile->buf == NULL) {
+        pfile->buf = devlist.next;
     }
 
-    if (f->buf == &devlist) {
+    if (pfile->buf == &devlist) {
         return -EOF;
     }
 
-    dinode = container_of(f->buf, struct dev_inode, list);
+    dinode = container_of(pfile->buf, struct dev_inode, list);
     dent->d_ino = dinode->inode.ino;
     dent->d_off = 0;
     dent->d_type = DT_CHR;
     dent->d_reclen = sizeof(struct dev_inode);
     strcpy(dent->d_name, dinode->name);
-    f->off += sizeof(struct dev_inode);
-    f->buf = dinode->list.next;
+    pfile->off += sizeof(struct dev_inode);
+    pfile->buf = dinode->list.next;
 
     return 0;
 }
 
-static ssize_t devfs_f_write(struct file *f, const void *buf, size_t count)
+#include <kernel/tty.h>
+static ssize_t devfs_f_write(struct file *pfile, const void *buf, size_t count)
 {
     return 0;
+    return tty_write(TTY0, buf, count);
 }
 
-static int devfs_f_close(struct file *f)
+static int devfs_f_close(struct file *pfile)
 {
     return 0;
 }

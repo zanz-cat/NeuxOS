@@ -19,7 +19,17 @@ static void sys_exit(int status)
 
 static ssize_t sys_write(int fd, const void *buf, size_t nbytes)
 {
-    return tty_write(fd, (char *)buf, nbytes);
+    struct file *pfile;
+
+    if (fd >= NR_TASK_FILES) {
+        return -EINVAL;
+    }
+
+    pfile = current->files[fd];
+    if (pfile == NULL) {
+        return -EBADFD;
+    }
+    return vfs_write(pfile, buf, nbytes);
 }
 
 static ssize_t sys_read(int fd, void *buf, size_t nbytes)
@@ -71,22 +81,22 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
 {
     int i, ret;
     ssize_t n;
-    struct file *f;
+    struct file *pfile;
 
     if (args->fd < 0 || args->fd >= NR_TASK_FILES) {
         return -EINVAL;
     }
-    f = current->files[args->fd];
-    if (f == NULL) {
+    pfile = current->files[args->fd];
+    if (pfile == NULL) {
         return -ENOENT;
     }
-    if (!(F_INO(f)->mode & S_IFDIR)) {
+    if (!(pfile->dent->inode->mode & S_IFDIR)) {
         return -ENOTDIR;
     }
 
     n = 0;
     for (i = 0; i < (args->nbytes / sizeof(struct dirent)); i++) {
-        ret = vfs_readdir(f, (struct dirent *)args->buf + i);
+        ret = vfs_readdir(pfile, (struct dirent *)args->buf + i);
         if (ret == -EOF) {
             return 0;
         }
@@ -101,29 +111,33 @@ static ssize_t sys_getdents(struct sys_getdents_args *args)
 
 static int sys_fstat(int fd, struct stat *st)
 {
-    struct file *file;
+    struct file *pfile;
+    struct inode *pinode;
 
-    file = current->files[fd];
-    if (file == NULL) {
+    pfile = current->files[fd];
+    if (pfile == NULL) {
         return -1;
     }
-    st->st_mode = F_INO(file)->mode;
-    st->st_ino = F_INO(file)->ino;
-    st->st_size = F_INO(file)->size;
+    pinode = pfile->dent->inode;
+    st->st_mode = pinode->mode;
+    st->st_ino = pinode->ino;
+    st->st_size = pinode->size;
     return 0;
 }
 
 static int sys_stat(const char *pathname, struct stat *st)
 {
-    struct file *file;
+    struct file *pfile;
+    struct inode *pinode;
 
-    file = vfs_open(pathname, F_OK);
-    if (file == NULL) {
+    pfile = vfs_open(pathname, F_OK);
+    if (pfile == NULL) {
         return errno;
     }
-    st->st_mode = F_INO(file)->mode;
-    st->st_ino = F_INO(file)->ino;
-    st->st_size = F_INO(file)->size;
+    pinode = pfile->dent->inode;
+    st->st_mode = pinode->mode;
+    st->st_ino = pinode->ino;
+    st->st_size = pinode->size;
     return 0;
 }
 
