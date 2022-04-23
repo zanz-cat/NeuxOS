@@ -92,7 +92,7 @@ static const char *map_page(uint32_t cr2)
         }
         memset(virt_addr((void *)tpage), 0, PAGE_SIZE);
         dir[i].rw = 1;
-        dir[i].us = current->type == TASK_TYPE_USER;
+        dir[i].us = current->type == TASK_T_USER;
         dir[i].index = tpage >> PAGE_SHIFT;
         dir[i].present = 1;
     }
@@ -100,7 +100,7 @@ static const char *map_page(uint32_t cr2)
     i = (cr2 >> PAGE_SHIFT) & 0x3ff;
     tbl[i].index = page >> PAGE_SHIFT;
     tbl[i].rw = 1;
-    tbl[i].us = current->type == TASK_TYPE_USER;
+    tbl[i].us = current->type == TASK_T_USER;
     tbl[i].present = 1;
     return NULL;
 }
@@ -149,7 +149,7 @@ error:
            "> r/w: %s\n"
            "> user: %s\n"
            "> backtrace: ",
-           reason, current->pid, current->exe, 
+           reason, current->pid, task_name(current), 
            eflags, cs, eip, cr2, write ? "w" : "r", user ? "1" : "0");
 
     ret = backtrace(buf, MAX_BACKTRACE_SIZE);

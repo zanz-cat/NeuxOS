@@ -96,7 +96,7 @@ void generic_ex_handler(int vec_no, int err_code, int eip, int cs, int eflags)
     fprintk(TTY0, "\nKernel crashed!\n%s\nTASK: %u(%s)\n"
            "EFLAGS: 0x%x\nCS: 0x%x\nEIP: 0x%x\n",
            exception_msg[vec_no], current->pid, 
-           current->exe, eflags, cs, eip);
+           task_name(current), eflags, cs, eip);
 
     if(err_code != 0xffffffff) {
         printk("Error code: 0x%x\n\n", err_code);

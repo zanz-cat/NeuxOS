@@ -61,24 +61,22 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
     return count;
 }
 
-static void user_task_launcher(void)
+static void user_task_bootloader(const char *exe)
 {
     uint32_t ebp;
     struct jmp_stack_frame *sf;
 
-    current->f_exe = vfs_open(current->exe, 0);
-    if (current->f_exe == NULL) {
-        log_error("open file %s error: %d\n", current->exe, errno);
+    user_task(current)->exe = vfs_open(exe, 0);
+    if (user_task(current)->exe == NULL) {
+        log_error("open file %s error: %d\n", task_name(current), errno);
         task_term(current);
     }
-    char *buf = kmalloc(F_INO(current->f_exe)->size);
+    char *buf = kmalloc(F_INO(user_task(current)->exe)->size);
     if (buf == NULL) {
         log_error("malloc failed\n");
-        vfs_close(current->f_exe);
         task_term(current);
     }
-    int ret = vfs_read(current->f_exe, buf, F_INO(current->f_exe)->size);
-    vfs_close(current->f_exe);
+    int ret = vfs_read(user_task(current)->exe, buf, F_INO(user_task(current)->exe)->size);
     if (ret < 0) {
         log_error("read error: %d\n", ret);
         kfree(buf);
@@ -88,19 +86,20 @@ static void user_task_launcher(void)
     ret = load_elf(buf, 0, &entry_point);
     kfree(buf);
     if (ret < 0) {
-        log_error("load elf[%s] error: %s\n", current->exe, strerror(ret));
+        log_error("load elf[%s] error: %s\n", task_name(current), strerror(ret));
         task_term(current);
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);
-    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by init_user_task
+    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by create_user_task
     sf->ss = SELECTOR_USER_DS;
     sf->esp = CONFIG_KERNEL_VM_OFFSET;  // stack bottom, no limit for user stack size
     sf->eflags = INITIAL_EFLAGS;
     sf->cs = SELECTOR_USER_CS;
     sf->eip = entry_point;
-    asm("leave\n\t"
-        "mov %0, %%ax\n\t"
+    asm("movl %0, %%ebp"::"p"((void *)sf - sizeof(void *)):); // exe path will be dropped
+    asm("leave\n\t"); // mov esp, ebp; pop ebp
+    asm("mov %0, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
         "mov %%ax, %%es\n\t"
         "iret\n\t"::"i"(SELECTOR_USER_DS):);
@@ -109,11 +108,13 @@ static void user_task_launcher(void)
 uint32_t task_start(struct task *task)
 {
     task->pid = task_id++;
-    if (task->type == TASK_TYPE_USER) {
-        task->tss.eip = (uint32_t)user_task_launcher;
+    if (task->type == TASK_T_USER) {
+        task->tss.eip = (uint32_t)user_task_bootloader;
     }
     task->state = TASK_STATE_RUNNING;
-    log_debug("start task, pid: %d, exe: %s\n", task->pid, task->exe);
+    log_debug("start task, pid: %d, exe: %s\n", task->pid,
+              task->type == TASK_T_KERN ? kern_task(task)->name :
+              *((char **)(task->tss.esp + sizeof(void *))));
 
     LIST_ADD(&task_list, &task->list);
     LIST_ENQUEUE(&running_queue, &task->running);
@@ -216,7 +217,7 @@ void sched_setup(void)
 {
     task_id = 0;
 
-    kernel_loop_task = create_kernel_task(kernel_loop, "[kernel]", TASK_TYPE_KERNEL);
+    kernel_loop_task = create_kernel_task("[kernel]", kernel_loop);
     if (kernel_loop_task == NULL) {
         kernel_panic("create kernel_loop task error\n");
     }
@@ -248,6 +249,6 @@ void sched_report(void)
     printk("pid  state  exe\n");
     LIST_FOREACH(&task_list, node) {
         task = container_of(node, struct task, list);
-        printk("%-4d %s      %s\n", task->pid, task_state(task->state), task->exe);
+        printk("%-4d %s      %s\n", task->pid, task_state(task->state), task_name(task));
     }
 }

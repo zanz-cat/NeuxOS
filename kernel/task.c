@@ -13,7 +13,7 @@
 
 static inline bool is_user(const struct task *task)
 {
-    return task->type == TASK_TYPE_USER;
+    return task->type == TASK_T_USER;
 }
 
 static int init_tss(struct task *task, void *s0, void *text)
@@ -36,9 +36,6 @@ static int init_tss(struct task *task, void *s0, void *text)
     task->tss.ebx = 0;
     task->tss.ebp = (uint32_t)PTR_ADD(s0, STACK0_SIZE);
     task->tss.esp = task->tss.ebp;
-    if (is_user(task)) {
-        task->tss.esp -= sizeof(struct jmp_stack_frame); // stack space reserved for jmp to userspace
-    }
     task->tss.esi = 0;
     task->tss.edi = 0;
     task->tss.es = SELECTOR_KERNEL_DS;
@@ -58,19 +55,13 @@ static int init_tss(struct task *task, void *s0, void *text)
     return 0;
 }
 
-static struct task *_create_task(const char *exe, void *text,
-                                 const char *workdir, int tty, uint8_t type)
+static struct task *_create_task(void *text, const char *workdir, int tty, uint8_t type)
 {
     int ret;
     void *s0 = NULL;
     struct task *task = NULL;
 
-    if (strlen(exe) >= MAX_PATH_LEN) {
-        errno = -EINVAL;
-        goto error;
-    }
-
-    task = (struct task *)kmalloc(sizeof(struct task));
+    task = (struct task *)kmalloc(is_user(task) ? sizeof(struct ktask) : sizeof(struct utask));
     if (task == NULL) {
         errno = -ENOMEM;
         goto error;
@@ -79,8 +70,6 @@ static struct task *_create_task(const char *exe, void *text,
     task->state = TASK_STATE_INIT;
     task->type = type;
     task->pid = 0;
-    task->tty = tty;
-    strcpy(task->exe, exe);
     task->cwd = vfs_open(workdir, X_OK);
     if (task->cwd == NULL) {
         goto error;
@@ -107,24 +96,53 @@ error:
     return NULL;
 }
 
-struct task *create_kernel_task(void *text, const char *exe, int tty)
+struct task *create_kernel_task(const char *exe, void *text)
 {
-    return _create_task(exe, text, "/", tty, TASK_TYPE_KERNEL);
+    struct task *task;
+
+    if (strlen(exe) >= MAX_PATH_LEN) {
+        errno = -EINVAL;
+        return NULL;
+    }
+
+    task = _create_task(text, "/", -1, TASK_T_KERN);
+    if (task == NULL) {
+        return NULL;
+    }
+    strcpy(kern_task(task)->name, exe);
+    return task;
 }
 
 struct task *create_user_task(const char *exe, int tty)
 {
-    return _create_task(exe, NULL, "/", tty, TASK_TYPE_USER);
+    struct task *task;
+
+    task = _create_task(NULL, "/", tty, TASK_T_USER);
+    if (task == NULL) {
+        return NULL;
+    }
+    task->tss.esp -= sizeof(struct jmp_stack_frame); // stack space reserved for jmp to userspace
+    // put exe path into stack
+    task->tss.esp -= strlen(exe) + 1; // exe
+    strcpy((char *)task->tss.esp, exe);
+    task->tss.esp -= sizeof(char *); // exe args for user_task_bootloader
+    *((uint32_t *)task->tss.esp) = task->tss.esp + sizeof(char *);
+    task->tss.esp -= sizeof(void *); // dummy return address
+
+    user_task(task)->stdin = NULL;
+    user_task(task)->stdout = NULL;
+    user_task(task)->stderr = NULL;
+    return task;
 }
 
 int destroy_task(struct task *task)
 {
-    if (is_user(task)) {
-        free_user_page((void *)task->tss.cr3);
-    }
     uninstall_tss(task->tss_sel);
     kfree(PTR_SUB((void *)task->tss.esp0, STACK0_SIZE));
-    vfs_close(task->f_exe);
+    if (is_user(task)) {
+        free_user_page((void *)task->tss.cr3);
+        vfs_close(user_task(task)->exe);
+    }
     vfs_close(task->cwd);
     kfree(task);
     return 0;

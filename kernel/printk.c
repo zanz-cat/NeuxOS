@@ -70,7 +70,7 @@ int vfprintk(int fd, const char *fmt, va_list ap)
 
 int vprintk(const char *fmt, va_list ap)
 {
-    int n, fd;
+    int n;
     char buf[PRINTFK_BUF_SIZE];
 
     n = vsprintf(buf, fmt, ap);
@@ -78,10 +78,5 @@ int vprintk(const char *fmt, va_list ap)
         return n;
     }
 
-    if (current == NULL || current->tty == TTY_NULL) {
-        fd = TTY0;
-    } else {
-        fd = current->tty;
-    }
-    return _write_func(fd, buf, n);
+    return _write_func(TTY0, buf, n);
 }

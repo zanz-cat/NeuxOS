@@ -273,7 +273,7 @@ int printf(const char *fmt, ...)
     if (len < 0) {
         return len;
     }
-    return write(0, buf, len);
+    return write(STDOUT_FILENO, buf, len);
 }
 
 int sprintf(char *buf, const char *fmt, ...)
@@ -296,5 +296,5 @@ int vprintf(const char *fmt, va_list ap)
     if (len < 0) {
         return len;
     }
-    return write(0, buf, len);
+    return write(STDOUT_FILENO, buf, len);
 }

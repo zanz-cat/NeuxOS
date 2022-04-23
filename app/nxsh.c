@@ -351,12 +351,17 @@ static int ctrl(struct nxsh_cmdbuf *buf)
 
 int main(int argc, char *argv[])
 {
-    int ret;
+    int ret, fd;
     char ch;
     struct nxsh_cmdbuf buf = {
         .cursor = 0
     };
 
+    ret = open("/dev/ttyS0", 0);
+    if (ret < 0) {
+        nxsh_perror("", "open ttyS0 error=%d\n", errno);
+        return -1;
+    }
     print_PS1();
     while ((ret = getchar()) != EOF) {    
         ch = (char)ret;

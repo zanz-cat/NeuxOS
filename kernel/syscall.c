@@ -13,13 +13,13 @@
 
 static void sys_exit(int status)
 {
-    log_info("[%u][%s] return code=[%d]\n", current->pid, current->exe, status);
+    log_info("[%u][%s] return code=[%d]\n", current->pid, task_name(current), status);
     task_term(current);
 }
 
 static ssize_t sys_write(int fd, const void *buf, size_t nbytes)
 {
-    return tty_write(current->tty, (char *)buf, nbytes);
+    return tty_write(fd, (char *)buf, nbytes);
 }
 
 static ssize_t sys_read(int fd, void *buf, size_t nbytes)

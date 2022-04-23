@@ -89,7 +89,7 @@ void kernel_setup()
     tty_setup();
     sched_setup();
 
-    task = create_kernel_task(tty_task, "[ttyd]", TTY0);
+    task = create_kernel_task("[ttyd]", tty_task);
     if (task == NULL) {
         kernel_panic("create tty task failed\n");
     }
