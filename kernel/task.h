@@ -81,9 +81,9 @@ struct jmp_stack_frame {
     uint32_t ss;
 } __attribute__((packed));
 
-struct task *create_kernel_task(const char *exe, void *text);
-struct task *create_user_task(const char *exe, struct file *stdin,
-                              struct file *stdout, struct file *stderr);
+struct task *create_ktask(const char *exe, void *text);
+struct task *create_utask(const char *exe, struct file *stdin,
+                          struct file *stdout, struct file *stderr);
 int destroy_task(struct task *task);
 
 int task_getcwd(const struct task *task, char *buf, size_t size);

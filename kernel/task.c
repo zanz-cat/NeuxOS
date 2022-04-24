@@ -62,7 +62,7 @@ static struct task *_create_task(void *text, const char *workdir, uint8_t type)
     void *s0 = NULL;
     struct task *task = NULL;
 
-    task = (struct task *)kmalloc(is_user(task) ? sizeof(struct ktask) : sizeof(struct utask));
+    task = (struct task *)kmalloc(is_user(task) ? sizeof(struct utask) : sizeof(struct ktask));
     if (task == NULL) {
         errno = -ENOMEM;
         goto error;
@@ -97,7 +97,7 @@ error:
     return NULL;
 }
 
-struct task *create_kernel_task(const char *exe, void *text)
+struct task *create_ktask(const char *exe, void *text)
 {
     struct task *task;
 
@@ -114,8 +114,8 @@ struct task *create_kernel_task(const char *exe, void *text)
     return task;
 }
 
-struct task *create_user_task(const char *exe, struct file *stdin,
-                              struct file *stdout, struct file *stderr)
+struct task *create_utask(const char *exe, struct file *stdin,
+                          struct file *stdout, struct file *stderr)
 {
     struct task *task;
 
@@ -127,7 +127,7 @@ struct task *create_user_task(const char *exe, struct file *stdin,
     // put exe path into stack
     task->tss.esp -= strlen(exe) + 1; // exe
     strcpy((char *)task->tss.esp, exe);
-    task->tss.esp -= sizeof(char *); // exe args for user_task_bootloader
+    task->tss.esp -= sizeof(char *); // exe args for utask_bootloader
     *((uint32_t *)task->tss.esp) = task->tss.esp + sizeof(char *);
     task->tss.esp -= sizeof(void *); // dummy return address
 

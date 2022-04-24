@@ -126,7 +126,6 @@ static int devfs_f_readdir(struct file *pfile, struct dirent *dent)
 #include <kernel/tty.h>
 static ssize_t devfs_f_write(struct file *pfile, const void *buf, size_t count)
 {
-    return 0;
     return tty_write(TTY0, buf, count);
 }
 

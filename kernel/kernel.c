@@ -90,13 +90,13 @@ void kernel_setup()
     tty_setup();
     sched_setup();
 
-    task = create_kernel_task("[ttyd]", tty_task);
+    task = create_ktask("[ttyd]", tty_task);
     if (task == NULL) {
         kernel_panic("create tty task failed\n");
     }
     task_start(task);
 
-    task = create_user_task("/bin/init", NULL, NULL, NULL);
+    task = create_utask("/bin/init", NULL, NULL, NULL);
     if (task == NULL) {
         kernel_panic("create init task failed\n");
     }
@@ -104,7 +104,7 @@ void kernel_setup()
 
     stdin = vfs_open("/dev/ttyS0", R_OK);
     stdout = vfs_open("/dev/ttyS0", W_OK);
-    task = create_user_task("/bin/nxsh", stdin, stdout, NULL);
+    task = create_utask("/bin/nxsh", stdin, stdout, NULL);
     if (task == NULL) {
         kernel_panic("create nxsh task failed\n");
     }

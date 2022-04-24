@@ -61,7 +61,7 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
     return count;
 }
 
-static void user_task_bootloader(const char *exe)
+static void utask_bootloader(const char *exe)
 {
     uint32_t ebp;
     struct inode *pinode;
@@ -93,14 +93,14 @@ static void user_task_bootloader(const char *exe)
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);
-    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by create_user_task
-    sf->ss = SELECTOR_USER_DS;
-    sf->esp = CONFIG_KERNEL_VM_OFFSET;  // stack bottom, no limit for user stack size
-    sf->eflags = INITIAL_EFLAGS;
-    sf->cs = SELECTOR_USER_CS;
+    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by create_utask
     sf->eip = entry_point;
-    asm("movl %0, %%ebp"::"p"((void *)sf - sizeof(void *)):); // exe path will be dropped
+    sf->cs = SELECTOR_USER_CS;
+    sf->eflags = INITIAL_EFLAGS;
+    sf->esp = CONFIG_KERNEL_VM_OFFSET;  // stack bottom, no limit for user stack size
+    sf->ss = SELECTOR_USER_DS;
     asm("leave\n\t"); // mov esp, ebp; pop ebp
+    asm("lea -0x14(%%ebp), %%esp":::); // esp = ebp - sizeof(struct jmp_stack_frame); exe path will be dropped
     asm("mov %0, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
         "mov %%ax, %%es\n\t"
@@ -111,7 +111,7 @@ uint32_t task_start(struct task *task)
 {
     task->pid = task_id++;
     if (task->type == TASK_T_USER) {
-        task->tss.eip = (uint32_t)user_task_bootloader;
+        task->tss.eip = (uint32_t)utask_bootloader;
     }
     task->state = TASK_STATE_RUNNING;
     log_debug("start task, pid: %d, exe: %s\n", task->pid,
@@ -219,7 +219,7 @@ void sched_setup(void)
 {
     task_id = 0;
 
-    kernel_loop_task = create_kernel_task("[kernel]", kernel_loop);
+    kernel_loop_task = create_ktask("[kernel]", kernel_loop);
     if (kernel_loop_task == NULL) {
         kernel_panic("create kernel_loop task error\n");
     }

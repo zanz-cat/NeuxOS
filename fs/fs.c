@@ -104,6 +104,7 @@ struct mount *vfs_umount(const char *mountpoint)
     return mnt;
 }
 
+#include <kernel/printk.h>
 struct dentry *vfs_lookup(const char *pathname)
 {
     char buf[MAX_PATH_LEN];

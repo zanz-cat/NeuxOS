@@ -48,6 +48,9 @@ static void *search_interspace(const struct heap_block *block, size_t size, size
         for (saddr = eaddr; !IN_SAME_PAGE(saddr, block->next) &&
             page_users(phy_addr(saddr)) > 0; saddr += PAGE_SIZE);
         eaddr = IN_SAME_PAGE(saddr, block->next) ? (uint32_t)block->next : saddr + PAGE_SIZE;
+        if (eaddr < CONFIG_KERNEL_VM_OFFSET) {
+            return NULL;
+        }
     }
 }
 
@@ -62,8 +65,9 @@ void *kmemalign(size_t alignment, size_t size)
     }
 
     simplock_obtain(&lock);
-    for (block = heap; (new_block = search_interspace(block, size, alignment)) == NULL &&
-         block->next != heap; block = block->next);
+    for (block = heap; block->next != heap && 
+         (new_block = search_interspace(block, size, alignment)) == NULL;
+         block = block->next);
  
     if (new_block == NULL) {
         simplock_release(&lock);

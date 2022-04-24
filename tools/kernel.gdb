@@ -10,3 +10,11 @@ define dent_list
         set $node = $node->next
     end
 end
+
+define heap_list
+    set $block = $arg0->next
+    while $block != heap
+        print *$block
+        set $block = $block->next
+    end
+end
