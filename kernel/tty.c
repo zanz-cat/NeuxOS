@@ -5,6 +5,8 @@
 #include <drivers/io.h>
 #include <drivers/monitor.h>
 #include <drivers/keyboard.h>
+#include <dev/dev.h>
+#include <mm/kmalloc.h>
 
 #include "kernel.h"
 #include "log.h"
@@ -140,31 +142,12 @@ static void tty_do_read(int fd)
     keyboard_read(tty_in_proc, fd);
 }
 
-ssize_t tty_write(int fd, const char *buf, size_t n)
+static ssize_t tty_write(int fd, const char *buf, size_t n)
 {
     int i;
 
     for (i = 0; i < n; i++) {
         monitor_putchar(&ttys[fd].mon, buf[i]);
-    }
-    return i;
-}
-
-ssize_t tty_read(int fd, char *buf, size_t n)
-{
-    int i, ret;
-
-    i = 0;
-    while (i < n) {
-        ret = iobuf_get(&ttys[fd].in, buf + i);
-        if (ret == 0) {
-            i++;
-            continue;
-        }
-        if (i > 0) {
-            break;
-        }
-        yield();
     }
     return i;
 }
@@ -205,18 +188,80 @@ int tty_get_cur()
     return _tty_current;
 }
 
-static void tty_mknod(void)
+static ssize_t tty_dev_write(struct dev *devp, const char *buf, size_t count)
+{
+    return tty_write((int)devp->priv, buf, count);
+}
+
+static ssize_t tty_dev_read(struct dev *devp, char *buf, size_t count)
+{
+    int i, fd, ret;
+
+    i = 0;
+    fd = (int)devp->priv;
+    while (i < count) {
+        ret = iobuf_get(&ttys[fd].in, buf + i);
+        if (ret == 0) {
+            i++;
+            continue;
+        }
+        if (i > 0) {
+            break;
+        }
+        yield();
+    }
+    return i;
+}
+
+static struct dev *create_tty_dev(int fd)
+{
+    static struct cdev_ops tty_ops = {
+        .open = NULL,
+        .close = NULL,
+        .write = tty_dev_write,
+        .read = tty_dev_read,
+    };
+
+    struct dev *devp;
+    devp = kmalloc(sizeof(struct dev));
+    if (devp == NULL) {
+        errno = -ENOMEM;
+        return NULL;
+    }
+    dev_init(devp);
+    devp->dno = fd;
+    devp->type = DEV_T_CDEV;
+    devp->ops.cdev = &tty_ops;
+    devp->priv = (void *)fd;
+    return devp;
+}
+
+static void ttydev_setup(void)
 {
     int i, ret;
+    struct dev *devp;
     char *path = "/dev/ttyS0";
 
     for (i = TTY0; i < TTYS_COUNT; i++) {
-        ret = vfs_mknod(path);
+        devp = create_tty_dev(i);
+        if (devp == NULL) {
+            ret = errno;
+            goto error;
+        }
+        ret = dev_add(devp);
         if (ret != 0) {
-            kernel_panic("mknod %s error=%d\n", path, ret);
+            goto error;
+        }
+        ret = devfs_mknod(path, devp->dno);
+        if (ret != 0) {
+            goto error;
         }
         path[strlen(path) - 1]++;
     }
+    return;
+
+error:
+    kernel_panic("mknod %s error=%d\n", path, ret);
 }
 
 static void tty_monitor_init(void)
@@ -232,7 +277,7 @@ static void tty_monitor_init(void)
 void tty_setup()
 {
     tty_monitor_init();
-    tty_mknod();
+    ttydev_setup();
     printk_set_write(tty_write);
 }
 

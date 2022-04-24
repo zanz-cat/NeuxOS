@@ -9,8 +9,6 @@
 
 #include "fs.h"
 
-#define dent_accsr(d) ((d)->mnt == NULL ? (d) : ((d)->mnt->dent))
-
 static struct dentry *rootfs;
 
 void vfs_setup(void)
@@ -130,20 +128,4 @@ struct dentry *vfs_lookup(const char *pathname)
     dent = dentry_lookup(from, &token);
     dentry_release(from);
     return dent;
-}
-
-int vfs_mknod(const char *path)
-{
-    char dname[MAX_PATH_LEN] = {0};
-    char fname[MAX_PATH_LEN] = {0};
-    struct dentry dent;
-
-    strcpy(dname, path);
-    strcpy(fname, path);
-    struct dentry *dir = vfs_lookup(dirname(dname));
-    if (dir == NULL) {
-        return -ENOENT;
-    }
-    strcpy(dent.name, basename(fname));
-    return dent_accsr(dir)->inode->ops->create(dent_accsr(dir)->inode, &dent, 0);
 }

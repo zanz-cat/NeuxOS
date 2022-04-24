@@ -6,10 +6,10 @@
 #include <drivers/harddisk.h>
 #include <arch/x86.h>
 #include <fs/ext2.h>
-#include <fs/dev.h>
 #include <mm/mm.h>
 #include <mm/kmalloc.h>
 #include <fs/fs.h>
+#include <dev/dev.h>
 
 #include "log.h"
 #include "sched.h"

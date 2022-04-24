@@ -34,7 +34,17 @@ static ssize_t sys_write(int fd, const void *buf, size_t nbytes)
 
 static ssize_t sys_read(int fd, void *buf, size_t nbytes)
 {
-    return tty_read(fd, buf, nbytes);
+    struct file *pfile;
+
+    if (fd >= NR_TASK_FILES) {
+        return -EINVAL;
+    }
+
+    pfile = current->files[fd];
+    if (pfile == NULL) {
+        return -EBADFD;
+    }
+    return vfs_read(pfile, buf, nbytes);
 }
 
 static void sys_delay(int us)

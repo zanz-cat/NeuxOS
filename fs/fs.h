@@ -31,6 +31,5 @@ void vfs_setup(void);
 int vfs_mount(const char *mountpoint, struct mount *mount);
 struct mount *vfs_umount(const char *mountpoint);
 struct dentry *vfs_lookup(const char *pathname);
-int vfs_mknod(const char *path);
 
 #endif

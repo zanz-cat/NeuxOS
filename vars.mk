@@ -18,12 +18,14 @@ ASMOBJS:=$(patsubst %.S,%.o, $(ASMSOURCE))
 
 LIBDIR:=$(ROOTDIR)/lib
 DRIVERSDIR:=$(ROOTDIR)/drivers
+DEVDIR:=$(ROOTDIR)/dev
 FSDIR:=$(ROOTDIR)/fs
 MMDIR:=$(ROOTDIR)/mm
 ARCHDIR:=$(ROOTDIR)/arch
 
 LIBOBJS:=$(wildcard $(LIBDIR)/*.o) $(LIBDIR)/libc.a
 DRIVEROBJS:=$(wildcard $(DRIVERSDIR)/*.o) $(wildcard $(DRIVERSDIR)/*/*.o)
+DEVOBJS:=$(wildcard $(DEVDIR)/*.o) $(wildcard $(DEVDIR)/*/*.o)
 FSOBJS:=$(wildcard $(FSDIR)/*.o) $(wildcard $(FSDIR)/*/*.o)
 MMOBJS:=$(wildcard $(MMDIR)/*.o) $(wildcard $(MMDIR)/*/*.o)
 ARCHOBJS:=$(wildcard $(ARCHDIR)/*.o) $(wildcard $(ARCHDIR)/*/*.o)

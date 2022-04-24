@@ -82,7 +82,13 @@ ssize_t vfs_read(struct file *pfile, void *buf, size_t count)
 ssize_t vfs_write(struct file *pfile, const void *buf, size_t count)
 {
     op_assert(pfile->ops->write);
-    return pfile->ops->write(pfile, buf, count);
+
+    ssize_t ret = pfile->ops->write(pfile, buf, count);
+    if (ret < 0) {
+        return ret;
+    }
+    pfile->off += ret;
+    return ret;
 }
 
 int vfs_readdir(struct file *pfile, struct dirent *dent)
