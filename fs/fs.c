@@ -6,6 +6,7 @@
 #include <neuxos.h>
 #include <mm/kmalloc.h>
 #include <kernel/sched.h>
+#include <kernel/log.h>
 
 #include "fs.h"
 
@@ -102,7 +103,6 @@ struct mount *vfs_umount(const char *mountpoint)
     return mnt;
 }
 
-#include <kernel/printk.h>
 struct dentry *vfs_lookup(const char *pathname)
 {
     char buf[MAX_PATH_LEN];
@@ -127,5 +127,6 @@ struct dentry *vfs_lookup(const char *pathname)
     }
     dent = dentry_lookup(from, &token);
     dentry_release(from);
+    log_debug("[fs] rootfs->rc=%d\n", rootfs->rc);
     return dent;
 }

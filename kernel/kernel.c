@@ -77,7 +77,7 @@ void kernel_setup()
     struct task *task;
     struct file *stdin, *stdout;
 
-    set_log_level(DEBUG);
+    // set_log_level(DEBUG);
     mm_setup();
     enable_em();
     irq_setup();

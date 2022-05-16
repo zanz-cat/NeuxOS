@@ -12,12 +12,12 @@ struct dentry *dentry_lookup(struct dentry *dir, char **token)
     struct dentry *dent, *subdent;
 
     char *dname = strsep(token, PATH_SEP);
-    if (dname == NULL || strlen(dname) == 0) {
+    if (dname == NULL) {
         return dentry_obtain(dir);
     }
 
-    if (strcmp(dname, ".") == 0) {
-        return dentry_obtain(dir);
+    if (strlen(dname) == 0 || strcmp(dname, ".") == 0) {
+        return dentry_lookup(dir, token);
     }
     if (strcmp(dname, "..") == 0) {
         return dir->parent == NULL ? dentry_obtain(dir) : dentry_lookup(dir->parent, token);
