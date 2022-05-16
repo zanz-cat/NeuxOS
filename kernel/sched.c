@@ -245,12 +245,10 @@ static const char *task_state(uint8_t state)
 }
 void sched_report(void)
 {
-    struct list_head *node;
     struct task *task;
 
     printk("pid  state  exe\n");
-    LIST_FOREACH(&task_list, node) {
-        task = container_of(node, struct task, list);
+    LIST_ENTRY_FOREACH(&task_list, list, task) {
         printk("%-4d %s      %s\n", task->pid, task_state(task->state), task_name(task));
     }
 }

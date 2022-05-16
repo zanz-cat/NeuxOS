@@ -69,4 +69,12 @@ __extension__ ({ \
     (__node == (head) ? NULL : __node); \
 })
 
+#define LIST_ENTRY(hook, member, ptr) \
+    container_of((hook), typeof(*(ptr)), member)
+
+#define LIST_ENTRY_FOREACH(head, member, ptr) \
+    for ((ptr) = LIST_ENTRY((head)->next, member, (ptr)); \
+         &(ptr)->member != (head); \
+         (ptr) = LIST_ENTRY((ptr)->member.next, member, (ptr)))
+
 #endif

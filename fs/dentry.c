@@ -9,7 +9,6 @@
 
 struct dentry *dentry_lookup(struct dentry *dir, char **token)
 {
-    struct list_head *child;
     struct dentry *dent, *subdent;
 
     char *dname = strsep(token, PATH_SEP);
@@ -25,8 +24,7 @@ struct dentry *dentry_lookup(struct dentry *dir, char **token)
     }
 
     simplock_obtain(&dir->lock);
-    LIST_FOREACH(&dir->subdirs, child) {
-        subdent = container_of(child, struct dentry, child);
+    LIST_ENTRY_FOREACH(&dir->subdirs, child, subdent) {
         if (strcmp(subdent->name, dname) == 0) {
             dent = dentry_obtain(subdent);
             goto out;

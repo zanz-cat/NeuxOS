@@ -30,13 +30,11 @@ uint64_t rdtsc(void)
 
 static void clock_handler()
 {
-    struct list_head *node;
     struct task *task;
 
     jeffies++;
 
-    LIST_FOREACH(&delay_queue, node) {
-        task = container_of(node, struct task, running);
+    LIST_ENTRY_FOREACH(&delay_queue, list, task) {
         if (task->delay < MICROSEC/PIT_HZ) {
             task->delay = 0;
             task_resume(&delay_queue);

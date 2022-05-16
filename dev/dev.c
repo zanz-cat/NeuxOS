@@ -81,11 +81,9 @@ static int devfs_i_create(struct inode *dir, struct dentry *dent, int mode)
 
 static int devfs_i_lookup(struct inode *dir, struct dentry *dent)
 {
-    struct list_head *node;
     struct dev_inode *dinode;
 
-    LIST_FOREACH(&inode_list, node) {
-        dinode = container_of(node, struct dev_inode, list);
+    LIST_ENTRY_FOREACH(&inode_list, list, dinode) {
         if (strcmp(dinode->name, dent->name) == 0) {
             dent->inode = &dinode->inode;
             return 0;
@@ -101,11 +99,9 @@ static void devfs_i_release(struct inode *inode)
 
 static struct dev *dev_lookup(uint16_t dno)
 {
-    struct list_head *node;
     struct dev *devp;
 
-    LIST_FOREACH(&dev_list, node) {
-        devp = container_of(node, struct dev, list);
+    LIST_ENTRY_FOREACH(&dev_list, list, devp) {
         if (devp->dno == dno) {
             return devp;
         }
