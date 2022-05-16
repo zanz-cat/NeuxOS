@@ -67,7 +67,7 @@ static inline int read_block(uint32_t block, uint32_t count, void *buf, size_t s
     ret = hd_read(part_lba+(CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ)*block, 
                   count*CONFIG_EXT2_BS/CONFIG_HD_SECT_SZ, buf, size);
     if (ret < 0) {
-        log_debug("Ext2: read block error, errno: %d\n", ret);
+        log_debug("[ext2] read block error, errno: %d\n", ret);
     }
     return ret;
 }

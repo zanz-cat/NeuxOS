@@ -114,7 +114,7 @@ uint32_t task_start(struct task *task)
         task->tss.eip = (uint32_t)utask_bootloader;
     }
     task->state = TASK_STATE_RUNNING;
-    log_debug("start task, pid: %d, exe: %s\n", task->pid,
+    log_debug("[sched] start task, pid: %d, exe: %s\n", task->pid,
               task->type == TASK_T_KERN ? kern_task(task)->name :
               *((char **)(task->tss.esp + sizeof(void *))));
 
@@ -125,7 +125,7 @@ uint32_t task_start(struct task *task)
 
 void task_term(struct task *task)
 {
-    log_debug("term task, pid: %u\n", task->pid);
+    log_debug("[sched] term task, pid: %u\n", task->pid);
     task->state = TASK_STATE_TERM;
     if (task != current) {
         LIST_DEL(&task->running);
