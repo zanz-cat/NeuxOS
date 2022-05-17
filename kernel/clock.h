@@ -4,6 +4,5 @@
 #include <stdint.h>
 
 void clock_setup();
-void delay(uint32_t us);
 
 #endif

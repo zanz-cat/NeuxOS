@@ -16,6 +16,7 @@
 #include "printk.h"
 #include "kernel.h"
 #include "interrupt.h"
+#include "syscall.h"
 
 #include "sched.h"
 
@@ -215,6 +216,22 @@ void task_sched(void)
     }
 }
 
+static void sys_exit(int status)
+{
+    log_info("[%u][%s] return code=[%d]\n", current->pid, task_name(current), status);
+    task_term(current);
+}
+
+static int sys_getcwd(char *buf, size_t size)
+{
+    return task_getcwd(current, buf, size);
+}
+
+static int sys_chdir(const char *path)
+{
+    return task_chdir(current, path);
+}
+
 void sched_setup(void)
 {
     task_id = 0;
@@ -226,6 +243,10 @@ void sched_setup(void)
     kernel_loop_task->tss.eflags &= ~EFLAGS_IF;
     current = kernel_loop_task;
     task_start(kernel_loop_task);
+
+    syscall_register(SYSCALL_EXIT, sys_exit);
+    syscall_register(SYSCALL_GETCWD, sys_getcwd);
+    syscall_register(SYSCALL_CHDIR, sys_chdir);
 }
 
 static const char *task_state(uint8_t state)

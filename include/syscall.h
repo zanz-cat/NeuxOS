@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #define IRQ_EX_SYSCALL 0x70
+
 #define SYSCALL_EXIT 0
 #define SYSCALL_READ 1
 #define SYSCALL_WRITE 2
@@ -17,6 +18,7 @@
 #define SYSCALL_ACCESS 9
 #define SYSCALL_GETCWD 10
 #define SYSCALL_CHDIR 11
+#define SYSCALL_MAX SYSCALL_CHDIR
 
 struct sys_getdents_args {
     int fd;

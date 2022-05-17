@@ -8,6 +8,7 @@
 #include "sched.h"
 #include "interrupt.h"
 #include "printk.h"
+#include "syscall.h"
 
 #include "clock.h"
 
@@ -45,11 +46,18 @@ static void clock_handler()
     task_sched();
 }
 
+static void sys_delay(int us)
+{
+    current->delay = us;
+    task_suspend(&delay_queue);
+}
+
 void clock_setup()
 {
     log_info("setup clock\n");
 
     irq_register_handler(IRQ_CLOCK, clock_handler);
+    syscall_register(SYSCALL_DELAY, sys_delay);
 
     /* 设置时钟频率 */
     out_byte(PIT_TIMER_MODE, PIT_TIMER_RATE_GEN);
@@ -58,10 +66,4 @@ void clock_setup()
 
     /* 开启时钟中断 */
     enable_irq_n(IRQ_CLOCK);
-}
-
-void delay(uint32_t us)
-{
-    current->delay = us;
-    task_suspend(&delay_queue);
 }
