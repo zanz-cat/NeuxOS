@@ -18,7 +18,8 @@
 #define SYSCALL_ACCESS 9
 #define SYSCALL_GETCWD 10
 #define SYSCALL_CHDIR 11
-#define SYSCALL_MAX SYSCALL_CHDIR
+#define SYSCALL_CLONE 12
+#define SYSCALL_MAX SYSCALL_CLONE
 
 struct sys_getdents_args {
     int fd;

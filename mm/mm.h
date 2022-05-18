@@ -21,8 +21,11 @@ struct page_entry {
 
 #define PAGE_ENTRY_COUNT (PAGE_SIZE/sizeof(struct page_entry))
 
-struct page_entry *alloc_user_page(void);
-void free_user_page(struct page_entry *table);
+// page table for user task
+struct page_entry *alloc_page_table(void);
+void free_page_table(struct page_entry *table);
+struct page_entry *clone_page_table(const struct page_entry *dir);
+
 void mm_setup(void);
 void mm_report(void);
 

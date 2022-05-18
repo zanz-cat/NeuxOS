@@ -1,4 +1,7 @@
+#include <stdbool.h>
 #include <errno.h>
+
+#include <config.h>
 #include <kernel/sched.h>
 
 #include "arch/backtrace.h"
@@ -33,6 +36,17 @@
  * +------------+
  * 
  */
+
+static bool is_kernel_stack(void *ebp)
+{
+    return ebp >= (void *)CONFIG_KERNEL_VM_OFFSET && ebp < (void *)current->tss.esp0;
+}
+
+static bool is_user_stack(void *ebp)
+{
+    return ebp < (void *)CONFIG_KERNEL_VM_OFFSET;
+}
+
 int backtrace(void **buf, int size)
 {
     int i;
@@ -42,7 +56,13 @@ int backtrace(void **buf, int size)
     }
     asm("movl %%ebp, %0":"=r"(ebp)::);
 
-    for (i = 0; i < size && *ebp < current->stack0; i++, ebp = *ebp) {
+    // kernel stack
+    for (i = 0; i < size && is_kernel_stack(*ebp); i++, ebp = *ebp) {
+        buf[i] = *(ebp + 1);
+    }
+
+    // user stack
+    for (; i < size && is_user_stack(*ebp); i++, ebp = *ebp) {
         buf[i] = *(ebp + 1);
     }
     return i;

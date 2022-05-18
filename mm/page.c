@@ -33,7 +33,7 @@ uint32_t alloc_page(uint8_t flags)
     return 0xffffffff;
 }
 
-uint32_t alloc_page_x(uint32_t page)
+uint32_t obtain_page(uint32_t page)
 {
     _page_users[page >> PAGE_SHIFT]++;
     return page;

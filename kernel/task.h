@@ -26,16 +26,14 @@
 #define INITIAL_EFLAGS (EFLAGS_IF | 0x3000) /* IF | IOPL=3 */
 
 #define NR_TASK_FILES 256
-
 struct task {
     uint32_t pid;
     uint16_t tss_sel; //place selector here, we can switch task by 'jmp far [task]'
     uint8_t type;
     uint8_t state;
-    uint64_t ticks;
     struct file *cwd;
     struct tss tss;
-    void *stack0;
+    uint64_t ticks;
     uint32_t delay; // us
     struct file *files[NR_TASK_FILES];
     struct list_head list;
@@ -73,7 +71,7 @@ static inline const char *task_name(struct task *task)
     return user_task(task)->exe->dent->name;
 }
 
-struct jmp_stack_frame {
+struct cpu_int_stack_frame {
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
@@ -85,6 +83,7 @@ struct task *create_ktask(const char *exe, void *text);
 struct task *create_utask(const char *exe, struct file *stdin,
                           struct file *stdout, struct file *stderr);
 int destroy_task(struct task *task);
+struct utask *clone_utask(struct utask *task);
 
 int task_getcwd(const struct task *task, char *buf, size_t size);
 int task_chdir(struct task *task, const char *path);

@@ -66,6 +66,8 @@ global irq_hwint13
 global irq_hwint14
 global irq_hwint15
 
+global irq_iret
+
 [SECTION .text]
 irq_ex_divide_error:
     push 0ffffffffh ; err_code
@@ -193,3 +195,7 @@ irq_hwint14:
 
 irq_hwint15:
     hwint 15
+
+irq_iret:
+    xchg bx, bx
+    iret

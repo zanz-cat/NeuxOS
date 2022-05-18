@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #include <drivers/monitor.h>
 #include <arch/x86.h>
@@ -24,7 +25,7 @@ static uint8_t bitmap[GDT_SIZE/8];
 #define BITMAP_CLR(index) bitmap[(index)/8] &= (~(1 << ((index)%8)))
 #define BITMAP_GET(index) (bitmap[(index)/8] & (1 << ((index)%8)))
 
-static int alloc()
+static int index_alloc()
 {
     int i;
     for (i = 0; i < GDT_SIZE && BITMAP_GET(i); i++);
@@ -37,7 +38,7 @@ static int alloc()
     return i;
 }
 
-static void free(int index)
+static void index_free(int index)
 {
     if (index > GDT_SIZE - 1)
         return;
@@ -61,7 +62,7 @@ static void install_desc(uint16_t index, uint32_t addr,
 static void uninstall_desc(uint16_t index)
 {
     memset(&gdt[index], 0, sizeof(struct descriptor));
-    free(index);
+    index_free(index);
 }
 
 void descriptor_setup()
@@ -91,9 +92,10 @@ void descriptor_setup()
 int install_tss(struct tss *tss, uint8_t priv)
 {
     priv = DA_DPL0;
-    int index = alloc();
+    int index = index_alloc();
     if (index < 0) {
         log_error("alloc gdt error\n");
+        errno = -ENOMEM;
         return -1;
     }
     install_desc(index, (uint32_t)tss, sizeof(struct tss) - 1, DA_386TSS | priv);
@@ -104,6 +106,7 @@ int uninstall_tss(uint16_t sel)
 {
     int index = sel >> 3;
     if (index > GDT_SIZE - 1) {
+        errno = -EINVAL;
         return -1;
     }
     uninstall_desc(index);
@@ -114,6 +117,7 @@ struct descriptor *get_descriptor(uint16_t sel)
 {
     int index = sel >> 3;
     if (index > GDT_SIZE - 1) {
+        errno = -EINVAL;
         return NULL;
     }
     return &gdt[index];

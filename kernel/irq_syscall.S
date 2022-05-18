@@ -14,7 +14,7 @@ irq_ex_syscall:
     push ecx ; arg1
     push ebx ; arg0
 
-    ; TODO arpl
+    ; use 'arpl' to ensure safety???
     call [syscall_handler_table + 4*eax] ; sizeof(void *) == 4
     add esp, 4*3 ; free arguments
 

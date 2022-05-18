@@ -105,6 +105,12 @@ static int cmd_history(int argc, char *argv[])
     return 0;
 }
 
+static int cmd_fork(int argc, char *argv[])
+{
+    printf("fork return %d\n", fork());
+    return 0;
+}
+
 static void nxsh_perror(const char *cmd, const char *msg, ...)
 {
     int ret;
@@ -414,5 +420,6 @@ static struct nxsh_cmd cmdlist[] = {
     {"cd", cmd_chdir},
     {"realpath", cmd_realpath},
     {"history", cmd_history},
+    {"fork", cmd_fork},
     {NULL, NULL}
 };

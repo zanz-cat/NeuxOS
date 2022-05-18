@@ -83,7 +83,7 @@ void *kmemalign(size_t alignment, size_t size)
     for (i = (uint32_t)new_block & PAGE_MASK;
          i < ALIGN_CEIL(BLOCK_END(new_block), PAGE_SIZE);
          i += PAGE_SIZE) {
-        alloc_page_x(phy_addr(i));
+        obtain_page(phy_addr(i));
     }
     simplock_release(&lock);
 
@@ -128,7 +128,7 @@ void init_heap(void)
     heap = (struct heap_block *)virt_addr(page);
     end = (void *)(min(get_total_memory(), 0xffffffff - CONFIG_KERNEL_VM_OFFSET) +
            CONFIG_KERNEL_VM_OFFSET - sizeof(struct heap_block));
-    alloc_page_x((uint32_t)end & PAGE_MASK);
+    obtain_page((uint32_t)end & PAGE_MASK);
     heap->size = 0;
     heap->prev = end;
     heap->next = end;

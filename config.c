@@ -24,6 +24,5 @@ int main(int argc, char *argv[])
 {
 
     printf("CONFIG_KERNEL_IMG_VM_ADDR=0x%x\n", CONFIG_KERNEL_VM_OFFSET + (1<<20) + (1<<12) + (1<<20));
-    printf("CONFIG_KERNEL_PG_ADDR=0x100000\n");
     return 0;
 }

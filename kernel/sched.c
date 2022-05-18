@@ -62,11 +62,11 @@ static int load_elf(const void *elf, int voffset, uint32_t *entry_point)
     return count;
 }
 
-static void utask_bootloader(const char *exe)
+void utask_bootloader(const char *exe)
 {
     uint32_t ebp;
     struct inode *pinode;
-    struct jmp_stack_frame *sf;
+    struct cpu_int_stack_frame *sf;
 
     user_task(current)->exe = vfs_open(exe, 0);
     if (user_task(current)->exe == NULL) {
@@ -94,14 +94,14 @@ static void utask_bootloader(const char *exe)
     }
 
     asm("movl %%ebp, %0":"=r"(ebp)::);
-    sf = (void *)(*(uint32_t *)ebp - sizeof(struct jmp_stack_frame));   // allocated by create_utask
+    sf = (void *)(*(uint32_t *)ebp - sizeof(struct cpu_int_stack_frame));   // allocated by create_utask
     sf->eip = entry_point;
     sf->cs = SELECTOR_USER_CS;
     sf->eflags = INITIAL_EFLAGS;
     sf->esp = CONFIG_KERNEL_VM_OFFSET;  // stack bottom, no limit for user stack size
     sf->ss = SELECTOR_USER_DS;
     asm("leave\n\t"); // mov esp, ebp; pop ebp
-    asm("lea -0x14(%%ebp), %%esp":::); // esp = ebp - sizeof(struct jmp_stack_frame); exe path will be dropped
+    asm("lea -0x14(%%ebp), %%esp":::); // esp = ebp - sizeof(struct cpu_int_stack_frame); exe path will be dropped
     asm("mov %0, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
         "mov %%ax, %%es\n\t"
@@ -111,9 +111,6 @@ static void utask_bootloader(const char *exe)
 uint32_t task_start(struct task *task)
 {
     task->pid = task_id++;
-    if (task->type == TASK_T_USER) {
-        task->tss.eip = (uint32_t)utask_bootloader;
-    }
     task->state = TASK_STATE_RUNNING;
     log_debug("[sched] start task, pid: %d, exe: %s\n", task->pid,
               task->type == TASK_T_KERN ? kern_task(task)->name :
@@ -139,8 +136,13 @@ void task_term(struct task *task)
 
 static void do_term_task(struct task *task)
 {
+    int ret;
+
     LIST_DEL(&task->list);
-    destroy_task(task);
+    if (destroy_task(task) != 0) {
+        log_error("destroy task[%d] error: %d\n", task->pid, errno);
+        return;
+    }
 }
 
 void yield(void) {
@@ -232,6 +234,15 @@ static int sys_chdir(const char *path)
     return task_chdir(current, path);
 }
 
+static int sys_clone(void)
+{
+    struct utask *task = clone_utask((struct utask *)current);
+    if (task == NULL) {
+        return errno;
+    }
+    return task_start((struct task *)task);
+}
+
 void sched_setup(void)
 {
     task_id = 0;
@@ -247,6 +258,7 @@ void sched_setup(void)
     syscall_register(SYSCALL_EXIT, sys_exit);
     syscall_register(SYSCALL_GETCWD, sys_getcwd);
     syscall_register(SYSCALL_CHDIR, sys_chdir);
+    syscall_register(SYSCALL_CLONE, sys_clone);
 }
 
 static const char *task_state(uint8_t state)

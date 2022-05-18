@@ -12,30 +12,54 @@
 
 #include "task.h"
 
+struct interrupt_stack_frame {
+    uint32_t gs;
+    uint32_t fs;
+    uint32_t es;
+    uint32_t ds;
+    uint32_t edi;
+    uint32_t esi;
+    uint32_t ebp;
+    uint32_t _esp;
+    uint32_t ebx;
+    uint32_t edx;
+    uint32_t ecx;
+    uint32_t eax;
+    struct cpu_int_stack_frame cpu;
+} __attribute__((packed));
+
+void irq_iret(void);
+void utask_bootloader(const char *exe);
+
 static inline bool is_user(const struct task *task)
 {
     return task->type == TASK_T_USER;
 }
 
-static int init_tss(struct task *task, void *s0, void *text)
+static inline size_t task_size(const struct task *task)
+{
+    return is_user(task) ? sizeof(struct utask) : sizeof(struct ktask);
+}
+
+static int init_tss(struct task *task, uint32_t stack0, void *text)
 {
     int ret;
 
     task->tss.prev = 0;
-    task->tss.esp0 = (uint32_t)PTR_ADD(s0, STACK0_SIZE);
+    task->tss.esp0 = stack0;
     task->tss.ss0 = is_user(task) ? SELECTOR_KERNEL_DS : 0;
     task->tss.esp1 = 0;
     task->tss.ss1 = 0;
     task->tss.esp2 = 0;
     task->tss.ss2 = 0;
-    task->tss.cr3 = is_user(task) ? (uint32_t)alloc_user_page() : (uint32_t)CONFIG_KERNEL_PG_ADDR;
-    task->tss.eip = (uint32_t)text; // valid for user task
+    task->tss.cr3 = is_user(task) ? (uint32_t)alloc_page_table() : (uint32_t)CONFIG_KERNEL_PG_ADDR;
+    task->tss.eip = is_user(task) ? (uint32_t)utask_bootloader : (uint32_t)text;
     task->tss.eflags = INITIAL_EFLAGS;
     task->tss.eax = 0;
     task->tss.ecx = 0;
     task->tss.edx = 0;
     task->tss.ebx = 0;
-    task->tss.ebp = (uint32_t)PTR_ADD(s0, STACK0_SIZE);
+    task->tss.ebp = stack0;
     task->tss.esp = task->tss.ebp;
     task->tss.esi = 0;
     task->tss.edi = 0;
@@ -56,18 +80,30 @@ static int init_tss(struct task *task, void *s0, void *text)
     return 0;
 }
 
+static void *create_task_stack0(void)
+{
+    void *s0;
+
+    s0 = kmemalign(sizeof(uint32_t), STACK0_SIZE);
+    if (s0 == NULL) {
+        errno = -ENOMEM;
+        return NULL;
+    }
+    return PTR_ADD(s0, STACK0_SIZE);
+}
+
 static struct task *_create_task(void *text, const char *workdir, uint8_t type)
 {
     int ret;
     void *s0 = NULL;
     struct task *task = NULL;
 
-    task = (struct task *)kmalloc(is_user(task) ? sizeof(struct utask) : sizeof(struct ktask));
+    task = (struct task *)kmalloc(task_size(task));
     if (task == NULL) {
         errno = -ENOMEM;
         goto error;
     }
-    memset(task, 0, sizeof(struct task));
+    memset(task, 0, task_size(task));
     task->state = TASK_STATE_INIT;
     task->type = type;
     task->pid = 0;
@@ -76,19 +112,17 @@ static struct task *_create_task(void *text, const char *workdir, uint8_t type)
         goto error;
     }
 
-    s0 = kmemalign(sizeof(uint32_t), STACK0_SIZE);
+    s0 = create_task_stack0();
     if (s0 == NULL) {
-        errno = -ENOMEM;
         goto error;
     }
-    memset(s0, 0, STACK0_SIZE);
-    task->stack0 = PTR_ADD(s0, STACK0_SIZE);
 
-    ret = init_tss(task, s0, text);
+    ret = init_tss(task, (uint32_t)s0, text);
     if (ret < 0) {
-        errno = ret;
         goto error;
     }
+    LIST_HEAD_INIT(&task->list);
+    LIST_HEAD_INIT(&task->running);
     return task;
 
 error:
@@ -123,7 +157,7 @@ struct task *create_utask(const char *exe, struct file *stdin,
     if (task == NULL) {
         return NULL;
     }
-    task->tss.esp -= sizeof(struct jmp_stack_frame); // stack space reserved for jmp to userspace
+    task->tss.esp -= sizeof(struct cpu_int_stack_frame); // stack space reserved for jmp to userspace
     // put exe path into stack
     task->tss.esp -= strlen(exe) + 1; // exe
     strcpy((char *)task->tss.esp, exe);
@@ -137,13 +171,104 @@ struct task *create_utask(const char *exe, struct file *stdin,
     return task;
 }
 
+static int setup_task_state(const struct task *task, struct task *cloned)
+{
+    void *s0;
+    const struct interrupt_stack_frame *frame;
+    struct cpu_int_stack_frame *jframe;
+
+    s0 = create_task_stack0();
+    if (s0 == NULL) {
+        return -1;
+    }
+    frame = PTR_SUB(task->tss.esp0, sizeof(struct interrupt_stack_frame));
+    jframe = PTR_SUB(s0, sizeof(struct cpu_int_stack_frame));
+    cloned->tss.gs = frame->gs;
+    cloned->tss.fs = frame->fs;
+    cloned->tss.es = frame->es;
+    cloned->tss.ds = frame->ds;
+    cloned->tss.edi = frame->edi;
+    cloned->tss.esi = frame->esi;
+    cloned->tss.ebp = frame->ebp;
+    cloned->tss.esp = (uint32_t)jframe;
+    cloned->tss.esp0 = (uint32_t)s0;
+    cloned->tss.ebx = frame->ebx;
+    cloned->tss.edx = frame->edx;
+    cloned->tss.ecx = frame->ecx;
+    cloned->tss.eax = 0; // pid 0 child process
+    cloned->tss.eip = (uint32_t)irq_iret;
+    jframe->eip = frame->cpu.eip;
+    jframe->cs = frame->cpu.cs;
+    jframe->eflags = frame->cpu.eflags;
+    jframe->esp = frame->cpu.esp;
+    jframe->ss = frame->cpu.ss;
+    return 0;
+}
+
+struct utask *clone_utask(struct utask *task)
+{
+    int i, ret;
+    struct page_entry *dir = NULL;
+    struct utask *cloned = NULL;
+
+    cloned = (struct utask *)kmalloc(sizeof(struct utask));
+    if (cloned == NULL) {
+        errno = -ENOMEM;
+        return NULL;
+    }
+
+    *cloned = *task;
+    LIST_HEAD_INIT(&cloned->base.list);
+    LIST_HEAD_INIT(&cloned->base.running);
+    cloned->base.tss.esp0 = 0;
+
+    ret = setup_task_state(&task->base, &cloned->base);
+    if (ret != 0) {
+        goto error;
+    }
+    dir = clone_page_table((const struct page_entry *)task->base.tss.cr3);
+    if (dir == NULL) {
+        goto error;
+    }
+    cloned->base.tss.cr3 = (uint32_t)dir;
+
+    ret = install_tss(&cloned->base.tss, DA_DPL3);
+    if (ret < 0) {
+        goto error;
+    }
+    cloned->base.tss_sel = (uint16_t)ret;
+    cloned->base.cwd->rc++;
+    cloned->base.ticks = 0;
+    cloned->base.delay = 0;
+    cloned->base.cwd->rc++;
+    for (i = 0; i < NR_TASK_FILES; i++) {
+        if (cloned->base.files[i] != NULL) {
+            cloned->base.files[i]->rc++;
+        }
+    }
+    cloned->exe->rc++;
+
+    return cloned;
+
+error:
+    free_page_table(dir);
+    kfree((void *)cloned->base.tss.esp0);
+    kfree(cloned);
+    return NULL;
+}
+
 int destroy_task(struct task *task)
 {
-    int fd;
-    uninstall_tss(task->tss_sel);
+    int fd, ret;
+
+    ret = uninstall_tss(task->tss_sel);
+    if (ret != 0) {
+        errno = ret;
+        return ret;
+    }
     kfree(PTR_SUB((void *)task->tss.esp0, STACK0_SIZE));
     if (is_user(task)) {
-        free_user_page((void *)task->tss.cr3);
+        // free_page_table((struct page_entry *)task->tss.cr3);
         vfs_close(user_task(task)->exe);
     }
     for (fd = 0; fd < NR_TASK_FILES; fd++) {
